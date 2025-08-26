@@ -1,0 +1,7 @@
+name: playerstats
+version: '1.0'
+main: com.playerstats.Playerstats
+api-version: '1.21'
+authors: [ luci ]
+description: PaperAPI
+website: terracraft.net.ru
