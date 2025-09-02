@@ -1,7 +1,26 @@
-name: playerstats
+name: PlayerStats
 version: '1.0'
-main: com.playerstats.Playerstats
+main: com.playerstats.Main
 api-version: '1.21'
 authors: [ luci ]
-description: PaperAPI
+description: Статистика игрока и сервера
 website: terracraft.net.ru
+dependencies:
+  server:
+    PlaceholderAPI:
+      load: BEFORE
+      required: true
+    Vault:
+      load: BEFORE
+      required: true
+    Essentials:
+      load: BEFORE
+      required: true
+    LuckPerms:
+      load: BEFORE
+      required: true
+
+commands:
+  stats:
+    description: Show your stats
+    usage: /stats

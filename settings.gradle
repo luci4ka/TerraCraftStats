@@ -1,1 +1,9 @@
-rootProject.name = 'playerstatsnew'
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        maven { url "https://repo.papermc.io/repository/maven-public/" }
+        mavenCentral()
+    }
+}
+
+rootProject.name = "PlayerStats"

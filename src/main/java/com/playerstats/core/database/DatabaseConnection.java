@@ -1,4 +1,11 @@
-package com.playerstats.core.database.dao;
+package com.playerstats.core.database;
 
-public class DatabaseConnection {
+import java.sql.Connection;
+import java.sql.SQLException;
+
+public interface DatabaseConnection {
+    void connect() throws SQLException;
+    void disconnect() throws SQLException;
+    Connection getConnection() throws SQLException;
+    void initTables() throws SQLException;
 }

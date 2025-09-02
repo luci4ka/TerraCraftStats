@@ -1,0 +1,67 @@
+# =========================
+# PlayerStats Configuration
+# =========================
+
+config-version: 1            # Configuration version
+debug-level: 1               # 0 = off, 1 = basic, 2 = verbose
+enable-stat-sharing: true    # Enable sending stats to other servers
+only-allow-one-lookup-at-a-time-per-player: true # Prevent multiple simultaneous lookups per player
+
+multi-server:
+  enabled: true
+  server-name: "survival"   # Choose your server type: survival / creative / minigames
+
+# =========================
+# Server Names Translation
+# =========================
+# Map internal server IDs to readable names
+server-names:
+  survival: "Выживание"
+  creative: "Креатив"
+  minigames: "Мини-игры"
+
+# =========================
+# Clickable commands in the stats GUI
+# =========================
+# Each stat can have a clickable command for interaction
+stats-click-commands:
+  blocks: "/say Блоки"
+  pve: "/say PvE"
+  time: "/say Время"
+  pvp: "/say PvP"
+  balance: "/say Баланс"
+  group: "/say Группа"
+  server: "/say Сервер"
+
+# =========================
+# Database Configuration
+# =========================
+database:
+  type: sqlite              # "sqlite" or "mysql"
+  host: localhost           # MySQL host
+  port: 3306                # MySQL port
+  name: playerstats         # MySQL database name
+  user: root                # MySQL username
+  password: password        # MySQL password
+
+sqlite:
+  file: plugins/PlayerStats/playerstats.db  # Path to SQLite file
+
+# =========================
+# Player Groups & Formatting
+# =========================
+# You can use Minecraft color codes: §0–§f, plus §l (bold), §o (italic), §r (reset)
+groups:
+  default: "§rИгрок"
+  vip: "§6VIP"
+  premium: "§bPremium"
+  moder: "§2Модератор"
+  admin: "§4Администратор"
+  owner: "§c§lВладелец"
+  helper: "§3Помощник"
+  builder: "§5Строитель"
+
+api:
+  enabled: true         # Включить HTTP API
+  host: "0.0.0.0"      # Хост для сервера
+  port: 8080            # Порт
