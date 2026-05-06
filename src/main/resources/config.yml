@@ -2,36 +2,8 @@
 # PlayerStats Configuration
 # =========================
 
-config-version: 1            # Configuration version
+config-version: 1
 debug-level: 1               # 0 = off, 1 = basic, 2 = verbose
-enable-stat-sharing: true    # Enable sending stats to other servers
-only-allow-one-lookup-at-a-time-per-player: true # Prevent multiple simultaneous lookups per player
-
-multi-server:
-  enabled: true
-  server-name: "survival"   # Choose your server type: survival / creative / minigames
-
-# =========================
-# Server Names Translation
-# =========================
-# Map internal server IDs to readable names
-server-names:
-  survival: "Выживание"
-  creative: "Креатив"
-  minigames: "Мини-игры"
-
-# =========================
-# Clickable commands in the stats GUI
-# =========================
-# Each stat can have a clickable command for interaction
-stats-click-commands:
-  blocks: "/say Блоки"
-  pve: "/say PvE"
-  time: "/say Время"
-  pvp: "/say PvP"
-  balance: "/say Баланс"
-  group: "/say Группа"
-  server: "/say Сервер"
 
 # =========================
 # Database Configuration
@@ -45,23 +17,62 @@ database:
   password: password        # MySQL password
 
 sqlite:
-  file: plugins/PlayerStats/playerstats.db  # Path to SQLite file
+  file: plugins/PlayerStats/playerstats.db
+
+# =========================
+# Multi-Server
+# =========================
+multi-server:
+  enabled: false             # Enable if using multiple servers with one database
+  server-name: "survival"    # Unique server identifier
+
+# =========================
+# Server Names Translation
+# =========================
+server-names:
+  survival: "§aВыживание"
+  creative: "§bКреатив"
+  minigames: "§eМини-игры"
+
+# =========================
+# HTTP API
+# =========================
+api:
+  enabled: false             # Enable HTTP API for external access
+  host: "0.0.0.0"
+  port: 8080
 
 # =========================
 # Player Groups & Formatting
 # =========================
-# You can use Minecraft color codes: §0–§f, plus §l (bold), §o (italic), §r (reset)
 groups:
-  default: "§rИгрок"
+  default: "§7Игрок"
   vip: "§6VIP"
   premium: "§bPremium"
-  moder: "§2Модератор"
+  moderator: "§2Модератор"
   admin: "§4Администратор"
   owner: "§c§lВладелец"
   helper: "§3Помощник"
   builder: "§5Строитель"
 
-api:
-  enabled: true         # Включить HTTP API
-  host: "0.0.0.0"      # Хост для сервера
-  port: 8080            # Порт
+# =========================
+# Clickable commands in stats GUI
+# =========================
+stats-click-commands:
+  blocks: "/top blocks"
+  pve: "/top pve"
+  time: "/top time"
+  pvp: "/top pvp"
+  balance: "/balance"
+  group: "/groups"
+  server: "/server info"
+
+# =========================
+# Boss Detection Keywords
+# =========================
+mob-boss-keywords:
+  - "Босс"
+  - "Boss"
+  - "Elite"
+  - "Элитный"
+  - "World Boss"

@@ -8,4 +8,5 @@ public interface DatabaseConnection {
     void disconnect() throws SQLException;
     Connection getConnection() throws SQLException;
     void initTables() throws SQLException;
+    boolean isConnected();
 }

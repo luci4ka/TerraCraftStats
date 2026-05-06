@@ -23,9 +23,6 @@ dependencies {
     // Paper API — не включаем в ShadowJar
     paperweight.paperDevBundle("1.21.4-R0.1-SNAPSHOT")
 
-    // Аннотации — можно включить, мелкая зависимость
-    //implementation 'org.jetbrains:annotations:24.0.1'
-
     // Базы данных — включаем SQLite и MySQL, они нужны в плагине
     implementation "org.xerial:sqlite-jdbc:3.43.0.0"
     implementation 'mysql:mysql-connector-java:8.0.33'
@@ -33,11 +30,15 @@ dependencies {
     // Плагины, которые есть на сервере — указываем как compileOnly
     compileOnly 'me.clip:placeholderapi:2.11.6'
     compileOnly "net.luckperms:api:5.4"
-    compileOnly "com.github.Foulest:Vault:6fe01e4b73"
-    compileOnly "net.essentialsx:EssentialsX:2.21.2"
 
-    // ConfigUpdater и Adventure можно включить
-    //implementation 'com.tchristofferson:ConfigUpdater:2.2-SNAPSHOT'
+    // DecentHolograms
+    compileOnly 'com.github.decentsoftware-eu:decentholograms:2.9.9'
+
+    // Vault (экономика)
+    compileOnly 'com.github.Foulest:Vault:2.5.0'
+    compileOnly 'net.essentialsx:EssentialsX:2.21.2'
+
+    implementation 'com.zaxxer:HikariCP:5.1.0'
     implementation 'net.kyori:adventure-platform-bukkit:4.4.1'
 }
 

@@ -6,6 +6,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class PlayerStatsDAO {
 
@@ -13,19 +14,23 @@ public class PlayerStatsDAO {
     private final boolean isMySQL;
     private final StatTypeDAO statTypeDAO;
 
+    // Кэш stat_name → stat_type_id
+    private final Map<String, Integer> statTypeCache = new ConcurrentHashMap<>();
+
     public PlayerStatsDAO(DatabaseConnection db, boolean isMySQL, StatTypeDAO statTypeDAO) {
         this.db = db;
         this.isMySQL = isMySQL;
         this.statTypeDAO = statTypeDAO;
     }
 
-    /** ====== Int ====== */
+    // ==================== Int ====================
+
     public void setStat(int playerId, int serverId, int statTypeId, int value) throws SQLException {
         String query = isMySQL
-                ? "INSERT INTO player_stats (player_id, server_id, stat_type_id, value_int) VALUES (?, ?, ?, ?) " +
-                "ON DUPLICATE KEY UPDATE value_int = ?"
-                : "INSERT INTO player_stats (player_id, server_id, stat_type_id, value_int) VALUES (?, ?, ?, ?) " +
-                "ON CONFLICT(player_id, server_id, stat_type_id) DO UPDATE SET value_int = ?";
+                ? "INSERT INTO player_stats (player_id, server_id, stat_type_id, value_int) " +
+                "VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE value_int = ?"
+                : "INSERT INTO player_stats (player_id, server_id, stat_type_id, value_int) " +
+                "VALUES (?, ?, ?, ?) ON CONFLICT(player_id, server_id, stat_type_id) DO UPDATE SET value_int = ?";
         try (PreparedStatement stmt = db.getConnection().prepareStatement(query)) {
             stmt.setInt(1, playerId);
             stmt.setInt(2, serverId);
@@ -36,8 +41,14 @@ public class PlayerStatsDAO {
         }
     }
 
+    public void setStat(int playerId, int serverId, String statName, int value) throws SQLException {
+        int statTypeId = getOrCacheStatTypeId(statName);
+        setStat(playerId, serverId, statTypeId, value);
+    }
+
     public int getStat(int playerId, int serverId, int statTypeId) throws SQLException {
-        String query = "SELECT value_int FROM player_stats WHERE player_id = ? AND server_id = ? AND stat_type_id = ?";
+        String query = "SELECT value_int FROM player_stats " +
+                "WHERE player_id = ? AND server_id = ? AND stat_type_id = ?";
         try (PreparedStatement stmt = db.getConnection().prepareStatement(query)) {
             stmt.setInt(1, playerId);
             stmt.setInt(2, serverId);
@@ -49,24 +60,20 @@ public class PlayerStatsDAO {
         return 0;
     }
 
-    public void setStat(int playerId, int serverId, String statName, int value) throws SQLException {
-        int statTypeId = statTypeDAO.createOrGetStatType(statName);
-        setStat(playerId, serverId, statTypeId, value);
-    }
-
     public int getStat(int playerId, int serverId, String statName) throws SQLException {
-        int statTypeId = statTypeDAO.createOrGetStatType(statName);
+        int statTypeId = getOrCacheStatTypeId(statName);
         return getStat(playerId, serverId, statTypeId);
     }
 
-    /** ====== Double ====== */
+    // ==================== Double ====================
+
     public void setStatDouble(int playerId, int serverId, String statName, double value) throws SQLException {
-        int statTypeId = statTypeDAO.createOrGetStatType(statName);
+        int statTypeId = getOrCacheStatTypeId(statName);
         String query = isMySQL
-                ? "INSERT INTO player_stats (player_id, server_id, stat_type_id, value_double) VALUES (?, ?, ?, ?) " +
-                "ON DUPLICATE KEY UPDATE value_double = ?"
-                : "INSERT INTO player_stats (player_id, server_id, stat_type_id, value_double) VALUES (?, ?, ?, ?) " +
-                "ON CONFLICT(player_id, server_id, stat_type_id) DO UPDATE SET value_double = ?";
+                ? "INSERT INTO player_stats (player_id, server_id, stat_type_id, value_double) " +
+                "VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE value_double = ?"
+                : "INSERT INTO player_stats (player_id, server_id, stat_type_id, value_double) " +
+                "VALUES (?, ?, ?, ?) ON CONFLICT(player_id, server_id, stat_type_id) DO UPDATE SET value_double = ?";
         try (PreparedStatement stmt = db.getConnection().prepareStatement(query)) {
             stmt.setInt(1, playerId);
             stmt.setInt(2, serverId);
@@ -77,28 +84,34 @@ public class PlayerStatsDAO {
         }
     }
 
+    /**
+     * Получить double-значение статистики.
+     * Если value_double is NULL, пробует value_int (приведение).
+     */
     public double getStatDouble(int playerId, int serverId, String statName) throws SQLException {
-        int statTypeId = statTypeDAO.createOrGetStatType(statName);
-        String query = "SELECT value_double FROM player_stats WHERE player_id = ? AND server_id = ? AND stat_type_id = ?";
+        int statTypeId = getOrCacheStatTypeId(statName);
+        String query = "SELECT COALESCE(value_double, value_int, 0) AS value FROM player_stats " +
+                "WHERE player_id = ? AND server_id = ? AND stat_type_id = ?";
         try (PreparedStatement stmt = db.getConnection().prepareStatement(query)) {
             stmt.setInt(1, playerId);
             stmt.setInt(2, serverId);
             stmt.setInt(3, statTypeId);
             try (ResultSet rs = stmt.executeQuery()) {
-                if (rs.next()) return rs.getDouble("value_double");
+                if (rs.next()) return rs.getDouble("value");
             }
         }
         return 0.0;
     }
 
-    /** ====== String ====== */
+    // ==================== String ====================
+
     public void setStatString(int playerId, int serverId, String statName, String value) throws SQLException {
-        int statTypeId = statTypeDAO.createOrGetStatType(statName);
+        int statTypeId = getOrCacheStatTypeId(statName);
         String query = isMySQL
-                ? "INSERT INTO player_stats (player_id, server_id, stat_type_id, value_string) VALUES (?, ?, ?, ?) " +
-                "ON DUPLICATE KEY UPDATE value_string = ?"
-                : "INSERT INTO player_stats (player_id, server_id, stat_type_id, value_string) VALUES (?, ?, ?, ?) " +
-                "ON CONFLICT(player_id, server_id, stat_type_id) DO UPDATE SET value_string = ?";
+                ? "INSERT INTO player_stats (player_id, server_id, stat_type_id, value_string) " +
+                "VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE value_string = ?"
+                : "INSERT INTO player_stats (player_id, server_id, stat_type_id, value_string) " +
+                "VALUES (?, ?, ?, ?) ON CONFLICT(player_id, server_id, stat_type_id) DO UPDATE SET value_string = ?";
         try (PreparedStatement stmt = db.getConnection().prepareStatement(query)) {
             stmt.setInt(1, playerId);
             stmt.setInt(2, serverId);
@@ -110,8 +123,9 @@ public class PlayerStatsDAO {
     }
 
     public String getStatString(int playerId, int serverId, String statName) throws SQLException {
-        int statTypeId = statTypeDAO.createOrGetStatType(statName);
-        String query = "SELECT value_string FROM player_stats WHERE player_id = ? AND server_id = ? AND stat_type_id = ?";
+        int statTypeId = getOrCacheStatTypeId(statName);
+        String query = "SELECT value_string FROM player_stats " +
+                "WHERE player_id = ? AND server_id = ? AND stat_type_id = ?";
         try (PreparedStatement stmt = db.getConnection().prepareStatement(query)) {
             stmt.setInt(1, playerId);
             stmt.setInt(2, serverId);
@@ -123,14 +137,20 @@ public class PlayerStatsDAO {
         return null;
     }
 
-    /** ====== Дополнительно ====== */
+    // ==================== Сводные данные ====================
 
-    // Все статы игрока на конкретном сервере
+    /**
+     * Все статы игрока на конкретном сервере.
+     * Возвращает int-значения (для double-статов используйте {@link #getAllStatsDetailed}).
+     */
     public Map<String, Integer> getAllStatsForPlayer(int playerId, int serverId) throws SQLException {
-        Map<String, Integer> stats = new HashMap<>();
-        String query = "SELECT s.name, ps.value_int FROM player_stats ps " +
-                "JOIN stat_types s ON ps.stat_type_id = s.id " +
-                "WHERE ps.player_id = ? AND ps.server_id = ?";
+        Map<String, Integer> stats = new LinkedHashMap<>();
+        String query = """
+            SELECT s.name, ps.value_int
+            FROM player_stats ps
+            JOIN stat_types s ON ps.stat_type_id = s.id
+            WHERE ps.player_id = ? AND ps.server_id = ?
+            """;
         try (PreparedStatement stmt = db.getConnection().prepareStatement(query)) {
             stmt.setInt(1, playerId);
             stmt.setInt(2, serverId);
@@ -143,12 +163,20 @@ public class PlayerStatsDAO {
         return stats;
     }
 
-    // Суммарные статы игрока по всем серверам
+    /**
+     * Суммарные статы игрока по всем серверам (только int).
+     * Использует COALESCE для учёта double-значений.
+     */
     public Map<String, Integer> getTotalStatsForPlayer(int playerId) throws SQLException {
-        Map<String, Integer> stats = new HashMap<>();
-        String query = "SELECT s.name, SUM(ps.value_int) as total FROM player_stats ps " +
-                "JOIN stat_types s ON ps.stat_type_id = s.id " +
-                "WHERE ps.player_id = ? GROUP BY s.name";
+        Map<String, Integer> stats = new LinkedHashMap<>();
+        String query = """
+            SELECT s.name, 
+                   SUM(COALESCE(ps.value_double, ps.value_int, 0)) AS total
+            FROM player_stats ps
+            JOIN stat_types s ON ps.stat_type_id = s.id
+            WHERE ps.player_id = ?
+            GROUP BY s.name
+            """;
         try (PreparedStatement stmt = db.getConnection().prepareStatement(query)) {
             stmt.setInt(1, playerId);
             try (ResultSet rs = stmt.executeQuery()) {
@@ -159,24 +187,77 @@ public class PlayerStatsDAO {
         }
         return stats;
     }
-    /**
-     * Получаем топ игроков по типу статистики (int или double).
-     * @param statName имя статистики ("play_time", "mobs_killed", "blocks_placed", "balance")
-     * @param limit количество игроков в топе
-     * @return список пар "имя игрока" → "значение"
-     */
-    public List<Map.Entry<String, Number>> getTopPlayers(String statName, int limit) throws SQLException {
-        int statTypeId = statTypeDAO.createOrGetStatType(statName);
 
-        String valueColumn = (statName.equals("balance")) ? "value_double" : "value_int";
-        String sql = isMySQL
-                ? "SELECT p.name, ps." + valueColumn + " AS value " +
-                "FROM player_stats ps " +
-                "JOIN players p ON ps.player_id = p.id " +
-                "WHERE ps.stat_type_id = ? " +
-                "ORDER BY ps." + valueColumn + " DESC " +
-                "LIMIT ?"
-                : "SELECT p.name, ps." + valueColumn + " AS value " +
+    /**
+     * Детальная статистика игрока на конкретном сервере.
+     * Возвращает все три типа значений.
+     */
+    public Map<String, StatValue> getAllStatsDetailed(int playerId, int serverId) throws SQLException {
+        Map<String, StatValue> stats = new LinkedHashMap<>();
+        String query = """
+            SELECT s.name, ps.value_int, ps.value_double, ps.value_string
+            FROM player_stats ps
+            JOIN stat_types s ON ps.stat_type_id = s.id
+            WHERE ps.player_id = ? AND ps.server_id = ?
+            """;
+        try (PreparedStatement stmt = db.getConnection().prepareStatement(query)) {
+            stmt.setInt(1, playerId);
+            stmt.setInt(2, serverId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    String name = rs.getString("name");
+                    int intVal = rs.getInt("value_int");
+                    double doubleVal = rs.getDouble("value_double");
+                    String strVal = rs.getString("value_string");
+                    stats.put(name, new StatValue(intVal, doubleVal, strVal));
+                }
+            }
+        }
+        return stats;
+    }
+
+    /**
+     * Контейнер для значений статистики.
+     */
+    public record StatValue(int valueInt, double valueDouble, String valueString) {
+        public Number getNumberValue() {
+            if (valueDouble != 0.0 || valueInt == 0) {
+                return valueDouble;
+            }
+            return valueInt;
+        }
+    }
+
+    // ==================== Кэширование ====================
+
+    private int getOrCacheStatTypeId(String statName) throws SQLException {
+        Integer cached = statTypeCache.get(statName);
+        if (cached != null) return cached;
+
+        int id = statTypeDAO.createOrGetStatType(statName);
+        statTypeCache.put(statName, id);
+        return id;
+    }
+
+    /**
+     * Очистить кэш stat_type_id (при перезагрузке конфига, например).
+     */
+    public void clearCache() {
+        statTypeCache.clear();
+    }
+
+    // ==================== ДЕПРЕКЕЙТЕД: перенесено в LeaderboardDAO ====================
+
+    /**
+     * @deprecated Используйте {@link LeaderboardDAO#getTop(String, int, int)}
+     */
+    @Deprecated
+    public List<Map.Entry<String, Number>> getTopPlayers(String statName, int limit) throws SQLException {
+        // Делегируем в LeaderboardDAO, НО с serverId = -1 (некорректно для мультисерверности!)
+        // Оставлено только для обратной совместимости
+        int statTypeId = getOrCacheStatTypeId(statName);
+        String valueColumn = statName.equals("balance") ? "value_double" : "value_int";
+        String sql = "SELECT p.name, ps." + valueColumn + " AS value " +
                 "FROM player_stats ps " +
                 "JOIN players p ON ps.player_id = p.id " +
                 "WHERE ps.stat_type_id = ? " +
@@ -190,7 +271,9 @@ public class PlayerStatsDAO {
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
                     String playerName = rs.getString("name");
-                    Number value = (statName.equals("balance")) ? rs.getDouble("value") : rs.getInt("value");
+                    Number value = statName.equals("balance")
+                            ? rs.getDouble("value")
+                            : rs.getInt("value");
                     topList.add(new AbstractMap.SimpleEntry<>(playerName, value));
                 }
             }
