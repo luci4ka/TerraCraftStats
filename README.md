@@ -2,7 +2,7 @@
 
 **PlayerStats** — плагин для отслеживания и отображения статистики игроков с поддержкой MySQL/SQLite, HTTP API, мультисерверности и интеграциями.
 
-[![Version](https://img.shields.io/github/v/release/luci4ka/PlayerStats)](https://github.com/luci4ka/PlayerStats/releases/tag/1.1.2)
+[![Version](https://img.shields.io/github/v/release/luci4ka/PlayerStats)](https://github.com/luci4ka/PlayerStats/releases)
 [![Paper](https://img.shields.io/badge/Paper-1.21-blue.svg)](https://papermc.io)
 [![Minecraft](https://img.shields.io/badge/Minecraft-1.21-green.svg)](https://papermc.io)
 [![Web API](https://img.shields.io/badge/API-HTTP-orange.svg)](#-http-api)
