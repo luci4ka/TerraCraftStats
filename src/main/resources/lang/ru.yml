@@ -1,0 +1,171 @@
+# =========================
+# PlayerStats — Русский
+# =========================
+
+# Общие
+prefix: "<gold>[PlayerStats]</gold> <gray>"
+no-permission: "<red>У вас нет прав для этой команды."
+player-not-found: "<red>Игрок '<yellow>{player}</yellow>' не найден."
+error: "<red>Произошла ошибка. Проверьте консоль."
+
+# /stats
+stats:
+  header: "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  title-self: "<gold>📊 Статистика на сервере <aqua>{server}</aqua>"
+  title-other: "<gold>📊 Статистика игрока <yellow>{player}</yellow> на сервере <aqua>{server}</aqua>"
+  blocks: "<green>🧱 Блоки  <white>Поставлено: {placed} | Сломано: {broken}"
+  blocks-hover: "<gray>Всего: {total-placed} / {total-broken}"
+  pve: "<green>☠ PvE  <white>Мобы: {mobs} | Боссы: {bosses}"
+  pve-hover: "<gray>Всего: {total-mobs} / {total-bosses}"
+  time: "<green>⏳ Время  <white>{time}"
+  time-hover: "<gray>Всего: {total-time}"
+  pvp: "<green>⚔ PvP  <white>Убийств: {kills} | Смертей: {deaths}"
+  pvp-hover: "<gray>Всего: {total-kills} / {total-deaths}"
+  balance: "<green>💰 Баланс  <white>{value}"
+  balance-hover: "<gray>Текущий баланс"
+  group: "<green>🎖 Привилегия  {value}"
+  group-hover: "<gray>Текущая группа"
+  mobs-header: "<gold>▸ Убийства мобов:"
+  blocks-placed-header: "<gold>▸ Поставлено блоков:"
+  blocks-broken-header: "<gold>▸ Сломано блоков:"
+  mob-line: "<gray>  {value}"
+  block-line: "<gray>  {value}"
+  # ===== Подсказка о подкомандах =====
+  hint-subcommands: "<gray>Подробнее: <yellow>/stats pvp <gray>| <yellow>/stats mob <gray>| <yellow>/stats block"
+  # ===== PvP =====
+  pvp-title-self: "<yellow>⚔ <white>Ваша PvP-статистика <gray>| <green>Убийств: <white>{kills} <gray>| <red>Смертей: <white>{deaths} <gray>| <gold>K/D: <white>{kd}"
+  pvp-title-other: "<yellow>⚔ <white>PvP-статистика <yellow>{player} <gray>| <green>Убийств: <white>{kills} <gray>| <red>Смертей: <white>{deaths} <gray>| <gold>K/D: <white>{kd}"
+  pvp-header: "<gray>Убито игроков: <white>{count}"
+  pvp-empty: "<gray>Нет данных о PvP."
+  # ===== Mob =====
+  mob-title-self: "<yellow>☠ <white>Ваша PvE-статистика <gray>| <green>Мобов: <white>{mobs} <gray>| <gold>Боссов: <white>{bosses}"
+  mob-title-other: "<yellow>☠ <white>PvE-статистика <yellow>{player} <gray>| <green>Мобов: <white>{mobs} <gray>| <gold>Боссов: <white>{bosses}"
+  mob-header: "<gray>Убито типов мобов: <white>{count}"
+  mob-empty: "<gray>Нет данных о мобах."
+  # ===== Block =====
+  block-title-self: "<yellow>🧱 <white>Ваша статистика блоков <gray>| <green>Поставлено: <white>{placed} <gray>| <red>Сломано: <white>{broken}"
+  block-title-other: "<yellow>🧱 <white>Статистика блоков <yellow>{player} <gray>| <green>Поставлено: <white>{placed} <gray>| <red>Сломано: <white>{broken}"
+  block-placed-header: "<green>🏗 Поставлено (<white>{count}<green> типов):"
+  block-broken-header: "<gold>⛏ Сломано (<white>{count}<gold> типов):"
+  block-empty: "<gray>Нет данных."
+
+# =========================
+# Server Stats
+# =========================
+serverstats:
+  title: "<gold>📊 Статистика сервера <aqua>{server}</aqua>"
+  unique-players: "<green>👥 Уникальных игроков: <white>{value}"
+  line: "<green>▸ {name}: <white>{value}"
+  line-time: "<green>▸ {name}: <white>{value}"
+  line-balance: "<green>▸ {name}: <gold>{value}"
+
+# /top
+top:
+  header: "<dark_gray>━━━━━━━━━━ <gold>Топы сервера</gold> ━━━━━━━━━━"
+  footer: "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  category-time: "<yellow>▸ ⏳ Время игры"
+  category-mobs: "<yellow>▸ ☠ Убито мобов"
+  category-blocks: "<yellow>▸ ⛏ Поставлено блоков"
+  category-pvp: "<yellow>▸ ⚔ PvP (убийства игроков)"
+  category-balance: "<yellow>▸ 💰 Баланс"
+  no-data: "<gray>   Нет данных"
+  refresh: "<gray>[Обновить]"
+  refresh-hover: "<gray>Нажмите, чтобы обновить топ"
+  category-custom: "<yellow>▸ Топ: <white>{stat}"
+  category-pvp-victim: "<yellow>⚔ Убийства игрока <white>{victim}"
+
+compare:
+  self: "<red>Нельзя сравнить статистику с самим собой."
+  header: "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  title: "<gold>📊 Сравнение: <yellow>{player1}</yellow> vs <yellow>{player2}</yellow>"
+  time:
+    line: "<green>⏳ Время:"
+  balance:
+    line: "<green>💰 Баланс:"
+
+# /share
+share:
+  self: "<red>Нельзя поделиться статистикой с самим собой. Используйте /stats."
+  broadcast: "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n<gold>📊 <yellow>{player}</yellow> поделился статистикой!\n<gray>Сервер: <aqua>{server}</aqua> <gray>| Группа: <light_purple>{group}"
+  broadcast-hover: "<gray>Нажмите /stats"
+  stats: "\n<green>⏳ Время: <white>{time} <gray>(всего: {total-time})\n<green>☠ PvE: <white>Мобы {mobs} | Боссы {bosses} <gray>(всего мобов: {total-mobs})\n<green>⛏ Блоки: <white>Поставлено {blocks}\n<green>⚔ PvP: <white>Убийств {kills} | Смертей {deaths} <gray>| K/D: {kd}\n<green>💰 Баланс: <gold>{balance}\n<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  private-sender: "<green>Вы поделились статистикой с <yellow>{target}</yellow>"
+  private-target: "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n<gold>📊 <yellow>{player}</yellow> поделился с вами статистикой:\n<gray>Сервер: <aqua>{server}</aqua> <gray>| Группа: <light_purple>{group}\n<green>⏳ Время: <white>{time} <gray>(всего: {total-time})\n<green>☠ PvE: <white>Мобы {mobs} | Боссы {bosses}\n<green>⚔ PvP: <white>Убийств {kills} | Смертей {deaths} <gray>| K/D: {kd}\n<green>💰 Баланс: <gold>{balance}\n<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  private-hover: "<gray>Статистика игрока {player}"
+
+# /exclude
+exclude:
+  added: "<green>✅ Игрок <yellow>{player}</yellow> исключён из статистики."
+  removed: "<green>✅ Игрок <yellow>{player}</yellow> возвращён в статистику."
+  already-excluded: "<yellow>Игрок '<white>{player}</white>' уже исключён."
+  not-excluded: "<yellow>Игрок '<white>{player}</white>' не исключён."
+  never-played: "<red>Игрок '<white>{player}</white>' никогда не играл на сервере."
+  list-header: "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━\n<gold>🚫 Исключённые игроки (<yellow>{count}</yellow>):"
+  list-empty: "<yellow>Нет исключённых игроков."
+  list-footer: "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  list-entry: "<dark_gray>  • <red>{player}"
+  help: |
+    <dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━
+    <gold>🚫 Управление исключениями:
+    <yellow>/exclude <player> <gray>— исключить из статистики
+    <yellow>/exclude remove <player> <gray>— вернуть в статистику
+    <yellow>/exclude list <gray>— список исключённых
+    <dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# /playerstats
+reload:
+  starting: "<gold>[PlayerStats] Начинаю перезагрузку..."
+  success: "<green>[PlayerStats] ✅ Конфиг перезагружен, кэши очищены!"
+  error: "<red>[PlayerStats] ❌ Ошибка при перезагрузке! Проверьте консоль."
+  info-db: "<gray>  База данных: <white>{type}"
+  info-server: "<gray>  Сервер: <white>{server} (ID: {id})"
+  info-api: "<gray>  API: {status}"
+  info-api-host: "<gray>  API Хост: <white>{host}"
+  info-multi: "<gray>  Мультисерверность: {status}"
+
+# /playerstats info
+info:
+  header: "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  title: "<gold>📊 PlayerStats <yellow>v{version}"
+  author: "<gray>  Автор: <white>{authors}"
+  server: "<gray>  Сервер: <white>{server} (ID: {id})"
+  database: "<gray>  База данных: <white>{type} {status}"
+  api: "<gray>  HTTP API: {status}"
+  api-host: " <white>({host})"
+  multi: "<gray>  Мультисерверность: {status}"
+  debug: "<gray>  Debug: <white>{level}"
+  integrations: "<gray>  Интеграции:"
+  hook-enabled: "<gray>    <green>✅ {name}"
+  hook-disabled: "<gray>    <red>❌ {name}"
+  bukkit-server: "<gray>  Сервер (Bukkit): <white>{name} {version}"
+
+# Статусы
+status:
+  enabled: "<green>Включен"
+  disabled: "<red>Выключен"
+  enabled-f: "<green>Включена"
+  disabled-f: "<red>Выключена"
+  connected: "<green>✅"
+  disconnected: "<red>❌"
+
+# Время
+time:
+  seconds: "{seconds}с"
+  minutes: "{minutes}м"
+  hours: "{hours}ч {minutes}м"
+
+help:
+  header: "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  title: "<gold>📊 PlayerStats <yellow>— Помощь"
+  commands-title: "<gold>Команды:"
+  command-stats: "<yellow>/stats <gray>— своя статистика"
+  command-stats-other: "<yellow>/stats <player> <gray>— статистика игрока"
+  command-stats-gui: "<yellow>/stats gui <gray>— GUI со статистикой"
+  command-top: "<yellow>/top <gray>— топы сервера"
+  command-share: "<yellow>/share [player] <gray>— поделиться статистикой"
+  command-compare: "<yellow>/compare <player> <gray>— сравнить статистику"
+  command-exclude: "<yellow>/exclude <player> [remove|list] <gray>— исключения"
+  command-reload: "<yellow>/playerstats reload <gray>— перезагрузка"
+  command-info: "<yellow>/playerstats info <gray>— информация о плагине"
+  command-update: "<yellow>/playerstats update <gray>— проверить обновления"
+  footer: "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

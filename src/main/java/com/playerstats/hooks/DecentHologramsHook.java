@@ -9,6 +9,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.Location;
 
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
 
@@ -54,44 +55,48 @@ public class DecentHologramsHook implements Hook {
 
     /**
      * Создать голограмму с топ-5 игроков по статистике.
-     *
-     * @param hologramName имя голограммы
-     * @param location     место для голограммы
-     * @param statName     статистика для топа
-     * @param title        заголовок голограммы
+     * Если голограмма уже существует — обновляет её строки.
      */
     public void createTopHologram(String hologramName, Location location, String statName, String title) {
         if (!isEnabled()) return;
 
-        // Удаляем старую голограмму, если есть
-        Hologram old = DHAPI.getHologram(hologramName);
-        if (old != null) old.delete();
+        // Проверяем, существует ли голограмма
+        Hologram existing = DHAPI.getHologram(hologramName);
+        if (existing != null) {
+            // Обновляем существующую — безопасно и без мерцания
+            updateHologramLines(existing, statName, title);
+            return;
+        }
 
         // Создаём новую
-        List<String> lines = new java.util.ArrayList<>();
+        List<String> lines = new ArrayList<>();
         lines.add(title);
         lines.add("§7Загрузка...");
 
         Hologram hologram = DHAPI.createHologram(hologramName, location, lines);
 
         // Обновляем содержимое асинхронно
-        updateHologram(hologram, statName);
+        updateHologramLines(hologram, statName, title);
     }
 
     /**
-     * Обновить голограмму с актуальным топом.
+     * Обновить строки существующей голограммы через DHAPI.
+     * Это правильный способ — без удаления и создания заново.
      */
-    private void updateHologram(Hologram hologram, String statName) {
+    private void updateHologramLines(Hologram hologram, String statName, String title) {
         plugin.getThreadManager().runAsync(() -> {
             try {
                 LeaderboardDAO leaderboardDAO = new LeaderboardDAO(
-                        plugin.getConnection(), plugin.getStatTypeDAO());
+                        plugin,                    // ← ДОБАВЛЕН plugin
+                        plugin.getConnection(),
+                        plugin.getStatTypeDAO()
+                );
 
                 List<LeaderboardEntry> top = leaderboardDAO.getTop(
                         statName, plugin.getServerId(), 5);
 
-                List<String> lines = new java.util.ArrayList<>();
-                lines.add("§6§lТоп " + formatStatName(statName));
+                List<String> lines = new ArrayList<>();
+                lines.add(title);
 
                 int rank = 1;
                 for (LeaderboardEntry entry : top) {
@@ -110,22 +115,18 @@ public class DecentHologramsHook implements Hook {
                     lines.add("§7Нет данных");
                 }
 
-                // Используем DHAPI для обновления
-                final List<String> finalLines = lines;
-                final String hologramName = hologram.getName();
-
+                // Обновляем строки в главном потоке
                 plugin.getThreadManager().runSync(() -> {
-                    // Удаляем старую и создаём новую голограмму с тем же именем
-                    Hologram old = DHAPI.getHologram(hologramName);
-                    if (old != null) {
-                        org.bukkit.Location loc = old.getLocation();
-                        old.delete();
-                        DHAPI.createHologram(hologramName, loc, finalLines);
-                    }
+                    // Проверяем, что голограмма ещё существует
+                    Hologram current = DHAPI.getHologram(hologram.getName());
+                    if (current == null) return;
+
+                    // Правильный способ обновления — setHologramLines
+                    DHAPI.setHologramLines(current, lines);
                 });
 
             } catch (SQLException e) {
-                plugin.getLogger().log(java.util.logging.Level.WARNING,
+                plugin.getLogger().log(Level.WARNING,
                         "Ошибка обновления голограммы " + hologram.getName(), e);
             }
         });
@@ -147,7 +148,6 @@ public class DecentHologramsHook implements Hook {
             default -> statName;
         };
     }
-
 
     private String formatValue(double value, String statName) {
         return switch (statName) {

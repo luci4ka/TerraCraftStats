@@ -1,25 +1,27 @@
 package com.playerstats.core.database.dao;
 
+import com.playerstats.Main;
 import com.playerstats.core.database.DatabaseConnection;
 
+import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class StatTypeDAO {
 
+    private final Main plugin;
     private final DatabaseConnection db;
     private final boolean isMySQL;
 
-    // Кэш: name → id и id → name
     private final Map<String, Integer> nameToIdCache = new ConcurrentHashMap<>();
     private final Map<Integer, String> idToNameCache = new ConcurrentHashMap<>();
 
-    public StatTypeDAO(DatabaseConnection db, boolean isMySQL) {
+    public StatTypeDAO(Main plugin, DatabaseConnection db, boolean isMySQL) {
+        this.plugin = plugin;
         this.db = db;
         this.isMySQL = isMySQL;
     }
@@ -28,31 +30,32 @@ public class StatTypeDAO {
 
     /**
      * Получить ID типа статистики, если не существует — создать.
-     * Потокобезопасен: атомарная вставка.
-     *
-     * @param name название типа статистики
-     * @return ID типа статистики
-     * @throws SQLException если БД недоступна
      */
     public int createOrGetStatType(String name) throws SQLException {
-        // Проверяем кэш
         Integer cached = nameToIdCache.get(name);
-        if (cached != null) return cached;
+        if (cached != null) {
+            if (isVerboseDebug()) {
+                plugin.getLogger().info("[DEBUG] StatType: кэш " + name + " → " + cached);
+            }
+            return cached;
+        }
 
-        // Атомарная вставка
+        if (isVerboseDebug()) {
+            plugin.getLogger().info("[DEBUG] StatType: создание " + name);
+        }
+
         int id = insertOrGetStatType(name);
 
-        // Кэшируем
         nameToIdCache.put(name, id);
         idToNameCache.put(id, name);
+
+        if (isVerboseDebug()) {
+            plugin.getLogger().info("[DEBUG] StatType: создан " + name + " → " + id);
+        }
 
         return id;
     }
 
-    /**
-     * Атомарная вставка или получение ID типа статистики.
-     * Без гонки потоков!
-     */
     private int insertOrGetStatType(String name) throws SQLException {
         if (isMySQL) {
             return insertOrGetStatTypeMySQL(name);
@@ -61,45 +64,39 @@ public class StatTypeDAO {
         }
     }
 
-    /**
-     * MySQL: INSERT ... ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id)
-     * LAST_INSERT_ID(id) возвращает СУЩЕСТВУЮЩИЙ ID без выделения нового AUTO_INCREMENT.
-     */
     private int insertOrGetStatTypeMySQL(String name) throws SQLException {
+        if (isVerboseDebug()) {
+            plugin.getLogger().info("[DEBUG] SQL: INSERT IGNORE stat_types (MySQL) name=" + name);
+        }
+
         String sql = "INSERT INTO stat_types (name) VALUES (?) " +
-                "ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id)";
-        try (PreparedStatement stmt = db.getConnection().prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+                "ON DUPLICATE KEY UPDATE name = VALUES(name)";
+        try (Connection conn = db.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, name);
             stmt.executeUpdate();
-            try (ResultSet rs = stmt.getGeneratedKeys()) {
-                if (rs.next()) {
-                    return rs.getInt(1);
-                }
-            }
         }
-        // Если не получили ключ (маловероятно) — SELECT
         return getStatTypeIdDirect(name);
     }
 
-    /**
-     * SQLite: INSERT OR IGNORE, затем SELECT.
-     */
     private int insertOrGetStatTypeSQLite(String name) throws SQLException {
+        if (isVerboseDebug()) {
+            plugin.getLogger().info("[DEBUG] SQL: INSERT IGNORE stat_types (SQLite) name=" + name);
+        }
+
         String insertSQL = "INSERT OR IGNORE INTO stat_types (name) VALUES (?)";
-        try (PreparedStatement stmt = db.getConnection().prepareStatement(insertSQL)) {
+        try (Connection conn = db.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(insertSQL)) {
             stmt.setString(1, name);
             stmt.executeUpdate();
         }
-        // В любом случае (вставлен или уже существовал) читаем ID
         return getStatTypeIdDirect(name);
     }
 
-    /**
-     * Прямой SELECT ID (без кэша).
-     */
     private int getStatTypeIdDirect(String name) throws SQLException {
         String sql = "SELECT id FROM stat_types WHERE name = ?";
-        try (PreparedStatement stmt = db.getConnection().prepareStatement(sql)) {
+        try (Connection conn = db.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, name);
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) return rs.getInt("id");
@@ -110,21 +107,25 @@ public class StatTypeDAO {
 
     // ==================== Получение ID ====================
 
-    /**
-     * Получить ID типа статистики. Если не найден — вернёт -1.
-     */
     public int getStatTypeId(String name) throws SQLException {
         Integer cached = nameToIdCache.get(name);
         if (cached != null) return cached;
 
         String sql = "SELECT id FROM stat_types WHERE name = ?";
-        try (PreparedStatement stmt = db.getConnection().prepareStatement(sql)) {
+        try (Connection conn = db.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, name);
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
                     int id = rs.getInt("id");
                     nameToIdCache.put(name, id);
                     idToNameCache.put(id, name);
+
+                    if (isVerboseDebug()) {
+                        plugin.getLogger().info("[DEBUG] StatType: загружен из БД "
+                                + name + " → " + id);
+                    }
+
                     return id;
                 }
             }
@@ -134,15 +135,13 @@ public class StatTypeDAO {
 
     // ==================== Получение имени ====================
 
-    /**
-     * Получить название типа статистики по ID.
-     */
     public String getStatTypeName(int statTypeId) throws SQLException {
         String cached = idToNameCache.get(statTypeId);
         if (cached != null) return cached;
 
         String sql = "SELECT name FROM stat_types WHERE id = ?";
-        try (PreparedStatement stmt = db.getConnection().prepareStatement(sql)) {
+        try (Connection conn = db.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, statTypeId);
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
@@ -158,47 +157,55 @@ public class StatTypeDAO {
 
     // ==================== Список всех типов ====================
 
-    /**
-     * Получить все типы статистики и их ID.
-     *
-     * @return Map<ID, Название>
-     */
     public Map<Integer, String> getAllStatTypes() throws SQLException {
+        if (isVerboseDebug()) {
+            plugin.getLogger().info("[DEBUG] SQL: getAllStatTypes()");
+        }
+
         Map<Integer, String> types = new LinkedHashMap<>();
         String sql = "SELECT id, name FROM stat_types ORDER BY id";
-        try (PreparedStatement stmt = db.getConnection().prepareStatement(sql);
+        try (Connection conn = db.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql);
              ResultSet rs = stmt.executeQuery()) {
             while (rs.next()) {
                 int id = rs.getInt("id");
                 String name = rs.getString("name");
                 types.put(id, name);
-                // Прогреваем кэш
                 idToNameCache.put(id, name);
                 nameToIdCache.put(name, id);
             }
         }
+
+        if (isVerboseDebug()) {
+            plugin.getLogger().info("[DEBUG] SQL: getAllStatTypes → "
+                    + types.size() + " типов");
+        }
+
         return types;
     }
 
-    /**
-     * Проверить, существует ли тип статистики.
-     */
     public boolean statTypeExists(String name) throws SQLException {
         return getStatTypeId(name) != -1;
     }
 
     // ==================== Удаление ====================
 
-    /**
-     * Удалить тип статистики (осторожно: каскадное удаление связанных записей!).
-     */
     public void deleteStatType(String name) throws SQLException {
-        String sql = "DELETE FROM stat_types WHERE name = ?";
-        try (PreparedStatement stmt = db.getConnection().prepareStatement(sql)) {
-            stmt.setString(1, name);
-            stmt.executeUpdate();
+        if (isVerboseDebug()) {
+            plugin.getLogger().info("[DEBUG] SQL: deleteStatType(name=" + name + ")");
         }
-        // Очищаем кэш
+
+        String sql = "DELETE FROM stat_types WHERE name = ?";
+        try (Connection conn = db.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, name);
+            int deleted = stmt.executeUpdate();
+
+            if (isVerboseDebug()) {
+                plugin.getLogger().info("[DEBUG] SQL: deleteStatType → удалено "
+                        + deleted + " записей");
+            }
+        }
         Integer id = nameToIdCache.remove(name);
         if (id != null) {
             idToNameCache.remove(id);
@@ -207,18 +214,27 @@ public class StatTypeDAO {
 
     // ==================== Кэш ====================
 
-    /**
-     * Полностью очистить кэш.
-     */
     public void clearCache() {
+        if (isVerboseDebug()) {
+            plugin.getLogger().info("[DEBUG] Очистка кэша StatTypeDAO ("
+                    + nameToIdCache.size() + " записей)");
+        }
         nameToIdCache.clear();
         idToNameCache.clear();
     }
 
-    /**
-     * Размер кэша (для дебага).
-     */
     public int getCacheSize() {
         return nameToIdCache.size();
+    }
+
+    /**
+     * Проверить, включён ли verbose debug.
+     */
+    private boolean isVerboseDebug() {
+        try {
+            return plugin.getConfigHandler().isVerboseDebug();
+        } catch (Exception e) {
+            return false;
+        }
     }
 }

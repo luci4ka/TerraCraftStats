@@ -1,0 +1,168 @@
+# =========================
+# PlayerStats — English
+# =========================
+
+# General
+prefix: "<gold>[PlayerStats]</gold> <gray>"
+no-permission: "<red>You don't have permission to use this command."
+player-not-found: "<red>Player '<yellow>{player}</yellow>' not found."
+error: "<red>An error occurred. Check console."
+
+# /stats
+stats:
+  header: "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  title-self: "<gold>📊 Stats on server <aqua>{server}</aqua>"
+  title-other: "<gold>📊 Stats of <yellow>{player}</yellow> on server <aqua>{server}</aqua>"
+  blocks: "<green>🧱 Blocks  <white>Placed: {placed} | Broken: {broken}"
+  blocks-hover: "<gray>Total: {total-placed} / {total-broken}"
+  pve: "<green>☠ PvE  <white>Mobs: {mobs} | Bosses: {bosses}"
+  pve-hover: "<gray>Total: {total-mobs} / {total-bosses}"
+  time: "<green>⏳ Time  <white>{time}"
+  time-hover: "<gray>Total: {total-time}"
+  pvp: "<green>⚔ PvP  <white>Kills: {kills} | Deaths: {deaths}"
+  pvp-hover: "<gray>Total: {total-kills} / {total-deaths}"
+  balance: "<green>💰 Balance  <white>{value}"
+  balance-hover: "<gray>Current balance"
+  group: "<green>🎖 Group  {value}"
+  group-hover: "<gray>Current group"
+  mobs-header: "<gold>▸ Mob Kills:"
+  blocks-placed-header: "<gold>▸ Blocks Placed:"
+  blocks-broken-header: "<gold>▸ Blocks Broken:"
+  mob-line: "<gray>  {value}"
+  block-line: "<gray>  {value}"
+  # ===== Subcommand hint =====
+  hint-subcommands: "<gray>Details: <yellow>/stats pvp <gray>| <yellow>/stats mob <gray>| <yellow>/stats block"
+  # ===== PvP =====
+  pvp-title-self: "<yellow>⚔ <white>Your PvP stats <gray>| <green>Kills: <white>{kills} <gray>| <red>Deaths: <white>{deaths} <gray>| <gold>K/D: <white>{kd}"
+  pvp-title-other: "<yellow>⚔ <white>PvP stats of <yellow>{player} <gray>| <green>Kills: <white>{kills} <gray>| <red>Deaths: <white>{deaths} <gray>| <gold>K/D: <white>{kd}"
+  pvp-header: "<gray>Players killed: <white>{count}"
+  pvp-empty: "<gray>No PvP data."
+  # ===== Mob =====
+  mob-title-self: "<yellow>☠ <white>Your PvE stats <gray>| <green>Mobs: <white>{mobs} <gray>| <gold>Bosses: <white>{bosses}"
+  mob-title-other: "<yellow>☠ <white>PvE stats of <yellow>{player} <gray>| <green>Mobs: <white>{mobs} <gray>| <gold>Bosses: <white>{bosses}"
+  mob-header: "<gray>Mob types killed: <white>{count}"
+  mob-empty: "<gray>No mob data."
+  # ===== Block =====
+  block-title-self: "<yellow>🧱 <white>Your block stats <gray>| <green>Placed: <white>{placed} <gray>| <red>Broken: <white>{broken}"
+  block-title-other: "<yellow>🧱 <white>Block stats of <yellow>{player} <gray>| <green>Placed: <white>{placed} <gray>| <red>Broken: <white>{broken}"
+  block-placed-header: "<green>🏗 Placed (<white>{count}<green> types):"
+  block-broken-header: "<gold>⛏ Broken (<white>{count}<gold> types):"
+  block-empty: "<gray>No data."
+
+serverstats:
+  title: "<gold>📊 Server Stats <aqua>{server}</aqua>"
+  unique-players: "<green>👥 Unique Players: <white>{value}"
+  line: "<green>▸ {name}: <white>{value}"
+  line-time: "<green>▸ {name}: <white>{value}"
+  line-balance: "<green>▸ {name}: <gold>{value}"
+
+# /top
+top:
+  header: "<dark_gray>━━━━━━━━━━ <gold>Server Tops</gold> ━━━━━━━━━━"
+  footer: "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  category-time: "<yellow>▸ ⏳ Play Time"
+  category-mobs: "<yellow>▸ ☠ Mobs Killed"
+  category-blocks: "<yellow>▸ ⛏ Blocks Placed"
+  category-pvp: "<yellow>▸ ⚔ PvP (player kills)"
+  category-balance: "<yellow>▸ 💰 Balance"
+  no-data: "<gray>   No data"
+  refresh: "<gray>[Refresh]"
+  refresh-hover: "<gray>Click to refresh"
+  category-custom: "<yellow>▸ Top: <white>{stat}"
+  category-pvp-victim: "<yellow>⚔ Kills of <white>{victim}"
+
+compare:
+  self: "<red>You can't compare stats with yourself."
+  header: "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  title: "<gold>📊 Comparison: <yellow>{player1}</yellow> vs <yellow>{player2}</yellow>"
+  time:
+    line: "<green>⏳ Time:"
+  balance:
+    line: "<green>💰 Balance:"
+
+# /share
+share:
+  self: "<red>You can't share stats with yourself. Use /stats."
+  broadcast: "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n<gold>📊 <yellow>{player}</yellow> shared their stats!\n<gray>Server: <aqua>{server}</aqua> <gray>| Group: <light_purple>{group}"
+  broadcast-hover: "<gray>Click to view /stats"
+  stats: "\n<green>⏳ Time: <white>{time} <gray>(total: {total-time})\n<green>☠ PvE: <white>Mobs {mobs} | Bosses {bosses} <gray>(total mobs: {total-mobs})\n<green>⛏ Blocks: <white>Placed {blocks}\n<green>⚔ PvP: <white>Kills {kills} | Deaths {deaths} <gray>| K/D: {kd}\n<green>💰 Balance: <gold>{balance}\n<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  private-sender: "<green>You shared your stats with <yellow>{target}</yellow>"
+  private-target: "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n<gold>📊 <yellow>{player}</yellow> shared their stats with you:\n<gray>Server: <aqua>{server}</aqua> <gray>| Group: <light_purple>{group}\n<green>⏳ Time: <white>{time} <gray>(total: {total-time})\n<green>☠ PvE: <white>Mobs {mobs} | Bosses {bosses}\n<green>⚔ PvP: <white>Kills {kills} | Deaths {deaths} <gray>| K/D: {kd}\n<green>💰 Balance: <gold>{balance}\n<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  private-hover: "<gray>Stats of {player}"
+
+# /exclude
+exclude:
+  added: "<green>✅ Player <yellow>{player}</yellow> excluded from stats."
+  removed: "<green>✅ Player <yellow>{player}</yellow> returned to stats."
+  already-excluded: "<yellow>Player '<white>{player}</white>' is already excluded."
+  not-excluded: "<yellow>Player '<white>{player}</white>' is not excluded."
+  never-played: "<red>Player '<white>{player}</white>' never played on this server."
+  list-header: "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━\n<gold>🚫 Excluded players (<yellow>{count}</yellow>):"
+  list-entry: "<dark_gray>  • <red>{player}"
+  list-empty: "<yellow>No excluded players."
+  list-footer: "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  help: |
+    <dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━
+    <gold>🚫 Exclusion management:
+    <yellow>/exclude <player> <gray>— exclude from stats
+    <yellow>/exclude remove <player> <gray>— return to stats
+    <yellow>/exclude list <gray>— list excluded
+    <dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# /playerstats reload
+reload:
+  starting: "<gold>[PlayerStats] Starting reload..."
+  success: "<green>[PlayerStats] ✅ Config reloaded, caches cleared!"
+  error: "<red>[PlayerStats] ❌ Reload error! Check console."
+  info-db: "<gray>  Database: <white>{type}"
+  info-server: "<gray>  Server: <white>{server} (ID: {id})"
+  info-api: "<gray>  API: {status}"
+  info-api-host: "<gray>  API Host: <white>{host}"
+  info-multi: "<gray>  Multi-server: {status}"
+
+# /playerstats info
+info:
+  header: "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  title: "<gold>📊 PlayerStats <yellow>v{version}"
+  author: "<gray>  Author: <white>{authors}"
+  server: "<gray>  Server: <white>{server} (ID: {id})"
+  database: "<gray>  Database: <white>{type} {status}"
+  api: "<gray>  HTTP API: {status}"
+  api-host: " <white>({host})"
+  multi: "<gray>  Multi-server: {status}"
+  debug: "<gray>  Debug: <white>{level}"
+  integrations: "<gray>  Integrations:"
+  hook-enabled: "<gray>    <green>✅ {name}"
+  hook-disabled: "<gray>    <red>❌ {name}"
+  bukkit-server: "<gray>  Server (Bukkit): <white>{name} {version}"
+
+# Statuses
+status:
+  enabled: "<green>Enabled"
+  disabled: "<red>Disabled"
+  enabled-f: "<green>Enabled"
+  disabled-f: "<red>Disabled"
+  connected: "<green>✅"
+  disconnected: "<red>❌"
+
+# Time
+time:
+  seconds: "{seconds}s"
+  minutes: "{minutes}m"
+  hours: "{hours}h {minutes}m"
+
+help:
+  header: "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  title: "<gold>📊 PlayerStats <yellow>— Help"
+  commands-title: "<gold>Commands:"
+  command-stats: "<yellow>/stats <gray>— your stats"
+  command-stats-other: "<yellow>/stats <player> <gray>— player stats"
+  command-stats-gui: "<yellow>/stats gui <gray>— stats GUI"
+  command-top: "<yellow>/top <gray>— server tops"
+  command-share: "<yellow>/share [player] <gray>— share stats"
+  command-compare: "<yellow>/compare <player> <gray>— compare stats"
+  command-exclude: "<yellow>/exclude <player> [remove|list] <gray>— exclusions"
+  command-reload: "<yellow>/playerstats reload <gray>— reload"
+  command-info: "<yellow>/playerstats info <gray>— plugin info"
+  command-update: "<yellow>/playerstats update <gray>— check updates"
+  footer: "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

@@ -1,19 +1,24 @@
 package com.playerstats.core.database.dao;
 
+import com.playerstats.Main;
 import com.playerstats.core.database.DatabaseConnection;
 
+import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.SQLIntegrityConstraintViolationException;
 import java.sql.Statement;
 import java.util.UUID;
 
 public class PlayerDAO {
 
+    private final Main plugin;
     private final DatabaseConnection db;
     private final boolean isMySQL;
 
-    public PlayerDAO(DatabaseConnection db, boolean isMySQL) {
+    public PlayerDAO(Main plugin, DatabaseConnection db, boolean isMySQL) {
+        this.plugin = plugin;
         this.db = db;
         this.isMySQL = isMySQL;
     }
@@ -21,60 +26,59 @@ public class PlayerDAO {
     // ==================== Создание игрока ====================
 
     /**
-     * Создать игрока, если не существует (без возврата ID).
-     * Автоматически обновляет имя, если игрок сменил ник.
-     *
-     * @deprecated Используйте {@link #getOrCreatePlayerId(UUID, String)} — один запрос вместо двух.
+     * @deprecated Используйте {@link #getOrCreatePlayerId(UUID, String)}.
      */
     @Deprecated
     public void createPlayerIfNotExists(UUID uuid, String name) throws SQLException {
-        // Пробуем вставить
-        String insertSQL = isMySQL
-                ? "INSERT IGNORE INTO players (uuid, name, first_join) VALUES (?, ?, NOW())"
-                : "INSERT OR IGNORE INTO players (uuid, name, first_join) VALUES (?, ?, CURRENT_TIMESTAMP)";
-
-        try (PreparedStatement stmt = db.getConnection().prepareStatement(insertSQL)) {
-            stmt.setString(1, uuid.toString());
-            stmt.setString(2, name);
-            stmt.executeUpdate();
-        }
-
-        // Обновляем имя, если изменилось
-        updatePlayerName(uuid, name);
+        getOrCreatePlayerId(uuid, name);
     }
 
     // ==================== Получение или создание ID ====================
 
     /**
      * Получить ID игрока или создать, если не существует.
-     * Обновляет имя при каждом вызове (на случай смены ника).
-     * Один запрос на получение + один на вставку (если нужно).
-     *
-     * @param uuid UUID игрока
-     * @param name текущий ник
-     * @return ID игрока
-     * @throws SQLException если БД недоступна
+     * Обновляет имя при смене ника.
      */
     public int getOrCreatePlayerId(UUID uuid, String name) throws SQLException {
+        if (isVerboseDebug()) {
+            plugin.getLogger().info("[DEBUG] SQL: getOrCreatePlayerId(uuid="
+                    + uuid + ", name=" + name + ")");
+        }
+
         // 1. Пробуем получить существующий ID
         String selectSQL = "SELECT id, name FROM players WHERE uuid = ?";
-        try (PreparedStatement stmt = db.getConnection().prepareStatement(selectSQL)) {
+        try (Connection conn = db.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(selectSQL)) {
             stmt.setString(1, uuid.toString());
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
                     int id = rs.getInt("id");
                     String oldName = rs.getString("name");
 
-                    // Обновляем имя, если изменилось
+                    // Обновляем имя только если изменилось
                     if (!name.equals(oldName)) {
+                        if (isVerboseDebug()) {
+                            plugin.getLogger().info("[DEBUG] SQL: смена имени "
+                                    + oldName + " → " + name + " (ID=" + id + ")");
+                        }
                         updatePlayerNameById(id, name);
                     }
+
+                    if (isVerboseDebug()) {
+                        plugin.getLogger().info("[DEBUG] SQL: getOrCreatePlayerId → "
+                                + id + " (найден)");
+                    }
+
                     return id;
                 }
             }
         }
 
         // 2. Игрока нет — создаём
+        if (isVerboseDebug()) {
+            plugin.getLogger().info("[DEBUG] SQL: игрок не найден, создание...");
+        }
+
         return insertPlayer(uuid, name);
     }
 
@@ -82,69 +86,76 @@ public class PlayerDAO {
      * Вставить нового игрока и вернуть его ID.
      */
     private int insertPlayer(UUID uuid, String name) throws SQLException {
-        String insertSQL;
-        boolean returnGeneratedKeys = true;
-
         if (isMySQL) {
-            insertSQL = "INSERT INTO players (uuid, name, first_join) VALUES (?, ?, NOW())";
-        } else {
-            // SQLite: INSERT OR IGNORE — если уже существует, просто игнорируем
-            insertSQL = "INSERT OR IGNORE INTO players (uuid, name, first_join) VALUES (?, ?, CURRENT_TIMESTAMP)";
-            returnGeneratedKeys = false; // INSERT OR IGNORE не возвращает ключи
-        }
+            if (isVerboseDebug()) {
+                plugin.getLogger().info("[DEBUG] SQL: INSERT players (MySQL) uuid="
+                        + uuid + ", name=" + name);
+            }
 
-        if (returnGeneratedKeys) {
-            try (PreparedStatement stmt = db.getConnection().prepareStatement(insertSQL, Statement.RETURN_GENERATED_KEYS)) {
+            String insertSQL = "INSERT INTO players (uuid, name, first_join) VALUES (?, ?, NOW())";
+            try (Connection conn = db.getConnection();
+                 PreparedStatement stmt = conn.prepareStatement(
+                         insertSQL, Statement.RETURN_GENERATED_KEYS)) {
                 stmt.setString(1, uuid.toString());
                 stmt.setString(2, name);
                 stmt.executeUpdate();
 
                 try (ResultSet rs = stmt.getGeneratedKeys()) {
                     if (rs.next()) {
-                        return rs.getInt(1);
+                        int id = rs.getInt(1);
+                        if (isVerboseDebug()) {
+                            plugin.getLogger().info("[DEBUG] SQL: insertPlayer → "
+                                    + id + " (создан)");
+                        }
+                        return id;
                     }
                 }
-            } catch (SQLException e) {
-                if (e.getMessage().contains("Duplicate entry")) {
-                    return handleDuplicatePlayer(uuid, name);
+            } catch (SQLIntegrityConstraintViolationException e) {
+                if (isVerboseDebug()) {
+                    plugin.getLogger().info("[DEBUG] SQL: race condition — игрок уже существует");
                 }
-                throw e;
+                return handleExistingPlayer(uuid, name);
             }
         } else {
-            // SQLite: INSERT OR IGNORE
-            try (PreparedStatement stmt = db.getConnection().prepareStatement(insertSQL)) {
+            if (isVerboseDebug()) {
+                plugin.getLogger().info("[DEBUG] SQL: UPSERT players (SQLite) uuid="
+                        + uuid + ", name=" + name);
+            }
+
+            // SQLite: UPSERT — вставка или обновление имени одним запросом
+            String upsertSQL = """
+                INSERT INTO players (uuid, name, first_join)
+                VALUES (?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(uuid) DO UPDATE SET name = excluded.name
+                """;
+            try (Connection conn = db.getConnection();
+                 PreparedStatement stmt = conn.prepareStatement(upsertSQL)) {
                 stmt.setString(1, uuid.toString());
                 stmt.setString(2, name);
                 stmt.executeUpdate();
             }
         }
 
-        // В любом случае получаем ID (мог быть создан или уже существовать)
+        // Получаем ID (мог быть создан или уже существовать)
         return handleExistingPlayer(uuid, name);
     }
 
     /**
-     * Обработать ситуацию, когда игрок уже существует.
+     * Получить ID существующего игрока и обновить имя.
      */
     private int handleExistingPlayer(UUID uuid, String name) throws SQLException {
         int id = getPlayerId(uuid);
         if (id != -1) {
             updatePlayerName(uuid, name);
+
+            if (isVerboseDebug()) {
+                plugin.getLogger().info("[DEBUG] SQL: handleExistingPlayer → "
+                        + id);
+            }
+
             return id;
         }
         throw new SQLException("Не удалось найти или создать игрока: " + name);
-    }
-
-    /**
-     * Обработать дубликат при вставке (для MySQL).
-     */
-    private int handleDuplicatePlayer(UUID uuid, String name) throws SQLException {
-        int id = getPlayerId(uuid);
-        if (id != -1) {
-            updatePlayerName(uuid, name);
-            return id;
-        }
-        throw new SQLException("Не удалось получить ID после дубликата: " + name);
     }
 
     // ==================== Получение ID ====================
@@ -152,12 +163,12 @@ public class PlayerDAO {
     /**
      * Получить ID игрока по UUID.
      *
-     * @param uuid UUID игрока
      * @return ID игрока или -1, если не найден
      */
     public int getPlayerId(UUID uuid) throws SQLException {
         String sql = "SELECT id FROM players WHERE uuid = ?";
-        try (PreparedStatement stmt = db.getConnection().prepareStatement(sql)) {
+        try (Connection conn = db.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, uuid.toString());
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
@@ -170,13 +181,11 @@ public class PlayerDAO {
 
     /**
      * Получить имя игрока по UUID.
-     *
-     * @param uuid UUID игрока
-     * @return имя игрока или null, если не найден
      */
     public String getPlayerName(UUID uuid) throws SQLException {
         String sql = "SELECT name FROM players WHERE uuid = ?";
-        try (PreparedStatement stmt = db.getConnection().prepareStatement(sql)) {
+        try (Connection conn = db.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, uuid.toString());
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
@@ -189,13 +198,11 @@ public class PlayerDAO {
 
     /**
      * Получить имя игрока по ID.
-     *
-     * @param playerId ID игрока
-     * @return имя игрока или null, если не найден
      */
     public String getPlayerName(int playerId) throws SQLException {
         String sql = "SELECT name FROM players WHERE id = ?";
-        try (PreparedStatement stmt = db.getConnection().prepareStatement(sql)) {
+        try (Connection conn = db.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, playerId);
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
@@ -220,7 +227,8 @@ public class PlayerDAO {
      */
     private void updatePlayerName(UUID uuid, String newName) throws SQLException {
         String sql = "UPDATE players SET name = ? WHERE uuid = ? AND name != ?";
-        try (PreparedStatement stmt = db.getConnection().prepareStatement(sql)) {
+        try (Connection conn = db.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, newName);
             stmt.setString(2, uuid.toString());
             stmt.setString(3, newName);
@@ -233,11 +241,23 @@ public class PlayerDAO {
      */
     private void updatePlayerNameById(int playerId, String newName) throws SQLException {
         String sql = "UPDATE players SET name = ? WHERE id = ? AND name != ?";
-        try (PreparedStatement stmt = db.getConnection().prepareStatement(sql)) {
+        try (Connection conn = db.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, newName);
             stmt.setInt(2, playerId);
             stmt.setString(3, newName);
             stmt.executeUpdate();
+        }
+    }
+
+    /**
+     * Проверить, включён ли verbose debug.
+     */
+    private boolean isVerboseDebug() {
+        try {
+            return plugin.getConfigHandler().isVerboseDebug();
+        } catch (Exception e) {
+            return false;
         }
     }
 }

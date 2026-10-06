@@ -1,78 +1,297 @@
-# =========================
-# PlayerStats Configuration
-# =========================
+# =========================================================================
+#                        PlayerStats Configuration
+# =========================================================================
+# Плагин статистики игроков для Paper 1.21+
+# https://github.com/luci4ka/PlayerStats
+# =========================================================================
 
-config-version: 1
-debug-level: 1               # 0 = off, 1 = basic, 2 = verbose
+# Версия конфига — НЕ ИЗМЕНЯТЬ ВРУЧНУЮ!
+# Используется для автоматической миграции при обновлении плагина.
+config-version: 3
 
-# =========================
-# Database Configuration
-# =========================
+# Уровень отладки:
+#   0 = выключен (только ошибки)
+#   1 = базовый (INFO-логи)
+#   2 = детальный (DEBUG-логи для каждого события)
+debug-level: 1
+
+# Язык плагина. Файлы лежат в plugins/PlayerStats/lang/
+# Доступные: ru, en
+language: ru
+
+
+# =========================================================================
+#                          База данных
+# =========================================================================
+# Тип базы данных: "sqlite" (локальная) или "mysql" (серверная).
+# SQLite — проще, но медленнее при большом количестве игроков.
+# MySQL — быстрее, поддерживает мультисерверность.
 database:
-  type: sqlite              # "sqlite" or "mysql"
-  host: localhost           # MySQL host
-  port: 3306                # MySQL port
-  name: playerstats         # MySQL database name
-  user: root                # MySQL username
-  password: password        # MySQL password
+  type: sqlite
 
+  # --- Настройки MySQL (используются только если type: mysql) ---
+  host: localhost
+  port: 3306
+  name: playerstats
+  user: root
+  password: password
+
+# --- Настройки SQLite (используются только если type: sqlite) ---
 sqlite:
-  file: plugins/PlayerStats/playerstats.db
+  # ТОЛЬКО имя файла. Полный путь: plugins/PlayerStats/<file>
+  file: playerstats.db
 
-# =========================
-# Multi-Server
-# =========================
+
+# =========================================================================
+#                          Мультисерверность
+# =========================================================================
+# Если у вас несколько серверов с общей БД — включите.
+# Каждому серверу нужно уникальное имя.
 multi-server:
-  enabled: false             # Enable if using multiple servers with one database
-  server-name: "survival"    # Unique server identifier
+  enabled: false
+  server-name: "survival"
 
-# =========================
-# Server Names Translation
-# =========================
+
+# =========================================================================
+#                    Отображаемые имена серверов
+# =========================================================================
+# Используется в /stats для показа названия сервера.
+# Формат: MiniMessage (<green>, <gold>, <gradient:...>)
 server-names:
-  survival: "§aВыживание"
-  creative: "§bКреатив"
-  minigames: "§eМини-игры"
+  survival: "<green>Выживание"
+  creative: "<aqua>Креатив"
+  minigames: "<yellow>Мини-игры"
+  default: "<gold>Основной сервер"
 
-# =========================
-# HTTP API
-# =========================
+
+# =========================================================================
+#                          HTTP API
+# =========================================================================
+# Встроенный HTTP-сервер для внешнего доступа к статистике.
+# ⚠ ВНИМАНИЕ: API не имеет аутентификации!
+# Ограничьте доступ через firewall или reverse proxy.
 api:
-  enabled: false             # Enable HTTP API for external access
+  enabled: false
   host: "0.0.0.0"
   port: 8080
 
-# =========================
-# Player Groups & Formatting
-# =========================
-groups:
-  default: "§7Игрок"
-  vip: "§6VIP"
-  premium: "§bPremium"
-  moderator: "§2Модератор"
-  admin: "§4Администратор"
-  owner: "§c§lВладелец"
-  helper: "§3Помощник"
-  builder: "§5Строитель"
 
-# =========================
-# Clickable commands in stats GUI
-# =========================
+# =========================================================================
+#                    Группы игроков (форматирование)
+# =========================================================================
+# Форматирование групп из LuckPerms.
+# Формат: MiniMessage (<gray>, <gold>, <bold>)
+groups:
+  default: "<gray>Игрок"
+  donor: "<gray>Донор"
+  premium: "<green>Премиум"
+  deluxe: "<aqua>Делюкс"
+  elite: "<gold>Элита"
+  overlord: "<dark_purple>Владыка"
+  oldtimer: "<yellow>Старичок"
+  helper: "<green>Помощник"
+  moderator: "<dark_green>Модератор"
+  admin: "<red>Админ"
+  headadmin: "<dark_red><bold>Гл. Админ"
+
+
+# =========================================================================
+#                    Кликабельные команды в /stats
+# =========================================================================
+# Команды, которые выполняются при клике на строку статистики.
+# Если команда не задана — клик не сработает.
 stats-click-commands:
-  blocks: "/top blocks"
-  pve: "/top pve"
-  time: "/top time"
-  pvp: "/top pvp"
+  blocks: "/top blocks_placed"
+  pve: "/top mobs_killed"
+  time: "/top play_time"
+  pvp: "/stats pvp"        # ← открывает /stats pvp (список жертв)
   balance: "/balance"
   group: "/groups"
   server: "/server info"
 
-# =========================
-# Boss Detection Keywords
-# =========================
+
+# =========================================================================
+#                    Ключевые слова для определения боссов
+# =========================================================================
+# Если кастомное имя моба содержит одно из этих слов —
+# он считается боссом и учитывается в статистике bosses_killed.
 mob-boss-keywords:
   - "Босс"
   - "Boss"
   - "Elite"
   - "Элитный"
   - "World Boss"
+
+
+# =========================================================================
+#                          Дополнительно
+# =========================================================================
+# Разрешить игрокам делиться статистикой через /share
+enable-stat-sharing: false
+
+# Разрешить только один просмотр статистики за раз
+only-allow-one-lookup-at-a-time-per-player: true
+
+
+# =========================================================================
+#                    Milestones — награды за достижения
+# =========================================================================
+# При достижении порога игрок получает сообщение и команды от консоли.
+#
+# Формат:
+#   <stat_name>:
+#     <порог>:
+#       message: "<текст>"
+#       commands:
+#         - "<команда>"
+#
+# Плейсхолдеры:
+#   %player% — имя игрока
+#   %value%  — достигнутое значение
+#
+# Поддерживаемые статистики:
+#   mobs_killed, bosses_killed, blocks_placed, blocks_broken,
+#   kills, deaths, play_time, mob_killed_<mob>
+milestones:
+  enabled: true
+
+  mobs_killed:
+    100:
+      message: "<gold>🏆 Вы убили 100 мобов!"
+      commands:
+        - "give %player% diamond 1"
+    1000:
+      message: "<gold>🏆 Вы убили 1000 мобов!"
+      commands:
+        - "give %player% netherite_ingot 1"
+
+  mob_killed_zombie:
+    50:
+      message: "<gold>🏆 Вы убили 50 зомби!"
+      commands:
+        - "give %player% rotten_flesh 5"
+
+  blocks_placed:
+    500:
+      message: "<gold>🏆 Вы поставили 500 блоков!"
+      commands:
+        - "give %player% iron_ingot 5"
+
+  play_time:
+    3600:
+      message: "<gold>🏆 Вы играете уже 1 час!"
+      commands:
+        - "give %player% golden_apple 1"
+
+
+# =========================================================================
+#                    Rainbow & Festive — стилизация
+# =========================================================================
+# Rainbow — радужный градиент для указанных ключей.
+# Festive — новогодний градиент (red:green).
+#
+# apply-to — список ключей из lang/*.yml, к которым применяется стиль.
+
+rainbow:
+  enabled: false
+  apply-to:
+    - "stats.title-self"
+    - "stats.title-other"
+    - "top.header"
+    - "top.category-time"
+    - "top.category-mobs"
+    - "top.category-blocks"
+    - "top.category-balance"
+    - "compare.title"
+    - "help.title"
+
+festive:
+  enabled: false
+  apply-to:
+    - "stats.title-self"
+    - "stats.title-other"
+
+
+# =========================================================================
+#                    Tracked Blocks — ценные блоки
+# =========================================================================
+# Блоки, для которых ведётся отдельная статистика:
+#   block_placed_<name>  — поставлено блоков
+#   block_broken_<name>  — сломано блоков
+#
+# Если список пуст — используются стандартные ценные блоки.
+# Можно добавлять/удалять блоки без пересборки плагина.
+#
+# Имена — это Material из Bukkit (нижний регистр).
+# Проверить: https://jd.papermc.io/paper/1.21.11/org/bukkit/Material.html
+tracked-blocks:
+  # --- Руды ---
+  - "diamond_ore"
+  - "deepslate_diamond_ore"
+  - "emerald_ore"
+  - "deepslate_emerald_ore"
+  - "gold_ore"
+  - "deepslate_gold_ore"
+  - "nether_gold_ore"
+  - "iron_ore"
+  - "deepslate_iron_ore"
+  - "coal_ore"
+  - "deepslate_coal_ore"
+  - "lapis_ore"
+  - "deepslate_lapis_ore"
+  - "redstone_ore"
+  - "deepslate_redstone_ore"
+  - "copper_ore"
+  - "deepslate_copper_ore"
+  - "ancient_debris"
+
+  # --- Блоки ценных ресурсов ---
+  - "netherite_block"
+  - "diamond_block"
+  - "emerald_block"
+  - "gold_block"
+  - "iron_block"
+  - "lapis_block"
+  - "redstone_block"
+  - "coal_block"
+  - "copper_block"
+
+
+pvp:
+  # Отслеживать статистику убийств конкретных игроков
+  per-victim-stats: true
+
+  # Анти-абуз: не засчитывать убийство одного и того же игрока
+  # повторно в течение N секунд (0 = отключено)
+  antifarm-cooldown-seconds: 300
+
+  # Не засчитывать убийство, если жертва в /exclude
+  ignore-excluded-victims: true
+
+  # Максимум засчитанных убийств одного игрока в сутки (0 = без лимита)
+  daily-limit-per-victim: 0
+
+
+
+# =========================================================================
+#                    Discord Webhook — уведомления
+# =========================================================================
+# Отправка уведомлений о достижениях в Discord.
+#
+# webhook-url — URL вебхука из настроек канала Discord.
+# events — какие события отправлять.
+discord:
+  enabled: false
+  webhook-url: "https://discord.com/api/webhooks/..."
+  username: "PlayerStats"
+  avatar-url: ""
+
+  events:
+    # Уведомления о достижении вех (Milestones)
+    milestone: true
+
+    # Уведомления о повышении уровня в Jobs
+    level-up: false
+
+    # Уведомления о смене топа
+    top-change: false

@@ -60,35 +60,50 @@ public class VaultHook implements Hook {
         return "Vault";
     }
 
-    /**
-     * Получить API экономики.
-     */
     public Economy getEconomy() {
         return economy;
     }
 
     /**
      * Получить баланс игрока.
+     * Пробуем через OfflinePlayer, чтобы обойти проблему с Vault 2.5.0
      */
     public double getBalance(Player player) {
-        if (!isEnabled()) return 0.0;
-        return economy.getBalance(player);
+        if (!isEnabled() || player == null) return 0.0;
+
+        // Player является OfflinePlayer, передаём его во второй метод
+        return getBalance((OfflinePlayer) player);
     }
 
     /**
      * Получить баланс офлайн-игрока.
+     * Этот метод напрямую вызывает economy.getBalance(OfflinePlayer)
      */
     public double getBalance(OfflinePlayer player) {
-        if (!isEnabled()) return 0.0;
-        return economy.getBalance(player);
+        if (!isEnabled() || player == null) return 0.0;
+        try {
+            return economy.getBalance(player);
+        } catch (Throwable e) {
+            plugin.getLogger().warning(
+                    "Vault: ошибка баланса для " + player.getName()
+                            + " (" + e.getClass().getSimpleName() + ")");
+            return 0.0;
+        }
     }
 
     /**
      * Проверить, есть ли у игрока достаточно денег.
      */
     public boolean has(Player player, double amount) {
-        if (!isEnabled()) return false;
-        return economy.has(player, amount);
+        if (!isEnabled() || player == null) return false;
+        try {
+            return economy.has(player, amount);
+        } catch (Throwable e) {
+            plugin.getLogger().warning(
+                    "Vault: ошибка проверки баланса для " + player.getName()
+                            + " (" + e.getClass().getSimpleName() + ")");
+            return false;
+        }
     }
 
     /**
@@ -96,6 +111,10 @@ public class VaultHook implements Hook {
      */
     public String format(double amount) {
         if (!isEnabled()) return String.format("%.2f", amount);
-        return economy.format(amount);
+        try {
+            return economy.format(amount);
+        } catch (Throwable e) {
+            return String.format("%.2f", amount);
+        }
     }
 }

@@ -1,7 +1,9 @@
 package com.playerstats.core.database.dao;
 
+import com.playerstats.Main;
 import com.playerstats.core.database.DatabaseConnection;
 
+import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -9,70 +11,74 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * DAO для агрегированной статистики по всем серверам и игрокам.
- * Использует правильную схему с stat_type_id.
- */
 public class TotalServerDAO {
 
+    private final Main plugin;
     private final DatabaseConnection db;
     private final StatTypeDAO statTypeDAO;
 
-    // Кэш stat_name → stat_type_id
     private final Map<String, Integer> statTypeCache = new ConcurrentHashMap<>();
 
-    public TotalServerDAO(DatabaseConnection db, StatTypeDAO statTypeDAO) {
+    public TotalServerDAO(Main plugin, DatabaseConnection db, StatTypeDAO statTypeDAO) {
+        this.plugin = plugin;
         this.db = db;
         this.statTypeDAO = statTypeDAO;
     }
 
     // ==================== Статистика конкретного сервера ====================
 
-    /**
-     * Получить агрегированную статистику сервера.
-     *
-     * @param serverId ID сервера
-     * @return Map<название_статистики, значение>
-     */
     public Map<String, Number> getServerStats(int serverId) throws SQLException {
-        Map<String, Number> stats = new LinkedHashMap<>();
+        if (isVerboseDebug()) {
+            plugin.getLogger().info("[DEBUG] SQL: getServerStats(serverId=" + serverId + ")");
+        }
 
-        // Количество уникальных игроков
+        Map<String, Number> stats = new LinkedHashMap<>();
         stats.put("uniquePlayers", getUniquePlayerCount(serverId));
 
-        // Суммарные значения по типам статистики
         String sql = """
-            SELECT st.name, SUM(COALESCE(ps.value_int, 0)) AS total_int,
-                   SUM(COALESCE(ps.value_double, 0)) AS total_double
+            SELECT st.name,
+                   SUM(CASE
+                       WHEN ps.value_double IS NOT NULL THEN ps.value_double
+                       WHEN ps.value_int IS NOT NULL THEN ps.value_int
+                       ELSE 0
+                   END) AS total_value,
+                   MAX(CASE WHEN ps.value_double IS NOT NULL THEN 1 ELSE 0 END) AS has_double
             FROM player_stats ps
             JOIN stat_types st ON ps.stat_type_id = st.id
             WHERE ps.server_id = ?
             GROUP BY st.name
             """;
 
-        try (PreparedStatement stmt = db.getConnection().prepareStatement(sql)) {
+        try (Connection conn = db.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, serverId);
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
                     String name = rs.getString("name");
-                    double doubleVal = rs.getDouble("total_double");
-                    if (rs.wasNull() || doubleVal == 0.0) {
-                        stats.put(name, rs.getInt("total_int"));
+                    double value = rs.getDouble("total_value");
+                    boolean hasDouble = rs.getInt("has_double") == 1;
+
+                    if (hasDouble) {
+                        stats.put(name, value);
                     } else {
-                        stats.put(name, doubleVal);
+                        stats.put(name, (int) value);
                     }
                 }
             }
         }
+
+        if (isVerboseDebug()) {
+            plugin.getLogger().info("[DEBUG] SQL: getServerStats → "
+                    + stats.size() + " записей");
+        }
+
         return stats;
     }
 
-    /**
-     * Количество уникальных игроков на сервере.
-     */
     public int getUniquePlayerCount(int serverId) throws SQLException {
         String sql = "SELECT COUNT(DISTINCT player_id) FROM player_stats WHERE server_id = ?";
-        try (PreparedStatement stmt = db.getConnection().prepareStatement(sql)) {
+        try (Connection conn = db.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, serverId);
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) return rs.getInt(1);
@@ -83,69 +89,75 @@ public class TotalServerDAO {
 
     // ==================== Общая статистика по всем серверам ====================
 
-    /**
-     * Получить общую агрегированную статистику по всем серверам.
-     */
     public Map<String, Number> getTotalStats() throws SQLException {
-        Map<String, Number> stats = new LinkedHashMap<>();
+        if (isVerboseDebug()) {
+            plugin.getLogger().info("[DEBUG] SQL: getTotalStats()");
+        }
 
-        // Общее количество уникальных игроков
+        Map<String, Number> stats = new LinkedHashMap<>();
         stats.put("totalUniquePlayers", getTotalUniquePlayerCount());
 
-        // Суммарные значения по всем серверам
         String sql = """
-            SELECT st.name, SUM(COALESCE(ps.value_int, 0)) AS total_int,
-                   SUM(COALESCE(ps.value_double, 0)) AS total_double
+            SELECT st.name,
+                   SUM(CASE
+                       WHEN ps.value_double IS NOT NULL THEN ps.value_double
+                       WHEN ps.value_int IS NOT NULL THEN ps.value_int
+                       ELSE 0
+                   END) AS total_value,
+                   MAX(CASE WHEN ps.value_double IS NOT NULL THEN 1 ELSE 0 END) AS has_double
             FROM player_stats ps
             JOIN stat_types st ON ps.stat_type_id = st.id
             GROUP BY st.name
             """;
 
-        try (PreparedStatement stmt = db.getConnection().prepareStatement(sql);
+        try (Connection conn = db.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql);
              ResultSet rs = stmt.executeQuery()) {
             while (rs.next()) {
                 String name = rs.getString("name");
-                double doubleVal = rs.getDouble("total_double");
-                if (rs.wasNull() || doubleVal == 0.0) {
-                    stats.put(name, rs.getInt("total_int"));
+                double value = rs.getDouble("total_value");
+                boolean hasDouble = rs.getInt("has_double") == 1;
+
+                if (hasDouble) {
+                    stats.put(name, value);
                 } else {
-                    stats.put(name, doubleVal);
+                    stats.put(name, (int) value);
                 }
             }
         }
+
+        if (isVerboseDebug()) {
+            plugin.getLogger().info("[DEBUG] SQL: getTotalStats → "
+                    + stats.size() + " записей");
+        }
+
         return stats;
     }
 
-    /**
-     * Общее количество уникальных игроков по всем серверам.
-     */
     public int getTotalUniquePlayerCount() throws SQLException {
         String sql = "SELECT COUNT(DISTINCT player_id) FROM player_stats";
-        try (PreparedStatement stmt = db.getConnection().prepareStatement(sql);
+        try (Connection conn = db.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql);
              ResultSet rs = stmt.executeQuery()) {
             if (rs.next()) return rs.getInt(1);
         }
         return 0;
     }
 
-    /**
-     * Общее количество серверов.
-     */
     public int getServerCount() throws SQLException {
         String sql = "SELECT COUNT(*) FROM servers";
-        try (PreparedStatement stmt = db.getConnection().prepareStatement(sql);
+        try (Connection conn = db.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql);
              ResultSet rs = stmt.executeQuery()) {
             if (rs.next()) return rs.getInt(1);
         }
         return 0;
     }
 
-    /**
-     * Общее количество игроков в БД.
-     */
     public int getTotalPlayerCount() throws SQLException {
         String sql = "SELECT COUNT(*) FROM players";
-        try (PreparedStatement stmt = db.getConnection().prepareStatement(sql);
+        try (Connection conn = db.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql);
              ResultSet rs = stmt.executeQuery()) {
             if (rs.next()) return rs.getInt(1);
         }
@@ -154,47 +166,58 @@ public class TotalServerDAO {
 
     // ==================== Статистика конкретного игрока ====================
 
-    /**
-     * Получить суммарную статистику игрока по всем серверам.
-     *
-     * @param playerId ID игрока
-     * @return Map<название_статистики, значение>
-     */
     public Map<String, Number> getPlayerTotalStats(int playerId) throws SQLException {
+        if (isVerboseDebug()) {
+            plugin.getLogger().info("[DEBUG] SQL: getPlayerTotalStats(playerId="
+                    + playerId + ")");
+        }
+
         Map<String, Number> stats = new LinkedHashMap<>();
 
         String sql = """
-            SELECT st.name, SUM(COALESCE(ps.value_int, 0)) AS total_int,
-                   SUM(COALESCE(ps.value_double, 0)) AS total_double
+            SELECT st.name,
+                   SUM(CASE
+                       WHEN ps.value_double IS NOT NULL THEN ps.value_double
+                       WHEN ps.value_int IS NOT NULL THEN ps.value_int
+                       ELSE 0
+                   END) AS total_value,
+                   MAX(CASE WHEN ps.value_double IS NOT NULL THEN 1 ELSE 0 END) AS has_double
             FROM player_stats ps
             JOIN stat_types st ON ps.stat_type_id = st.id
             WHERE ps.player_id = ?
             GROUP BY st.name
             """;
 
-        try (PreparedStatement stmt = db.getConnection().prepareStatement(sql)) {
+        try (Connection conn = db.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, playerId);
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
                     String name = rs.getString("name");
-                    double doubleVal = rs.getDouble("total_double");
-                    if (rs.wasNull() || doubleVal == 0.0) {
-                        stats.put(name, rs.getInt("total_int"));
+                    double value = rs.getDouble("total_value");
+                    boolean hasDouble = rs.getInt("has_double") == 1;
+
+                    if (hasDouble) {
+                        stats.put(name, value);
                     } else {
-                        stats.put(name, doubleVal);
+                        stats.put(name, (int) value);
                     }
                 }
             }
         }
+
+        if (isVerboseDebug()) {
+            plugin.getLogger().info("[DEBUG] SQL: getPlayerTotalStats → "
+                    + stats.size() + " записей");
+        }
+
         return stats;
     }
 
-    /**
-     * Количество серверов, на которых играл игрок.
-     */
     public int getPlayerServerCount(int playerId) throws SQLException {
         String sql = "SELECT COUNT(DISTINCT server_id) FROM player_stats WHERE player_id = ?";
-        try (PreparedStatement stmt = db.getConnection().prepareStatement(sql)) {
+        try (Connection conn = db.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, playerId);
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) return rs.getInt(1);
@@ -205,19 +228,22 @@ public class TotalServerDAO {
 
     // ==================== Топ по конкретной статистике ====================
 
-    /**
-     * Топ игроков по конкретной статистике (глобально по всем серверам).
-     *
-     * @param statName название статистики
-     * @param limit    количество записей
-     * @return Map<имя_игрока, значение>
-     */
     public Map<String, Number> getTopPlayers(String statName, int limit) throws SQLException {
+        if (isVerboseDebug()) {
+            plugin.getLogger().info("[DEBUG] SQL: getTopPlayers(statName="
+                    + statName + ", limit=" + limit + ")");
+        }
+
         Map<String, Number> top = new LinkedHashMap<>();
         int statTypeId = getOrCacheStatTypeId(statName);
 
         String sql = """
-            SELECT p.name, SUM(COALESCE(ps.value_double, ps.value_int, 0)) AS total_value
+            SELECT p.name,
+                   SUM(CASE
+                       WHEN ps.value_double IS NOT NULL THEN ps.value_double
+                       WHEN ps.value_int IS NOT NULL THEN ps.value_int
+                       ELSE 0
+                   END) AS total_value
             FROM player_stats ps
             JOIN players p ON ps.player_id = p.id
             WHERE ps.stat_type_id = ?
@@ -226,7 +252,8 @@ public class TotalServerDAO {
             LIMIT ?
             """;
 
-        try (PreparedStatement stmt = db.getConnection().prepareStatement(sql)) {
+        try (Connection conn = db.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, statTypeId);
             stmt.setInt(2, Math.min(limit, 100));
             try (ResultSet rs = stmt.executeQuery()) {
@@ -237,6 +264,12 @@ public class TotalServerDAO {
                 }
             }
         }
+
+        if (isVerboseDebug()) {
+            plugin.getLogger().info("[DEBUG] SQL: getTopPlayers → "
+                    + top.size() + " записей");
+        }
+
         return top;
     }
 
@@ -270,15 +303,55 @@ public class TotalServerDAO {
         return getSingleTotalInt("deaths");
     }
 
+    public double getSingleTotalDouble(String statName) throws SQLException {
+        int statTypeId = getOrCacheStatTypeId(statName);
+        String sql = """
+            SELECT SUM(CASE
+                WHEN value_double IS NOT NULL THEN value_double
+                WHEN value_int IS NOT NULL THEN value_int
+                ELSE 0
+            END)
+            FROM player_stats WHERE stat_type_id = ?
+            """;
+        try (Connection conn = db.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, statTypeId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) return rs.getDouble(1);
+            }
+        }
+        return 0.0;
+    }
+
     // ==================== Приватные методы ====================
 
     private int getSingleTotalInt(String statName) throws SQLException {
+        if (isVerboseDebug()) {
+            plugin.getLogger().info("[DEBUG] SQL: getSingleTotalInt(statName="
+                    + statName + ")");
+        }
+
         int statTypeId = getOrCacheStatTypeId(statName);
-        String sql = "SELECT SUM(COALESCE(value_int, 0)) FROM player_stats WHERE stat_type_id = ?";
-        try (PreparedStatement stmt = db.getConnection().prepareStatement(sql)) {
+        String sql = """
+            SELECT SUM(CASE
+                WHEN value_int IS NOT NULL THEN value_int
+                WHEN value_double IS NOT NULL THEN CAST(value_double AS INT)
+                ELSE 0
+            END)
+            FROM player_stats WHERE stat_type_id = ?
+            """;
+        try (Connection conn = db.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, statTypeId);
             try (ResultSet rs = stmt.executeQuery()) {
-                if (rs.next()) return rs.getInt(1);
+                if (rs.next()) {
+                    int result = rs.getInt(1);
+                    if (isVerboseDebug()) {
+                        plugin.getLogger().info("[DEBUG] SQL: getSingleTotalInt → "
+                                + result);
+                    }
+                    return result;
+                }
             }
         }
         return 0;
@@ -293,10 +366,22 @@ public class TotalServerDAO {
         return id;
     }
 
-    /**
-     * Очистить кэш stat_type_id.
-     */
     public void clearCache() {
+        if (isVerboseDebug()) {
+            plugin.getLogger().info("[DEBUG] Очистка кэша TotalServerDAO ("
+                    + statTypeCache.size() + " записей)");
+        }
         statTypeCache.clear();
+    }
+
+    /**
+     * Проверить, включён ли verbose debug.
+     */
+    private boolean isVerboseDebug() {
+        try {
+            return plugin.getConfigHandler().isVerboseDebug();
+        } catch (Exception e) {
+            return false;
+        }
     }
 }

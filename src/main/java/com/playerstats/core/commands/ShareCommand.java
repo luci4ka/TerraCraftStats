@@ -2,6 +2,7 @@ package com.playerstats.core.commands;
 
 import com.playerstats.Main;
 import com.playerstats.core.config.ConfigHandler;
+import com.playerstats.core.config.LanguageManager;
 import com.playerstats.core.database.dao.PlayerDAO;
 import com.playerstats.core.database.dao.PlayerStatsDAO;
 import com.playerstats.core.services.PlayerGroupService;
@@ -20,18 +21,22 @@ public class ShareCommand {
 
     private final Main plugin;
     private final ConfigHandler config;
+    private final LanguageManager lang;
     private final PlayerGroupService groupService;
 
     public ShareCommand(Main plugin, PlayerGroupService groupService) {
         this.plugin = plugin;
         this.config = ConfigHandler.getInstance(plugin);
+        this.lang = plugin.getLanguageManager();
         this.groupService = groupService;
     }
 
-    /**
-     * Поделиться статистикой в общий чат.
-     */
     public void execute(Player player) {
+        if (!player.hasPermission("playerstats.share")) {
+            player.sendMessage(lang.getComponent("no-permission"));
+            return;
+        }
+
         String playerName = player.getName();
         int serverId = plugin.getServerId();
 
@@ -48,7 +53,8 @@ public class ShareCommand {
                 int blocksPlaced = statsDAO.getStat(playerId, serverId, "blocks_placed");
                 int kills = statsDAO.getStat(playerId, serverId, "kills");
                 int deaths = statsDAO.getStat(playerId, serverId, "deaths");
-                double balance = statsDAO.getStatDouble(playerId, serverId, "balance");
+                Map<String, Double> totalDoubleStats = statsDAO.getTotalStatsDoubleForPlayer(playerId);
+                double balance = totalDoubleStats.getOrDefault("balance", 0.0);
                 String group = groupService.getPlayerGroup(player, playerId);
 
                 Map<String, Integer> totalStats = statsDAO.getTotalStatsForPlayer(playerId);
@@ -56,6 +62,8 @@ public class ShareCommand {
                 int totalMobs = totalStats.getOrDefault("mobs_killed", 0);
 
                 plugin.getThreadManager().runSync(() -> {
+                    if (!player.isOnline()) return;
+
                     Component message = buildShareMessage(
                             player, group, playTimeSec, totalPlayTime,
                             mobsKilled, bossesKilled, totalMobs,
@@ -68,23 +76,28 @@ public class ShareCommand {
             } catch (SQLException e) {
                 plugin.getLogger().severe("Ошибка в ShareCommand для " + playerName + ": " + e.getMessage());
                 e.printStackTrace();
-                plugin.getThreadManager().runSync(() ->
-                        player.sendMessage(Component.text("Произошла ошибка при получении статистики.", NamedTextColor.RED)));
+                plugin.getThreadManager().runSync(() -> {
+                    if (player.isOnline()) {
+                        player.sendMessage(lang.getComponent("error"));
+                    }
+                });
             }
         });
     }
 
-    /**
-     * Отправить свою статистику конкретному игроку в личные сообщения.
-     */
     public void execute(Player sender, Player target) {
+        if (!sender.hasPermission("playerstats.share")) {
+            sender.sendMessage(lang.getComponent("no-permission"));
+            return;
+        }
+
         if (target == null) {
-            sender.sendMessage(Component.text("Игрок не найден.", NamedTextColor.RED));
+            sender.sendMessage(lang.getComponent("player-not-found", "player", "?"));
             return;
         }
 
         if (target.equals(sender)) {
-            sender.sendMessage(Component.text("Нельзя поделиться статистикой с самим собой. Используйте /stats.", NamedTextColor.RED));
+            sender.sendMessage(lang.getComponent("share.self"));
             return;
         }
 
@@ -110,22 +123,29 @@ public class ShareCommand {
                 int totalPlayTime = totalStats.getOrDefault("play_time", 0);
 
                 plugin.getThreadManager().runSync(() -> {
+                    if (!sender.isOnline()) return;
+
                     Component message = buildPrivateShareMessage(
                             sender, group, playTimeSec, totalPlayTime,
                             mobsKilled, bossesKilled, kills, deaths, balance
                     );
 
-                    sender.sendMessage(Component.text("Вы поделились статистикой с ", NamedTextColor.GREEN)
-                            .append(Component.text(target.getName(), NamedTextColor.YELLOW)));
+                    sender.sendMessage(lang.getComponent("share.private-sender",
+                            "target", target.getName()));
 
-                    target.sendMessage(message);
+                    if (target.isOnline()) {
+                        target.sendMessage(message);
+                    }
                 });
 
             } catch (SQLException e) {
                 plugin.getLogger().severe("Ошибка в ShareCommand: " + e.getMessage());
                 e.printStackTrace();
-                plugin.getThreadManager().runSync(() ->
-                        sender.sendMessage(Component.text("Произошла ошибка.", NamedTextColor.RED)));
+                plugin.getThreadManager().runSync(() -> {
+                    if (sender.isOnline()) {
+                        sender.sendMessage(lang.getComponent("error"));
+                    }
+                });
             }
         });
     }
@@ -138,42 +158,30 @@ public class ShareCommand {
                                         int mobs, int bosses, int totalMobs,
                                         int blocks, int kills, int deaths,
                                         double balance) {
-        String serverName = config.getServerDisplayName(config.getServerName());
+        String serverDisplay = config.getServerDisplayName(plugin.getServerName());
 
-        Component header = Component.text("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n", NamedTextColor.DARK_GRAY)
-                .append(Component.text("📊 ", NamedTextColor.GOLD))
-                .append(Component.text(player.getName(), NamedTextColor.YELLOW, TextDecoration.BOLD))
-                .append(Component.text(" поделился статистикой!\n", NamedTextColor.GOLD))
-                .append(Component.text("Сервер: ", NamedTextColor.GRAY))
-                .append(Component.text(serverName, NamedTextColor.AQUA))
-                .append(Component.text(" | Группа: ", NamedTextColor.GRAY))
-                .append(Component.text(group, NamedTextColor.LIGHT_PURPLE));
+        Component header = lang.getComponent("share.broadcast",
+                "player", player.getName(),
+                "server", serverDisplay,
+                "group", group);
 
-        Component stats = Component.text()
-                .append(Component.text("\n⏳ Время: ", NamedTextColor.GREEN))
-                .append(Component.text(formatTime(playTime), NamedTextColor.WHITE))
-                .append(Component.text(" (всего: " + formatTime(totalPlayTime) + ")", NamedTextColor.GRAY))
+        // Клик и hover на имени игрока
+        header = header.clickEvent(ClickEvent.suggestCommand("/stats"))
+                .hoverEvent(HoverEvent.showText(lang.getComponent("share.broadcast-hover")));
 
-                .append(Component.text("\n☠ PvE: ", NamedTextColor.GREEN))
-                .append(Component.text("Мобы " + mobs + " | Боссы " + bosses, NamedTextColor.WHITE))
-                .append(Component.text(" (всего мобов: " + totalMobs + ")", NamedTextColor.GRAY))
+        Component stats = lang.getComponent("share.stats",
+                "time", formatTime(playTime),
+                "total-time", formatTime(totalPlayTime),
+                "mobs", mobs,
+                "bosses", bosses,
+                "total-mobs", totalMobs,
+                "blocks", blocks,
+                "kills", kills,
+                "deaths", deaths,
+                "kd", formatKD(kills, deaths),
+                "balance", formatBalance(balance));
 
-                .append(Component.text("\n⛏ Блоки: ", NamedTextColor.GREEN))
-                .append(Component.text("Поставлено " + blocks, NamedTextColor.WHITE))
-
-                .append(Component.text("\n⚔ PvP: ", NamedTextColor.GREEN))
-                .append(Component.text("Убийств " + kills + " | Смертей " + deaths, NamedTextColor.WHITE))
-                .append(Component.text(" | K/D: " + formatKD(kills, deaths), NamedTextColor.GRAY))
-
-                .append(Component.text("\n💰 Баланс: ", NamedTextColor.GREEN))
-                .append(Component.text(String.format("%.0f₽", balance), NamedTextColor.GOLD))
-
-                .append(Component.text("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━", NamedTextColor.DARK_GRAY))
-                .build();
-
-        return header.append(stats)
-                .hoverEvent(HoverEvent.showText(Component.text("Нажмите /stats, чтобы посмотреть свою статистику")))
-                .clickEvent(ClickEvent.suggestCommand("/stats"));
+        return header.append(stats);
     }
 
     /**
@@ -183,34 +191,48 @@ public class ShareCommand {
                                                int playTime, int totalPlayTime,
                                                int mobs, int bosses,
                                                int kills, int deaths, double balance) {
-        String serverName = config.getServerDisplayName(config.getServerName());
+        String serverDisplay = config.getServerDisplayName(plugin.getServerName());
 
-        return Component.text("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n", NamedTextColor.DARK_GRAY)
-                .append(Component.text("📊 ", NamedTextColor.GOLD))
-                .append(Component.text(sender.getName(), NamedTextColor.YELLOW, TextDecoration.BOLD))
-                .append(Component.text(" поделился с вами статистикой:\n", NamedTextColor.GOLD))
-                .append(Component.text("Сервер: ", NamedTextColor.GRAY))
-                .append(Component.text(serverName, NamedTextColor.AQUA))
-                .append(Component.text(" | Группа: ", NamedTextColor.GRAY))
-                .append(Component.text(group, NamedTextColor.LIGHT_PURPLE))
-                .append(Component.text("\n⏳ Время: " + formatTime(playTime) + " (всего: " + formatTime(totalPlayTime) + ")", NamedTextColor.WHITE))
-                .append(Component.text("\n☠ PvE: Мобы " + mobs + " | Боссы " + bosses, NamedTextColor.WHITE))
-                .append(Component.text("\n⚔ PvP: Убийств " + kills + " | Смертей " + deaths + " | K/D: " + formatKD(kills, deaths), NamedTextColor.WHITE))
-                .append(Component.text("\n💰 Баланс: ", NamedTextColor.WHITE))
-                .append(Component.text(String.format("%.0f₽", balance), NamedTextColor.GOLD))
-                .append(Component.text("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━", NamedTextColor.DARK_GRAY))
-                .hoverEvent(HoverEvent.showText(Component.text("Статистика игрока " + sender.getName())));
+        return lang.getComponent("share.private-target",
+                        "player", sender.getName(),
+                        "server", serverDisplay,
+                        "group", group,
+                        "time", formatTime(playTime),
+                        "total-time", formatTime(totalPlayTime),
+                        "mobs", mobs,
+                        "bosses", bosses,
+                        "kills", kills,
+                        "deaths", deaths,
+                        "kd", formatKD(kills, deaths),
+                        "balance", formatBalance(balance))
+                .hoverEvent(HoverEvent.showText(lang.getComponent("share.private-hover",
+                        "player", sender.getName())));
     }
 
     private String formatTime(int totalSeconds) {
         int hours = totalSeconds / 3600;
         int minutes = (totalSeconds % 3600) / 60;
-        if (hours > 0) return hours + "ч " + minutes + "м";
-        return minutes + "м";
+        if (hours > 0) {
+            return lang.get("time.hours", "hours", hours, "minutes", minutes);
+        }
+        return lang.get("time.minutes", "minutes", minutes);
     }
 
     private String formatKD(int kills, int deaths) {
         if (deaths == 0) return kills > 0 ? "∞" : "0.00";
         return String.format("%.2f", (double) kills / deaths);
+    }
+
+    private String formatBalance(double balance) {
+        if (plugin.getHooksManager() != null
+                && plugin.getHooksManager().getVaultHook() != null
+                && plugin.getHooksManager().getVaultHook().isEnabled()) {
+            try {
+                return plugin.getHooksManager().getVaultHook().format(balance);
+            } catch (Exception e) {
+                // fallback
+            }
+        }
+        return String.format("%.2f₽", balance);
     }
 }

@@ -1,7 +1,7 @@
 plugins {
     id 'java'
-    id "io.papermc.paperweight.userdev" version "2.0.0-beta.17"
-    id 'com.gradleup.shadow' version '9.0.2'
+    id "io.papermc.paperweight.userdev" version "2.0.0-beta.23"
+    id 'com.gradleup.shadow' version '9.3.2'
 }
 
 group = 'com.playerstats'
@@ -9,10 +9,15 @@ version = '1.0'
 
 repositories {
     mavenCentral()
+
     maven { url 'https://repo.papermc.io/repository/maven-public/' }
     maven { url "https://repo.extendedclip.com/content/repositories/placeholderapi/" }
     maven { url "https://repo.essentialsx.net/releases" }
-    maven { url "https://jitpack.io" }
+    maven {
+        name = "jitpack"
+        url = "https://jitpack.io/"
+    }
+
     maven {
         name = "luckperms"
         url = "https://repo.lucko.me/repository/maven-public/"
@@ -20,41 +25,40 @@ repositories {
 }
 
 dependencies {
-    // Paper API — не включаем в ShadowJar
-    paperweight.paperDevBundle("1.21.4-R0.1-SNAPSHOT")
+    // Paper API — включает Adventure (Component, MiniMessage, Audience)
+    paperweight.paperDevBundle("1.21.11-R0.1-SNAPSHOT")
 
-    // Базы данных — включаем SQLite и MySQL, они нужны в плагине
+    // Базы данных (внутри JAR)
     implementation "org.xerial:sqlite-jdbc:3.43.0.0"
-    implementation 'mysql:mysql-connector-java:8.0.33'
+    implementation 'com.mysql:mysql-connector-j:8.4.0'
+    implementation 'com.tchristofferson:ConfigUpdater:2.2-SNAPSHOT'
 
-    // Плагины, которые есть на сервере — указываем как compileOnly
-    compileOnly 'me.clip:placeholderapi:2.11.6'
-    compileOnly "net.luckperms:api:5.4"
-
-    // DecentHolograms
-    compileOnly 'com.github.decentsoftware-eu:decentholograms:2.9.9'
-
-    // Vault (экономика)
-    compileOnly 'com.github.Foulest:Vault:2.5.0'
-    compileOnly 'net.essentialsx:EssentialsX:2.21.2'
-
+    // Библиотеки (внутри JAR)
     implementation 'com.zaxxer:HikariCP:5.1.0'
-    implementation 'net.kyori:adventure-platform-bukkit:4.4.1'
+    implementation("org.bstats:bstats-bukkit:3.2.1")
+
+    compileOnly 'me.clip:placeholderapi:2.12.3'
+    compileOnly "net.luckperms:api:5.5"
+    compileOnly('com.github.decentsoftware-eu:decentholograms:2.10.1')
+    compileOnly 'com.github.Foulest:Vault:2.5.0'
+
+    compileOnly('net.essentialsx:EssentialsX:2.19.0') {
+        exclude group: 'org.spigotmc', module: 'spigot-api'
+    }
+
+    compileOnly('com.github.Zrips:Jobs:5.2.6.3') {
+        transitive = false
+    }
 }
 
 shadowJar {
     archiveClassifier.set('')
-    minimize()
 
-    dependencies {
-        exclude(dependency('io.papermc.paper:paper-api:.*'))
-        exclude(dependency('net.luckperms:api:.*'))
-        exclude(dependency('me.clip:placeholderapi:.*'))
-        exclude(dependency('com.github.Foulest:Vault:.*'))
-        exclude(dependency('net.essentialsx:EssentialsX:.*'))
-    }
+    relocate 'com.zaxxer.hikari', 'com.playerstats.libs.hikari'
+    relocate 'com.mysql', 'com.playerstats.libs.mysql'
+    relocate 'org.bstats', 'com.playerstats.libs.bstats'
+    relocate 'com.tchristofferson.configupdater', 'com.playerstats.libs.configupdater'
 
-    // убираем лишние нативки sqlite
     exclude 'org/sqlite/native/Linux-*/**'
     exclude 'org/sqlite/native/Mac/**'
     exclude 'org/sqlite/native/FreeBSD/**'
@@ -75,18 +79,13 @@ shadowJar {
     exclude 'org/sqlite/native/Windows/arm/**'
     exclude 'org/sqlite/native/Windows/armv6/**'
     exclude 'org/sqlite/native/Windows/aarch64/**'
-    // оставляем только Windows + Linux x86_64
 }
 
-
-def targetJavaVersion = 21
+def targetJavaVersion = 25
 java {
     def javaVersion = JavaVersion.toVersion(targetJavaVersion)
     sourceCompatibility = javaVersion
     targetCompatibility = javaVersion
-    if (JavaVersion.current() < javaVersion) {
-        toolchain.languageVersion = JavaLanguageVersion.of(targetJavaVersion)
-    }
 }
 
 tasks.withType(JavaCompile).configureEach {
@@ -100,7 +99,7 @@ processResources {
     def props = [version: version]
     inputs.properties props
     filteringCharset 'UTF-8'
-    filesMatching('paper-plugin.yml') {
+    filesMatching(['paper-plugin.yml', 'lang/*.yml']) {
         expand props
     }
 }

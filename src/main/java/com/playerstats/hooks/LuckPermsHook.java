@@ -5,6 +5,7 @@ import net.luckperms.api.LuckPerms;
 import net.luckperms.api.LuckPermsProvider;
 import net.luckperms.api.event.user.UserDataRecalculateEvent;
 import net.luckperms.api.model.user.User;
+import net.luckperms.api.query.QueryOptions;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
@@ -62,54 +63,75 @@ public class LuckPermsHook implements Hook {
     }
 
     /**
-     * Получить группу игрока.
+     * Получить группу игрока через CachedData.
+     * Безопасно для главного потока — не блокирует.
      */
     public String getPlayerGroup(Player player) {
-        if (!isEnabled()) return null;
+        if (!isEnabled() || player == null) return null;
 
         try {
-            User user = luckPermsApi.getUserManager().getUser(player.getUniqueId());
-            if (user != null) {
-                return user.getPrimaryGroup();
-            }
+            // CachedData — самый быстрый и безопасный способ [citation:2][citation:12]
+            var metaData = luckPermsApi.getPlayerAdapter(Player.class)
+                    .getMetaData(player);
+            return metaData.getPrimaryGroup();
         } catch (Exception e) {
-            plugin.getLogger().log(Level.WARNING, "Ошибка получения группы игрока " + player.getName(), e);
+            plugin.getLogger().log(Level.WARNING,
+                    "Ошибка получения группы игрока " + player.getName(), e);
+            return null;
         }
-        return null;
     }
 
     /**
      * Получить группу игрока по UUID.
+     * Для офлайн-игроков может вернуть null, если данные не загружены.
      */
     public String getPlayerGroup(UUID uuid) {
-        if (!isEnabled()) return null;
+        if (!isEnabled() || uuid == null) return null;
 
         try {
             User user = luckPermsApi.getUserManager().getUser(uuid);
-            if (user != null) {
-                return user.getPrimaryGroup();
+            if (user == null) {
+                // Данные ещё не загружены — для офлайн-игрока это нормально [citation:1]
+                return null;
             }
+
+            // Используем CachedData для безопасного получения группы [citation:2]
+            var metaData = user.getCachedData().getMetaData(QueryOptions.nonContextual());
+            return metaData.getPrimaryGroup();
+
         } catch (Exception e) {
-            plugin.getLogger().log(Level.WARNING, "Ошибка получения группы игрока " + uuid, e);
+            plugin.getLogger().log(Level.WARNING,
+                    "Ошибка получения группы игрока " + uuid, e);
+            return null;
         }
-        return null;
     }
 
     /**
      * Подписаться на событие обновления данных пользователя.
+     * Событие может срабатывать асинхронно — слушатель должен сам переключаться на главный поток.
      */
-    public void subscribeToEvents(Object listener) {
-        if (!isEnabled()) return;
+    public void subscribeToEvents(LuckPermsEventListener listener) {
+        if (!isEnabled() || listener == null) return;
+
         luckPermsApi.getEventBus().subscribe(plugin, UserDataRecalculateEvent.class,
-                (UserDataRecalculateEvent event) -> {
-                    if (listener instanceof LuckPermsEventListener le) {
-                        le.onUserDataRecalculate(event);
+                event -> {
+                    try {
+                        // Проверяем, что пользователь загружен
+                        if (event.getUser() == null) return;
+
+                        // Делегируем обработку слушателю
+                        listener.onUserDataRecalculate(event);
+                    } catch (Exception e) {
+                        plugin.getLogger().log(Level.WARNING,
+                                "Ошибка обработки UserDataRecalculateEvent", e);
                     }
                 });
     }
 
     /**
      * Интерфейс для слушателей событий LuckPerms.
+     * ВАЖНО: Событие может срабатывать в асинхронном потоке.
+     * Если нужно работать с Bukkit API — переключайтесь на главный поток.
      */
     public interface LuckPermsEventListener {
         void onUserDataRecalculate(UserDataRecalculateEvent event);

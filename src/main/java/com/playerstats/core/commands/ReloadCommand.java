@@ -2,102 +2,94 @@ package com.playerstats.core.commands;
 
 import com.playerstats.Main;
 import com.playerstats.core.config.ConfigHandler;
-import com.playerstats.core.database.dao.LeaderboardDAO;
-import com.playerstats.core.database.dao.PlayerStatsDAO;
-import com.playerstats.core.database.dao.ServerDAO;
-import com.playerstats.core.database.dao.ServerStatsDAO;
-import com.playerstats.core.database.dao.StatTypeDAO;
-import com.playerstats.core.database.dao.TotalServerDAO;
+import com.playerstats.core.config.LanguageManager;
 import com.playerstats.core.services.PlayerGroupService;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
+import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
-import org.bukkit.entity.Player;
 
 public class ReloadCommand {
 
     private final Main plugin;
+    private final LanguageManager lang;
     private final PlayerGroupService groupService;
 
     public ReloadCommand(Main plugin, PlayerGroupService groupService) {
         this.plugin = plugin;
+        this.lang = plugin.getLanguageManager();
         this.groupService = groupService;
     }
 
-    /**
-     * Выполнить перезагрузку плагина.
-     * Перезагружает конфиг, очищает кэши DAO и сервиса групп.
-     */
     public void execute(CommandSender sender) {
         if (!sender.hasPermission("playerstats.reload")) {
-            sendMessage(sender, "§cУ вас нет прав для выполнения этой команды.", NamedTextColor.RED);
+            sender.sendMessage(lang.getComponent("no-permission"));
             return;
         }
 
-        sendMessage(sender, "§6[PlayerStats] Начинаю перезагрузку...", NamedTextColor.GOLD);
+        sender.sendMessage(lang.getComponent("reload.starting"));
 
         plugin.getThreadManager().runAsync(() -> {
             try {
-                // 1. Перезагружаем конфиг
                 ConfigHandler.reload(plugin);
                 ConfigHandler config = ConfigHandler.getInstance(plugin);
 
-                // 2. Очищаем кэши DAO
                 clearAllCaches();
 
-                // 3. Очищаем кэш групп
                 if (groupService != null) {
                     groupService.clearCache();
                 }
 
-                // 4. Обновляем serverId в Main (на случай смены server-name в конфиге)
-                String serverName = config.isMultiServerEnabled()
-                        ? config.getServerName()
-                        : org.bukkit.Bukkit.getServer().getName();
+                // Сбрасываем кэш топов
+                if (plugin.getTopCache() != null) {
+                    plugin.getTopCache().invalidateAll();
+                }
 
-                plugin.getServerDAO().createOrGetServer(serverName);
+                String newServerName = config.isMultiServerEnabled()
+                        ? config.getServerName()
+                        : Bukkit.getServer().getName();
+
+                int newServerId = plugin.getServerDAO().createOrGetServer(newServerName);
+                plugin.updateServerInfo(newServerId, newServerName);
 
                 plugin.getThreadManager().runSync(() -> {
-                    sendMessage(sender, "§a[PlayerStats] ✅ Конфиг перезагружен, кэши очищены!", NamedTextColor.GREEN);
+                    sender.sendMessage(lang.getComponent("reload.success"));
 
-                    // Информация о загруженной конфигурации
-                    sender.sendMessage(Component.text()
-                            .append(Component.text("  База данных: ", NamedTextColor.GRAY))
-                            .append(Component.text(config.getDatabaseType().toUpperCase(), NamedTextColor.WHITE))
-                            .build());
+                    // База данных
+                    sender.sendMessage(lang.getComponent("reload.info-db",
+                            "type", config.getDatabaseType().toUpperCase()));
 
-                    sender.sendMessage(Component.text()
-                            .append(Component.text("  Сервер: ", NamedTextColor.GRAY))
-                            .append(Component.text(serverName, NamedTextColor.WHITE))
-                            .build());
+                    // Сервер
+                    sender.sendMessage(lang.getComponent("reload.info-server",
+                            "server", newServerName,
+                            "id", newServerId));
 
-                    sender.sendMessage(Component.text()
-                            .append(Component.text("  API: ", NamedTextColor.GRAY))
-                            .append(Component.text(config.isApiEnabled() ? "Включен" : "Выключен",
-                                    config.isApiEnabled() ? NamedTextColor.GREEN : NamedTextColor.RED))
-                            .build());
+                    // API
+                    String apiStatus = lang.getRaw(config.isApiEnabled()
+                            ? "status.enabled"
+                            : "status.disabled");
+                    sender.sendMessage(lang.getComponent("reload.info-api",
+                            "status", apiStatus));
 
+                    // API хост (если включен)
                     if (config.isApiEnabled()) {
-                        sender.sendMessage(Component.text()
-                                .append(Component.text("  API Хост: ", NamedTextColor.GRAY))
-                                .append(Component.text(config.getApiHost() + ":" + config.getApiPort(), NamedTextColor.WHITE))
-                                .build());
+                        sender.sendMessage(lang.getComponent("reload.info-api-host",
+                                "host", config.getApiHost() + ":" + config.getApiPort()));
                     }
 
-                    sender.sendMessage(Component.text()
-                            .append(Component.text("  Мультисерверность: ", NamedTextColor.GRAY))
-                            .append(Component.text(config.isMultiServerEnabled() ? "Включена" : "Выключена",
-                                    config.isMultiServerEnabled() ? NamedTextColor.GREEN : NamedTextColor.YELLOW))
-                            .build());
+                    // Мультисерверность
+                    String multiStatus = lang.getRaw(config.isMultiServerEnabled()
+                            ? "status.enabled-f"
+                            : "status.disabled-f");
+                    sender.sendMessage(lang.getComponent("reload.info-multi",
+                            "status", multiStatus));
                 });
 
             } catch (Exception e) {
                 plugin.getLogger().severe("Ошибка при перезагрузке плагина: " + e.getMessage());
                 e.printStackTrace();
 
-                plugin.getThreadManager().runSync(() -> {
-                    sendMessage(sender, "§c[PlayerStats] ❌ Ошибка при перезагрузке! Проверьте консоль.", NamedTextColor.RED);
-                });
+                plugin.getThreadManager().runSync(() ->
+                        sender.sendMessage(lang.getComponent("reload.error")));
             }
         });
     }
@@ -107,37 +99,23 @@ public class ReloadCommand {
      */
     private void clearAllCaches() {
         try {
-            // Очищаем кэши во всех DAO, которые их имеют
             if (plugin.getStatTypeDAO() != null) {
                 plugin.getStatTypeDAO().clearCache();
             }
-
             if (plugin.getServerDAO() != null) {
                 plugin.getServerDAO().clearCache();
             }
-
-            // Очищаем кэш в PlayerStatsDAO через рефлексию или публичный метод
             if (plugin.getStatsDAO() != null) {
                 plugin.getStatsDAO().clearCache();
             }
-
             if (plugin.getServerStatsDAO() != null) {
                 plugin.getServerStatsDAO().clearCache();
             }
-
+            if (plugin.getLeaderboardDAO() != null) {
+                plugin.getLeaderboardDAO().clearCache();
+            }
         } catch (Exception e) {
             plugin.getLogger().warning("Ошибка при очистке кэшей DAO: " + e.getMessage());
-        }
-    }
-
-    /**
-     * Отправить сообщение игроку или в консоль.
-     */
-    private void sendMessage(CommandSender sender, String message, NamedTextColor color) {
-        if (sender instanceof Player) {
-            sender.sendMessage(Component.text(message, color));
-        } else {
-            sender.sendMessage(message); // Консоль — plain text
         }
     }
 }

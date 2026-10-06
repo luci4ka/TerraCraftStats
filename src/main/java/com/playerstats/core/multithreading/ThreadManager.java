@@ -11,34 +11,29 @@ import java.util.logging.Level;
 public class ThreadManager {
 
     private final ExecutorService executor;
-    private final ScheduledExecutorService scheduler; // Один на все отложенные задачи
+    private final ScheduledExecutorService scheduler;
     private final JavaPlugin plugin;
 
-    /**
-     * Создаёт менеджер с фиксированным пулом потоков.
-     *
-     * @param plugin   экземпляр плагина
-     * @param poolSize количество потоков в пуле
-     */
     public ThreadManager(JavaPlugin plugin, int poolSize) {
         this.plugin = plugin;
-        this.executor = Executors.newFixedThreadPool(poolSize);
-        this.scheduler = Executors.newSingleThreadScheduledExecutor();
+        this.executor = Executors.newFixedThreadPool(poolSize, r -> {
+            Thread t = new Thread(r, "PlayerStats-Async");
+            t.setDaemon(true);
+            return t;
+        });
+        this.scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "PlayerStats-Scheduler");
+            t.setDaemon(true);
+            return t;
+        });
     }
 
-    /**
-     * Создаёт менеджер с пулом из 4 потоков (по умолчанию).
-     */
     public ThreadManager(JavaPlugin plugin) {
         this(plugin, 4);
     }
 
     // ==================== Асинхронные задачи ====================
 
-    /**
-     * Выполнить задачу асинхронно.
-     * Ошибки логируются и не крашают пул.
-     */
     public void runAsync(Runnable task) {
         executor.submit(() -> {
             try {
@@ -49,28 +44,34 @@ public class ThreadManager {
         });
     }
 
-    /**
-     * Выполнить задачу асинхронно с задержкой.
-     * Использует общий ScheduledExecutorService (без утечек).
-     */
     public void runAsyncDelayed(Runnable task, long delayMillis) {
         scheduler.schedule(() -> runAsync(task), delayMillis, TimeUnit.MILLISECONDS);
     }
 
     /**
-     * Асинхронно дождаться CompletableFuture и выполнить callback на основном потоке.
+     * Периодическая асинхронная задача.
      *
-     * @param future   будущий результат
-     * @param callback выполняется в главном потоке Bukkit при успехе
-     * @param <T>      тип результата
+     * @param task         задача
+     * @param initialDelay задержка перед первым запуском (в секундах)
+     * @param period       период между запусками (в секундах)
+     * @return ScheduledFuture для отмены
      */
+    public ScheduledFuture<?> runAsyncRepeating(Runnable task, long initialDelay, long period) {
+        return scheduler.scheduleAtFixedRate(() -> {
+            try {
+                task.run();
+            } catch (Exception e) {
+                logError("Ошибка в периодической async-задаче", e);
+            }
+        }, initialDelay, period, TimeUnit.SECONDS);
+    }
+
     public <T> void runAsync(CompletableFuture<T> future, Consumer<T> callback) {
         future.whenCompleteAsync((result, throwable) -> {
             if (throwable != null) {
                 logError("Ошибка в CompletableFuture", throwable);
                 return;
             }
-            // Колбэк выполняем синхронно (в главном потоке)
             runSync(() -> {
                 try {
                     callback.accept(result);
@@ -81,14 +82,6 @@ public class ThreadManager {
         }, executor);
     }
 
-    /**
-     * Асинхронно дождаться CompletableFuture с раздельными callback'ами для успеха и ошибки.
-     *
-     * @param future    будущий результат
-     * @param onSuccess выполняется в главном потоке при успехе
-     * @param onError   выполняется в главном потоке при ошибке (throwable может быть null, если ошибка не связана с future)
-     * @param <T>       тип результата
-     */
     public <T> void runAsync(CompletableFuture<T> future, Consumer<T> onSuccess, Consumer<Throwable> onError) {
         future.whenCompleteAsync((result, throwable) -> {
             if (throwable != null) {
@@ -106,19 +99,11 @@ public class ThreadManager {
                     onSuccess.accept(result);
                 } catch (Exception e) {
                     logError("Ошибка в onSuccess callback", e);
-                    // Не вызываем onError повторно, т.к. это ошибка колбэка, а не future
                 }
             });
         }, executor);
     }
 
-    /**
-     * Выполнить CompletableFuture и обработать результат через BiConsumer (успех/ошибка) на главном потоке.
-     *
-     * @param future   будущий результат
-     * @param callback BiConsumer<T, Throwable>: если Throwable != null — ошибка, иначе успех
-     * @param <T>      тип результата
-     */
     public <T> void runAsyncWithResult(CompletableFuture<T> future, BiConsumer<T, Throwable> callback) {
         future.whenCompleteAsync((result, throwable) -> runSync(() -> {
             try {
@@ -131,10 +116,6 @@ public class ThreadManager {
 
     // ==================== Синхронные задачи ====================
 
-    /**
-     * Выполнить задачу в главном потоке сервера.
-     * Если текущий поток уже главный — выполняется сразу, иначе через планировщик.
-     */
     public void runSync(Runnable task) {
         if (Bukkit.isPrimaryThread()) {
             try {
@@ -155,12 +136,7 @@ public class ThreadManager {
 
     // ==================== Жизненный цикл ====================
 
-    /**
-     * Корректное завершение всех потоков.
-     * Сначала мягкое завершение с таймаутом 10 сек, затем принудительное.
-     */
     public void shutdown() {
-        // Завершаем scheduler
         scheduler.shutdown();
         try {
             if (!scheduler.awaitTermination(5, TimeUnit.SECONDS)) {
@@ -168,10 +144,9 @@ public class ThreadManager {
             }
         } catch (InterruptedException e) {
             scheduler.shutdownNow();
-            Thread.currentThread().interrupt(); // Восстанавливаем флаг прерывания
+            Thread.currentThread().interrupt();
         }
 
-        // Завершаем основной пул
         executor.shutdown();
         try {
             if (!executor.awaitTermination(10, TimeUnit.SECONDS)) {
@@ -179,17 +154,12 @@ public class ThreadManager {
             }
         } catch (InterruptedException e) {
             executor.shutdownNow();
-            Thread.currentThread().interrupt(); // Восстанавливаем флаг прерывания
+            Thread.currentThread().interrupt();
         }
 
         plugin.getLogger().info("ThreadManager завершил работу.");
     }
 
-    // ==================== Приватные методы ====================
-
-    /**
-     * Логирование ошибки с полным стектрейсом.
-     */
     private void logError(String message, Throwable throwable) {
         plugin.getLogger().log(Level.SEVERE, message, throwable);
     }

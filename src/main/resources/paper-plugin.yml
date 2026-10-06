@@ -7,20 +7,16 @@ description: Статистика игрока и сервера
 website: terracraft.net.ru
 
 dependencies:
-  - name: PlaceholderAPI
-    required: false
-    load: BEFORE
-  - name: Vault
-    required: false
-    load: BEFORE
-  - name: Essentials
-    required: false
-    load: BEFORE
-  - name: LuckPerms
-    required: false
-    load: BEFORE
-
-commands:
-  stats:
-    description: Show your stats
-    usage: /stats
+  server:
+    PlaceholderAPI:
+      load: BEFORE
+      required: false
+    Vault:
+      load: BEFORE
+      required: false
+    Essentials:
+      load: BEFORE
+      required: false
+    LuckPerms:
+      load: BEFORE
+      required: false

@@ -32,13 +32,8 @@ public final class PlayerGroupService implements Listener {
     // Потокобезопасный кэш: UUID игрока → форматированное название группы
     private final Map<UUID, String> groupCache = new ConcurrentHashMap<>();
 
-    /**
-     * @param plugin       главный класс плагина
-     * @param config       обработчик конфига
-     * @param statsDAO     DAO для работы со статистикой (где хранится группа)
-     * @param luckPermsHook хук LuckPerms (может быть выключен)
-     */
-    public PlayerGroupService(Main plugin, ConfigHandler config, PlayerStatsDAO statsDAO, LuckPermsHook luckPermsHook) {
+    public PlayerGroupService(Main plugin, ConfigHandler config,
+                              PlayerStatsDAO statsDAO, LuckPermsHook luckPermsHook) {
         this.plugin = plugin;
         this.config = config;
         this.statsDAO = statsDAO;
@@ -49,7 +44,7 @@ public final class PlayerGroupService implements Listener {
 
         // Если LuckPerms есть, слушаем его событие обновления данных пользователя
         if (luckPermsHook != null && luckPermsHook.isEnabled()) {
-            luckPermsHook.subscribeToEvents((LuckPermsHook.LuckPermsEventListener) this::onUserDataRecalculateHandler);
+            luckPermsHook.subscribeToEvents(this::onUserDataRecalculateHandler);
         }
     }
 
@@ -57,45 +52,35 @@ public final class PlayerGroupService implements Listener {
 
     /**
      * Получить отформатированную группу игрока.
-     * Порядок определения:
-     * 1. Кэш
-     * 2. LuckPerms (если доступен)
-     * 3. База данных (статистика "group")
-     * 4. Значение по умолчанию из конфига
-     *
-     * @param player   объект игрока
-     * @param playerId ID игрока в базе данных
-     * @return форматированная строка группы (с цветами)
+     * Порядок: кэш → LuckPerms → БД → конфиг (default).
      */
     public String getPlayerGroup(Player player, int playerId) {
         UUID uuid = player.getUniqueId();
 
-        // 1. Проверяем кэш
+        // 1. Кэш
         String cached = groupCache.get(uuid);
-        if (cached != null) {
-            return cached;
-        }
+        if (cached != null) return cached;
 
-        // 2. Пытаемся получить из LuckPerms
+        // 2. LuckPerms
         String group = resolveFromLuckPerms(player);
 
-        // 3. Если LuckPerms не дал результата — идём в базу
+        // 3. БД
         if (group == null) {
             group = resolveFromDatabase(playerId);
         }
 
-        // 4. Если ничего не нашли — берём default из конфига
+        // 4. Конфиг
         if (group == null) {
             group = config.getGroupFormat("default", "§rИгрок");
         }
 
-        // Сохраняем в кэш
         groupCache.put(uuid, group);
         return group;
     }
 
     /**
-     * Получить группу игрока по UUID (без Player объекта).
+     * Получить группу игрока по UUID.
+     * Для офлайн-игроков БД недоступна (нет playerId), поэтому цепочка: кэш → LuckPerms → конфиг.
      */
     public String getPlayerGroup(UUID uuid) {
         String cached = groupCache.get(uuid);
@@ -104,7 +89,7 @@ public final class PlayerGroupService implements Listener {
         // Пробуем LuckPerms
         if (luckPermsHook != null && luckPermsHook.isEnabled()) {
             String group = luckPermsHook.getPlayerGroup(uuid);
-            if (group != null) {
+            if (group != null && !group.isEmpty()) {
                 String formatted = config.getGroupFormat(group, "§r" + group);
                 groupCache.put(uuid, formatted);
                 return formatted;
@@ -115,14 +100,14 @@ public final class PlayerGroupService implements Listener {
     }
 
     /**
-     * Принудительно обновить кэш для игрока (например, при смене группы админом).
+     * Принудительно обновить кэш для игрока.
      */
     public void invalidateCache(UUID uuid) {
         groupCache.remove(uuid);
     }
 
     /**
-     * Принудительно обновить кэш для игрока и сразу получить актуальную группу.
+     * Обновить кэш и сразу получить актуальную группу.
      */
     public String refreshGroup(Player player, int playerId) {
         invalidateCache(player.getUniqueId());
@@ -131,9 +116,6 @@ public final class PlayerGroupService implements Listener {
 
     // ==================== Приватные методы разрешения ====================
 
-    /**
-     * Попытаться получить группу через LuckPerms.
-     */
     private String resolveFromLuckPerms(Player player) {
         if (luckPermsHook == null || !luckPermsHook.isEnabled()) return null;
 
@@ -149,9 +131,6 @@ public final class PlayerGroupService implements Listener {
         return null;
     }
 
-    /**
-     * Попытаться получить группу из базы данных.
-     */
     private String resolveFromDatabase(int playerId) {
         try {
             int serverId = plugin.getServerId();
@@ -169,12 +148,11 @@ public final class PlayerGroupService implements Listener {
     // ==================== Слушатели событий ====================
 
     /**
-     * Кэшируем группу при входе игрока.
+     * Кэшируем группу при входе игрока (асинхронно, чтобы не задерживать вход).
      */
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
-        // Запускаем асинхронно, чтобы не задерживать вход
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             try {
                 int playerId = plugin.getPlayerDAO().getOrCreatePlayerId(
@@ -188,7 +166,7 @@ public final class PlayerGroupService implements Listener {
     }
 
     /**
-     * Очищаем кэш при выходе игрока (экономия памяти).
+     * Очищаем кэш при выходе игрока.
      */
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
@@ -197,28 +175,34 @@ public final class PlayerGroupService implements Listener {
 
     /**
      * Обработчик события LuckPerms об обновлении данных пользователя.
+     * ВАЖНО: событие может срабатывать в async-потоке.
+     * Для работы с Bukkit API переключаемся на главный поток.
      */
     private void onUserDataRecalculateHandler(UserDataRecalculateEvent event) {
+        if (event.getUser() == null) return;
+
         UUID uuid = event.getUser().getUniqueId();
-        Player player = Bukkit.getPlayer(uuid);
-        if (player != null && player.isOnline()) {
-            invalidateCache(uuid);
-            plugin.getLogger().info("Кэш группы сброшен для " + player.getName() + " (обновление данных LuckPerms)");
-        }
+
+        // Переключаемся на главный поток для безопасной работы с Bukkit API
+        plugin.getThreadManager().runSync(() -> {
+            Player player = Bukkit.getPlayer(uuid);
+            if (player != null && player.isOnline()) {
+                invalidateCache(uuid);
+                plugin.getLogger().info("Кэш группы сброшен для "
+                        + player.getName() + " (обновление данных LuckPerms)");
+            } else {
+                // Игрок офлайн — просто сбрасываем кэш
+                invalidateCache(uuid);
+            }
+        });
     }
 
     // ==================== Служебные методы ====================
 
-    /**
-     * Полностью очистить кэш (например, при перезагрузке плагина).
-     */
     public void clearCache() {
         groupCache.clear();
     }
 
-    /**
-     * Получить размер кэша (для дебага/мониторинга).
-     */
     public int getCacheSize() {
         return groupCache.size();
     }

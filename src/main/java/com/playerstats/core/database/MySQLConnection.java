@@ -1,28 +1,29 @@
 package com.playerstats.core.database;
 
+import com.playerstats.Main;
+import com.playerstats.core.config.TrackedBlocks;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
 
 public class MySQLConnection implements DatabaseConnection {
 
+    private final Main plugin;
     private final HikariDataSource dataSource;
-    private final String host, database, username, password;
-    private final int port;
 
-    public MySQLConnection(String host, int port, String database, String username, String password) {
-        this.host = host;
-        this.port = port;
-        this.database = database;
-        this.username = username;
-        this.password = password;
+    public MySQLConnection(Main plugin, String host, int port, String database,
+                           String username, String password) {
+        this.plugin = plugin;
 
         HikariConfig config = new HikariConfig();
         config.setJdbcUrl("jdbc:mysql://" + host + ":" + port + "/" + database +
-                "?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true");
+                "?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true&characterEncoding=utf8");
         config.setUsername(username);
         config.setPassword(password);
         config.setMaximumPoolSize(10);
@@ -30,15 +31,13 @@ public class MySQLConnection implements DatabaseConnection {
         config.setIdleTimeout(30000);
         config.setMaxLifetime(600000);
         config.setConnectionTimeout(5000);
-        // Проверка валидности соединения перед использованием
-        config.setConnectionTestQuery("SELECT 1");
+        config.setPoolName("PlayerStats-MySQL");
 
         this.dataSource = new HikariDataSource(config);
     }
 
     @Override
     public void connect() throws SQLException {
-        // HikariCP сам управляет соединениями, просто проверяем
         try (Connection conn = dataSource.getConnection()) {
             // Пробное подключение
         }
@@ -63,11 +62,9 @@ public class MySQLConnection implements DatabaseConnection {
 
     @Override
     public void initTables() throws SQLException {
-        // Используем try-with-resources для автоматического возврата соединения в пул
         try (Connection conn = getConnection();
              Statement stmt = conn.createStatement()) {
 
-            // Таблица игроков
             stmt.executeUpdate("""
                 CREATE TABLE IF NOT EXISTS players (
                     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -77,7 +74,6 @@ public class MySQLConnection implements DatabaseConnection {
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
             """);
 
-            // Таблица серверов
             stmt.executeUpdate("""
                 CREATE TABLE IF NOT EXISTS servers (
                     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -86,7 +82,6 @@ public class MySQLConnection implements DatabaseConnection {
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
             """);
 
-            // Таблица типов статистики
             stmt.executeUpdate("""
                 CREATE TABLE IF NOT EXISTS stat_types (
                     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -94,14 +89,13 @@ public class MySQLConnection implements DatabaseConnection {
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
             """);
 
-            // Таблица статистики игрока
             stmt.executeUpdate("""
                 CREATE TABLE IF NOT EXISTS player_stats (
                     player_id INT NOT NULL,
                     server_id INT NOT NULL,
                     stat_type_id INT NOT NULL,
                     value_int INT DEFAULT 0,
-                    value_double DOUBLE DEFAULT 0,
+                    value_double DECIMAL(20, 2) DEFAULT 0,
                     value_string VARCHAR(255),
                     PRIMARY KEY(player_id, server_id, stat_type_id),
                     FOREIGN KEY (player_id) REFERENCES players(id) ON DELETE CASCADE,
@@ -110,13 +104,12 @@ public class MySQLConnection implements DatabaseConnection {
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
             """);
 
-            // Таблица статистики серверов
             stmt.executeUpdate("""
                 CREATE TABLE IF NOT EXISTS server_stats (
                     server_id INT NOT NULL,
                     stat_type_id INT NOT NULL,
                     value_int INT DEFAULT 0,
-                    value_double DOUBLE DEFAULT 0,
+                    value_double DECIMAL(20, 2) DEFAULT 0,
                     value_string VARCHAR(255),
                     PRIMARY KEY(server_id, stat_type_id),
                     FOREIGN KEY (server_id) REFERENCES servers(id) ON DELETE CASCADE,
@@ -124,7 +117,6 @@ public class MySQLConnection implements DatabaseConnection {
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
             """);
 
-            // Таблица лидербордов
             stmt.executeUpdate("""
                 CREATE TABLE IF NOT EXISTS leaderboards (
                     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -136,34 +128,53 @@ public class MySQLConnection implements DatabaseConnection {
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
             """);
 
-            // Таблица записей лидербордов
             stmt.executeUpdate("""
                 CREATE TABLE IF NOT EXISTS leaderboard_entries (
                     leaderboard_id INT NOT NULL,
                     player_id INT NOT NULL,
                     rank INT NOT NULL,
                     value_int INT DEFAULT 0,
-                    value_double DOUBLE DEFAULT 0,
+                    value_double DECIMAL(20, 2) DEFAULT 0,
                     PRIMARY KEY(leaderboard_id, player_id),
                     FOREIGN KEY (leaderboard_id) REFERENCES leaderboards(id) ON DELETE CASCADE,
                     FOREIGN KEY (player_id) REFERENCES players(id) ON DELETE CASCADE
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
             """);
+        }
 
+        insertDefaultStatTypes();
+    }
 
-            stmt.executeUpdate("INSERT IGNORE INTO stat_types (name) VALUES ('excluded')");
+    private void insertDefaultStatTypes() throws SQLException {
+        List<String> types = new ArrayList<>(List.of(
+                "excluded", "play_time", "blocks_placed", "blocks_broken",
+                "kills", "deaths", "mobs_killed", "bosses_killed",
+                "balance", "group"
+        ));
 
-            // Добавляем стандартные типы статистики (безопасно)
-            String[] defaultStats = {
-                    "play_time", "blocks_placed", "blocks_broken",
-                    "kills", "deaths", "mobs_killed", "bosses_killed",
-                    "balance", "group"
-            };
-            for (String stat : defaultStats) {
-                stmt.executeUpdate(
-                        "INSERT IGNORE INTO stat_types (name) VALUES ('" + stat + "')"
-                );
+        // Типы мобов
+        for (org.bukkit.entity.EntityType type : org.bukkit.entity.EntityType.values()) {
+            if (type.isAlive() && !type.equals(org.bukkit.entity.EntityType.PLAYER)) {
+                types.add("mob_killed_" + type.name().toLowerCase());
             }
         }
+
+        // Ценные блоки из конфига
+        TrackedBlocks tracked = plugin.getConfigHandler().getTrackedBlocks();
+        if (tracked != null) {
+            types.addAll(tracked.toStatTypes());
+        }
+
+        String insertSQL = "INSERT IGNORE INTO stat_types (name) VALUES (?)";
+        try (Connection conn = getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(insertSQL)) {
+            for (String type : types) {
+                pstmt.setString(1, type);
+                pstmt.addBatch();
+            }
+            pstmt.executeBatch();
+        }
+
+        plugin.getLogger().info("Предсоздано " + types.size() + " типов статистики (MySQL).");
     }
 }

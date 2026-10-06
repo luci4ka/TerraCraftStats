@@ -9,6 +9,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerQuitEvent;
 
 import java.util.Set;
 import java.util.UUID;
@@ -39,7 +40,7 @@ public class EssentialsHook implements Hook, Listener {
             this.essentials = (Essentials) Bukkit.getPluginManager().getPlugin("Essentials");
             this.enabled = true;
 
-            // Регистрируем слушатель AFK
+            // Регистрируем слушатели
             Bukkit.getPluginManager().registerEvents(this, plugin);
 
             plugin.getLogger().info("Essentials успешно подключен.");
@@ -92,7 +93,7 @@ public class EssentialsHook implements Hook, Listener {
      * Проверить, включен ли GodMode у игрока.
      */
     public boolean isGodMode(Player player) {
-        if (!isEnabled()) return false;
+        if (!isEnabled() || player == null) return false;
 
         try {
             User user = essentials.getUser(player);
@@ -104,11 +105,26 @@ public class EssentialsHook implements Hook, Listener {
 
     @EventHandler
     public void onAfkChange(AfkStatusChangeEvent event) {
+        // Игнорируем событие при выходе игрока
+        if (event.getCause() == AfkStatusChangeEvent.Cause.QUIT
+                || event.getCause() == AfkStatusChangeEvent.Cause.UNKNOWN) {
+            return;
+        }
+
         UUID uuid = event.getAffected().getBase().getUniqueId();
         if (event.getValue()) {
             afkPlayers.add(uuid);
         } else {
             afkPlayers.remove(uuid);
         }
+    }
+
+    /**
+     * Очистка AFK-статуса при выходе игрока.
+     * Предотвращает "застревание" игрока в AFK после реконнекта.
+     */
+    @EventHandler
+    public void onQuit(PlayerQuitEvent event) {
+        afkPlayers.remove(event.getPlayer().getUniqueId());
     }
 }
