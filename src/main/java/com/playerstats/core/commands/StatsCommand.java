@@ -6,6 +6,10 @@ import com.playerstats.core.config.LanguageManager;
 import com.playerstats.core.database.dao.PlayerDAO;
 import com.playerstats.core.database.dao.PlayerStatsDAO;
 import com.playerstats.core.services.PlayerGroupService;
+import com.playerstats.core.services.TopCache;
+import com.playerstats.core.utils.FormatUtil;
+import com.playerstats.core.utils.Sparkline;
+import com.playerstats.core.utils.TimeUtil;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.event.HoverEvent;
@@ -22,14 +26,9 @@ import java.util.UUID;
 
 public class StatsCommand {
 
-    // ==================== Константы ====================
-
-    /** Сколько строк показывать на одной странице */
     private static final int PAGE_SIZE_PVP = 20;
     private static final int PAGE_SIZE_MOB = 30;
     private static final int PAGE_SIZE_BLOCK = 15;
-
-    // ==================== Поля ====================
 
     private final Main plugin;
     private final ConfigHandler config;
@@ -47,7 +46,7 @@ public class StatsCommand {
 
     public void execute(Player player) {
         if (!player.hasPermission("playerstats.stats")) {
-            player.sendMessage(lang.getComponent("no-permission"));
+            player.sendMessage(lang.getComponent(player, "no-permission"));
             return;
         }
         loadAndSend(player, player, player.getName(), player.getUniqueId(),
@@ -56,11 +55,11 @@ public class StatsCommand {
 
     public void execute(Player viewer, OfflinePlayer target) {
         if (!viewer.hasPermission("playerstats.stats.others")) {
-            viewer.sendMessage(lang.getComponent("no-permission"));
+            viewer.sendMessage(lang.getComponent(viewer, "no-permission"));
             return;
         }
         if (target == null) {
-            viewer.sendMessage(lang.getComponent("player-not-found", "player", "?"));
+            viewer.sendMessage(lang.getComponent(viewer, "player-not-found", "player", "?"));
             return;
         }
         String targetName = target.getName() != null ? target.getName() : "Unknown";
@@ -68,12 +67,9 @@ public class StatsCommand {
                 target.equals(viewer), "main", 0);
     }
 
-    /**
-     * /stats pvp [player] [page]
-     */
     public void executePvp(Player viewer, OfflinePlayer target, int page) {
         if (!viewer.hasPermission("playerstats.stats.others") && !target.equals(viewer)) {
-            viewer.sendMessage(lang.getComponent("no-permission"));
+            viewer.sendMessage(lang.getComponent(viewer, "no-permission"));
             return;
         }
         String targetName = target.getName() != null ? target.getName() : "Unknown";
@@ -81,12 +77,9 @@ public class StatsCommand {
                 target.equals(viewer), "pvp", page);
     }
 
-    /**
-     * /stats mob [player] [page]
-     */
     public void executeMob(Player viewer, OfflinePlayer target, int page) {
         if (!viewer.hasPermission("playerstats.stats.others") && !target.equals(viewer)) {
-            viewer.sendMessage(lang.getComponent("no-permission"));
+            viewer.sendMessage(lang.getComponent(viewer, "no-permission"));
             return;
         }
         String targetName = target.getName() != null ? target.getName() : "Unknown";
@@ -94,12 +87,9 @@ public class StatsCommand {
                 target.equals(viewer), "mob", page);
     }
 
-    /**
-     * /stats block [player] [page]
-     */
     public void executeBlock(Player viewer, OfflinePlayer target, int page) {
         if (!viewer.hasPermission("playerstats.stats.others") && !target.equals(viewer)) {
-            viewer.sendMessage(lang.getComponent("no-permission"));
+            viewer.sendMessage(lang.getComponent(viewer, "no-permission"));
             return;
         }
         String targetName = target.getName() != null ? target.getName() : "Unknown";
@@ -109,10 +99,6 @@ public class StatsCommand {
 
     // ==================== ОСНОВНАЯ ЛОГИКА ====================
 
-    /**
-     * @param mode "main" | "pvp" | "mob" | "block"
-     * @param page номер страницы (0-based)
-     */
     private void loadAndSend(Player viewer, OfflinePlayer target,
                              String targetName, UUID targetUuid,
                              boolean selfStats, String mode, int page) {
@@ -132,7 +118,8 @@ public class StatsCommand {
                         plugin.getThreadManager().runSync(() -> {
                             if (viewer.isOnline()) {
                                 viewer.sendMessage(lang.getComponent(
-                                        "player-not-found", "player", targetName));
+                                        viewer, "player-not-found",
+                                        "player", targetName));
                             }
                         });
                         return;
@@ -158,7 +145,7 @@ public class StatsCommand {
                 e.printStackTrace();
                 plugin.getThreadManager().runSync(() -> {
                     if (viewer.isOnline()) {
-                        viewer.sendMessage(lang.getComponent("error"));
+                        viewer.sendMessage(lang.getComponent(viewer, "error"));
                     }
                 });
             }
@@ -191,15 +178,18 @@ public class StatsCommand {
             group = groupService.getPlayerGroup(target.getUniqueId());
         }
 
-        TimeFormat localTime = formatTime(playTimeSec);
-        TimeFormat totalTime = formatTime(totalStats.getOrDefault("play_time", 0));
+        // ← TimeUtil возвращает String
+        String localTime = TimeUtil.formatTime(lang, viewer, playTimeSec);
+        String totalTime = TimeUtil.formatTime(lang, viewer,
+                totalStats.getOrDefault("play_time", 0));
 
         final String groupFinal = group;
+        final UUID targetUuid = target.getUniqueId();
 
         plugin.getThreadManager().runSync(() -> {
             if (!viewer.isOnline()) return;
 
-            sendMainStats(viewer, targetName, selfStats,
+            sendMainStats(viewer, targetName, targetUuid, playerId, selfStats,
                     blocksPlaced, blocksBroken,
                     totalStats.getOrDefault("blocks_placed", 0),
                     totalStats.getOrDefault("blocks_broken", 0),
@@ -212,10 +202,18 @@ public class StatsCommand {
                     totalStats.getOrDefault("deaths", 0),
                     balance, groupFinal);
 
-            // Подсказка о подкомандах
-            viewer.sendMessage(lang.getComponent("stats.header"));
-            viewer.sendMessage(lang.getComponent("stats.hint-subcommands"));
-            viewer.sendMessage(lang.getComponent("stats.header"));
+            viewer.sendMessage(lang.getComponent(viewer, "stats.header"));
+            viewer.sendMessage(lang.getComponent(viewer, "stats.hint-subcommands"));
+            viewer.sendMessage(lang.getComponent(viewer, "stats.header"));
+
+            if (selfStats && config.isStatSharingEnabled()) {
+                Component shareButton = lang.getComponent(viewer, "stats.share-button")
+                        .clickEvent(ClickEvent.runCommand("/share"))
+                        .hoverEvent(HoverEvent.showText(
+                                lang.getComponent(viewer, "stats.share-hover")));
+                viewer.sendMessage(Component.empty());
+                viewer.sendMessage(shareButton);
+            }
         });
     }
 
@@ -237,11 +235,11 @@ public class StatsCommand {
         plugin.getThreadManager().runSync(() -> {
             if (!viewer.isOnline()) return;
 
-            Component separator = lang.getComponent("stats.header");
+            Component separator = lang.getComponent(viewer, "stats.header");
             viewer.sendMessage(separator);
 
             String titleKey = selfStats ? "stats.pvp-title-self" : "stats.pvp-title-other";
-            Component title = lang.getComponent(titleKey,
+            Component title = lang.getComponent(viewer, titleKey,
                     "player", targetName,
                     "kills", kills,
                     "deaths", deaths,
@@ -250,15 +248,14 @@ public class StatsCommand {
             viewer.sendMessage(separator);
 
             if (sorted.isEmpty()) {
-                viewer.sendMessage(lang.getComponent("stats.pvp-empty"));
+                viewer.sendMessage(lang.getComponent(viewer, "stats.pvp-empty"));
                 viewer.sendMessage(separator);
                 return;
             }
 
-            viewer.sendMessage(lang.getComponent("stats.pvp-header",
+            viewer.sendMessage(lang.getComponent(viewer, "stats.pvp-header",
                     "count", sorted.size()));
 
-            // Пагинация
             int totalPages = (int) Math.ceil((double) sorted.size() / PAGE_SIZE_PVP);
             int currentPage = Math.max(0, Math.min(page, totalPages - 1));
             int start = currentPage * PAGE_SIZE_PVP;
@@ -268,12 +265,14 @@ public class StatsCommand {
                 Map.Entry<String, Integer> entry = sorted.get(i);
                 String victimUuid = entry.getKey().substring("pvp_kill_".length());
                 String victimName = resolvePlayerName(victimUuid);
+                int count = entry.getValue();
 
                 Component line = Component.text()
                         .append(Component.text("  ☠ ", NamedTextColor.RED))
                         .append(Component.text(victimName, NamedTextColor.YELLOW))
                         .append(Component.text(" — ", NamedTextColor.GRAY))
-                        .append(Component.text(entry.getValue() + " раз",
+                        .append(Component.text(count + " "
+                                        + pluralize(viewer, count, "раз", "раза", "раз"),
                                 NamedTextColor.WHITE))
                         .hoverEvent(HoverEvent.showText(Component.text(
                                 "§7Нажмите, чтобы посмотреть статистику " + victimName
@@ -283,7 +282,6 @@ public class StatsCommand {
                 viewer.sendMessage(line);
             }
 
-            // Навигация
             sendPaginationFooter(viewer, currentPage, totalPages,
                     "/stats pvp " + targetName);
 
@@ -308,11 +306,11 @@ public class StatsCommand {
         plugin.getThreadManager().runSync(() -> {
             if (!viewer.isOnline()) return;
 
-            Component separator = lang.getComponent("stats.header");
+            Component separator = lang.getComponent(viewer, "stats.header");
             viewer.sendMessage(separator);
 
             String titleKey = selfStats ? "stats.mob-title-self" : "stats.mob-title-other";
-            Component title = lang.getComponent(titleKey,
+            Component title = lang.getComponent(viewer, titleKey,
                     "player", targetName,
                     "mobs", mobsKilled,
                     "bosses", bossesKilled);
@@ -320,15 +318,14 @@ public class StatsCommand {
             viewer.sendMessage(separator);
 
             if (sorted.isEmpty()) {
-                viewer.sendMessage(lang.getComponent("stats.mob-empty"));
+                viewer.sendMessage(lang.getComponent(viewer, "stats.mob-empty"));
                 viewer.sendMessage(separator);
                 return;
             }
 
-            viewer.sendMessage(lang.getComponent("stats.mob-header",
+            viewer.sendMessage(lang.getComponent(viewer, "stats.mob-header",
                     "count", sorted.size()));
 
-            // Пагинация
             int totalPages = (int) Math.ceil((double) sorted.size() / PAGE_SIZE_MOB);
             int currentPage = Math.max(0, Math.min(page, totalPages - 1));
             int start = currentPage * PAGE_SIZE_MOB;
@@ -337,13 +334,13 @@ public class StatsCommand {
             for (int i = start; i < end; i++) {
                 Map.Entry<String, Integer> entry = sorted.get(i);
                 String mobName = entry.getKey().substring("mob_killed_".length());
+                int count = entry.getValue();
 
                 Component line = Component.text()
                         .append(Component.text("  ☠ ", NamedTextColor.DARK_RED))
                         .append(Component.text(prettify(mobName), NamedTextColor.YELLOW))
                         .append(Component.text(" — ", NamedTextColor.GRAY))
-                        .append(Component.text(entry.getValue() + " шт",
-                                NamedTextColor.WHITE))
+                        .append(Component.text(count + " шт", NamedTextColor.WHITE))
                         .build();
                 viewer.sendMessage(line);
             }
@@ -377,23 +374,23 @@ public class StatsCommand {
         plugin.getThreadManager().runSync(() -> {
             if (!viewer.isOnline()) return;
 
-            Component separator = lang.getComponent("stats.header");
+            Component separator = lang.getComponent(viewer, "stats.header");
             viewer.sendMessage(separator);
 
             String titleKey = selfStats ? "stats.block-title-self" : "stats.block-title-other";
-            Component title = lang.getComponent(titleKey,
+            Component title = lang.getComponent(viewer, titleKey,
                     "player", targetName,
                     "placed", blocksPlaced,
                     "broken", blocksBroken);
             viewer.sendMessage(title);
             viewer.sendMessage(separator);
 
-            // ==================== ПОСТАВЛЕННЫЕ ====================
-            viewer.sendMessage(lang.getComponent("stats.block-placed-header",
+            // Поставленные
+            viewer.sendMessage(lang.getComponent(viewer, "stats.block-placed-header",
                     "count", sortedPlaced.size()));
 
             if (sortedPlaced.isEmpty()) {
-                viewer.sendMessage(lang.getComponent("stats.block-empty"));
+                viewer.sendMessage(lang.getComponent(viewer, "stats.block-empty"));
             } else {
                 int totalPages = (int) Math.ceil((double) sortedPlaced.size() / PAGE_SIZE_BLOCK);
                 int currentPage = Math.max(0, Math.min(page, totalPages - 1));
@@ -417,12 +414,12 @@ public class StatsCommand {
                         "/stats block " + targetName);
             }
 
-            // ==================== СЛОМАННЫЕ ====================
-            viewer.sendMessage(lang.getComponent("stats.block-broken-header",
+            // Сломанные
+            viewer.sendMessage(lang.getComponent(viewer, "stats.block-broken-header",
                     "count", sortedBroken.size()));
 
             if (sortedBroken.isEmpty()) {
-                viewer.sendMessage(lang.getComponent("stats.block-empty"));
+                viewer.sendMessage(lang.getComponent(viewer, "stats.block-empty"));
             } else {
                 int totalPages = (int) Math.ceil((double) sortedBroken.size() / PAGE_SIZE_BLOCK);
                 int currentPage = Math.max(0, Math.min(page, totalPages - 1));
@@ -442,7 +439,6 @@ public class StatsCommand {
                     viewer.sendMessage(line);
                 }
 
-                // Для сломанных — вторая навигация (та же страница)
                 sendPaginationFooter(viewer, currentPage, totalPages,
                         "/stats block " + targetName);
             }
@@ -453,39 +449,31 @@ public class StatsCommand {
 
     // ==================== ПАГИНАЦИЯ ====================
 
-    /**
-     * Отправить футер с навигацией по страницам.
-     *
-     * @param baseCommand команда без номера страницы (например "/stats mob Steve")
-     */
     private void sendPaginationFooter(Player viewer, int currentPage,
                                       int totalPages, String baseCommand) {
         if (totalPages <= 1) return;
 
-        // ← БЫЛО: Component nav = Component.text();
-        // ← СТАЛО: var nav = Component.text();  (тип выводится как TextComponent.Builder)
         var nav = Component.text();
 
-        // ◀ Предыдущая
         if (currentPage > 0) {
             nav.append(Component.text("◀ ", NamedTextColor.GREEN)
                     .clickEvent(ClickEvent.runCommand(baseCommand + " " + (currentPage - 1)))
-                    .hoverEvent(HoverEvent.showText(Component.text("§7Страница " + currentPage))));
+                    .hoverEvent(HoverEvent.showText(Component.text(
+                            "§7Страница " + currentPage))));
         } else {
             nav.append(Component.text("◀ ", NamedTextColor.DARK_GRAY));
         }
 
-        // Текущая / всего
         nav.append(Component.text(" [ ", NamedTextColor.GRAY))
                 .append(Component.text((currentPage + 1) + " / " + totalPages,
                         NamedTextColor.YELLOW))
                 .append(Component.text(" ] ", NamedTextColor.GRAY));
 
-        // Следующая ▶
         if (currentPage < totalPages - 1) {
             nav.append(Component.text("▶", NamedTextColor.GREEN)
                     .clickEvent(ClickEvent.runCommand(baseCommand + " " + (currentPage + 1)))
-                    .hoverEvent(HoverEvent.showText(Component.text("§7Страница " + (currentPage + 2)))));
+                    .hoverEvent(HoverEvent.showText(Component.text(
+                            "§7Страница " + (currentPage + 2)))));
         } else {
             nav.append(Component.text("▶", NamedTextColor.DARK_GRAY));
         }
@@ -495,27 +483,33 @@ public class StatsCommand {
 
     // ==================== MAIN STATS ====================
 
-    private void sendMainStats(Player player, String targetName, boolean selfStats,
+    private void sendMainStats(Player player, String targetName, UUID targetUuid,
+                               int playerId, boolean selfStats,
                                int blocksPlaced, int blocksBroken,
                                int totalBlocksPlaced, int totalBlocksBroken,
                                int mobsKilled, int bossesKilled,
                                int totalMobsKilled, int totalBossesKilled,
-                               TimeFormat localTime, TimeFormat totalTime,
+                               String localTime, String totalTime,
                                int kills, int deaths,
                                int totalKills, int totalDeaths,
                                double balance, String group) {
-        Component separator = lang.getComponent("stats.header");
+        Component separator = lang.getComponent(player, "stats.header");
 
         String serverName = plugin.getServerName();
         String serverDisplay = config.getServerDisplayName(serverName);
 
+        String chips = getChipsForPlayer(targetUuid);
+
         Component header;
         if (selfStats) {
-            header = lang.getComponent("stats.title-self", "server", serverDisplay);
+            header = lang.getComponent(player, "stats.title-self",
+                    "server", serverDisplay,
+                    "chips", chips);
         } else {
-            header = lang.getComponent("stats.title-other",
+            header = lang.getComponent(player, "stats.title-other",
                     "player", targetName,
-                    "server", serverDisplay);
+                    "server", serverDisplay,
+                    "chips", chips);
         }
 
         String serverCmd = config.getStatsClickCommand("server");
@@ -527,48 +521,92 @@ public class StatsCommand {
         player.sendMessage(header);
         player.sendMessage(separator);
 
+        // Блоки
         sendStatLine(player, "stats.blocks", "blocks",
                 "placed", blocksPlaced,
                 "broken", blocksBroken,
                 "total-placed", totalBlocksPlaced,
                 "total-broken", totalBlocksBroken);
+        sendSparkline(player, playerId, "blocks_placed");
 
+        // PvE
         sendStatLine(player, "stats.pve", "pve",
                 "mobs", mobsKilled,
                 "bosses", bossesKilled,
                 "total-mobs", totalMobsKilled,
                 "total-bosses", totalBossesKilled);
+        sendSparkline(player, playerId, "mobs_killed");
 
+        // Время — теперь String
         sendStatLine(player, "stats.time", "time",
-                "time", localTime.toString(),
-                "total-time", totalTime.toString());
+                "time", localTime,
+                "total-time", totalTime);
+        sendSparkline(player, playerId, "play_time");
 
+        // PvP
         sendStatLine(player, "stats.pvp", "pvp",
                 "kills", kills,
                 "deaths", deaths,
+                "kd", formatKD(kills, deaths),
                 "total-kills", totalKills,
                 "total-deaths", totalDeaths);
+        sendSparkline(player, playerId, "kills");
 
-        String balanceStr = formatBalance(balance);
+        // Баланс
+        String balanceStr = FormatUtil.formatBalance(plugin, lang, player, balance);
         sendStatLineSimple(player, "stats.balance", "balance",
                 balanceStr,
-                lang.getRaw("stats.balance-hover"));
+                lang.getRaw(player, "stats.balance-hover"));
+        sendSparkline(player, playerId, "balance");
 
+        // Группа
         sendStatLineSimple(player, "stats.group", "group",
                 group,
-                lang.getRaw("stats.group-hover"));
+                lang.getRaw(player, "stats.group-hover"));
+    }
+
+    private void sendSparkline(Player player, int playerId, String statName) {
+        if (!config.isSparklineEnabled()) return;
+        if (!config.isSparklineShowInStats()) return;
+
+        String category = mapStatToCategory(statName);
+        if (category == null) return;
+        if (!config.isSparklineCategoryEnabled(category)) return;
+
+        plugin.getThreadManager().runAsync(() -> {
+            try {
+                int statTypeId = plugin.getStatTypeDAO().createOrGetStatType(statName);
+                List<Integer> history = plugin.getStatHistoryDAO().getHistory(
+                        playerId, statTypeId, plugin.getServerId(),
+                        config.getSparklineDays());
+
+                if (history.size() < 2) return;
+
+                String graph = Sparkline.generatePretty(history);
+
+                plugin.getThreadManager().runSync(() -> {
+                    if (!player.isOnline()) return;
+                    Component line = lang.getComponent(player, "stats.sparkline",
+                            "days", config.getSparklineDays(),
+                            "graph", graph);
+                    player.sendMessage(line);
+                });
+            } catch (SQLException e) {
+                plugin.getLogger().warning("Ошибка sparkline: " + e.getMessage());
+            }
+        });
     }
 
     private void sendStatLine(Player player, String langKey, String configKey,
                               Object... placeholders) {
-        Component line = lang.getComponent(langKey, placeholders);
-        line = applyClickEvent(line, configKey, placeholders);
+        Component line = lang.getComponent(player, langKey, placeholders);
+        line = applyClickEvent(line, configKey);
         player.sendMessage(line);
     }
 
     private void sendStatLineSimple(Player player, String langKey, String configKey,
                                     String mainValue, String hoverValue) {
-        Component line = lang.getComponent(langKey, "value", mainValue);
+        Component line = lang.getComponent(player, langKey, "value", mainValue);
         line = line.hoverEvent(HoverEvent.showText(Component.text(hoverValue)));
 
         String clickCommand = config.getStatsClickCommand(configKey);
@@ -579,7 +617,7 @@ public class StatsCommand {
         player.sendMessage(line);
     }
 
-    private Component applyClickEvent(Component line, String configKey, Object... placeholders) {
+    private Component applyClickEvent(Component line, String configKey) {
         String clickCommand = config.getStatsClickCommand(configKey);
         if (clickCommand != null && !clickCommand.isEmpty()) {
             line = line.clickEvent(ClickEvent.runCommand(clickCommand));
@@ -589,43 +627,60 @@ public class StatsCommand {
 
     // ==================== Утилиты ====================
 
-    private TimeFormat formatTime(int totalSeconds) {
-        int hours = totalSeconds / 3600;
-        int minutes = (totalSeconds % 3600) / 60;
-        return new TimeFormat(hours, minutes);
-    }
+    private String getChipsForPlayer(UUID uuid) {
+        TopCache topCache = plugin.getTopCache();
+        if (topCache == null) return "";
+        if (!config.isTopChipsEnabled()) return "";
 
-    private record TimeFormat(int hours, int minutes) {
-        @Override
-        public String toString() {
-            if (hours > 0) {
-                return hours + " ч " + minutes + " мин";
-            }
-            return minutes + " мин";
-        }
-    }
-
-    private String formatBalance(double balance) {
-        if (plugin.getHooksManager() != null
-                && plugin.getHooksManager().getVaultHook() != null
-                && plugin.getHooksManager().getVaultHook().isEnabled()) {
-            try {
-                return plugin.getHooksManager().getVaultHook().format(balance);
-            } catch (Exception e) {
-                // fallback
+        StringBuilder sb = new StringBuilder();
+        for (String category : config.getTopChipsOrder()) {
+            String statName = mapCategoryToStat(category);
+            if (statName == null) continue;
+            if (topCache.isTop1(uuid, statName)) {
+                sb.append(config.getTopChip(category));
             }
         }
-        return String.format("%.2f₽", balance);
+        if (sb.length() > 0) sb.append(" ");
+        return sb.toString();
     }
+
+    private String mapCategoryToStat(String category) {
+        return switch (category) {
+            case "kills" -> "kills";
+            case "mobs" -> "mobs_killed";
+            case "blocks" -> "blocks_placed";
+            case "playtime" -> "play_time";
+            case "balance" -> "balance";
+            default -> null;
+        };
+    }
+
+    private String mapStatToCategory(String statName) {
+        return switch (statName) {
+            case "kills" -> "kills";
+            case "deaths" -> "deaths";
+            case "mobs_killed" -> "mobs";
+            case "blocks_placed" -> "blocks";
+            case "play_time" -> "playtime";
+            case "balance" -> "balance";
+            default -> null;
+        };
+    }
+
 
     private String formatKD(int kills, int deaths) {
         if (deaths == 0) return kills > 0 ? "∞" : "0.00";
         return String.format("%.2f", (double) kills / deaths);
     }
 
-    /**
-     * Резолв UUID → имя игрока.
-     */
+    private String pluralize(Player viewer, int count, String one, String few, String many) {
+        int mod10 = count % 10;
+        int mod100 = count % 100;
+        if (mod10 == 1 && mod100 != 11) return lang.getRaw(viewer, "time." + one);
+        if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return lang.getRaw(viewer, "time." + few);
+        return lang.getRaw(viewer, "time." + many);
+    }
+
     private String resolvePlayerName(String uuidStr) {
         try {
             UUID uuid = UUID.fromString(uuidStr);
@@ -638,22 +693,16 @@ public class StatsCommand {
         }
     }
 
-    /**
-     * "diamond_ore" → "Diamond Ore".
-     */
     private String prettify(String input) {
         if (input == null || input.isEmpty()) return input;
-
         String[] parts = input.split("_");
         StringBuilder sb = new StringBuilder();
-
         for (String part : parts) {
             if (part.isEmpty()) continue;
             sb.append(Character.toUpperCase(part.charAt(0)))
                     .append(part.substring(1).toLowerCase())
                     .append(" ");
         }
-
         return sb.toString().trim();
     }
 }

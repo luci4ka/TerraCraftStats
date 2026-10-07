@@ -152,6 +152,38 @@ public class SQLiteConnection implements DatabaseConnection {
                     FOREIGN KEY(player_id) REFERENCES players(id) ON DELETE CASCADE
                 );
             """);
+            stmt.executeUpdate("""
+    CREATE TABLE IF NOT EXISTS stat_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        player_id INTEGER NOT NULL,
+        stat_type_id INTEGER NOT NULL,
+        server_id INTEGER NOT NULL,
+        value INTEGER NOT NULL,
+        date DATE NOT NULL,
+        UNIQUE(player_id, stat_type_id, server_id, date)
+    );
+""");
+
+            stmt.executeUpdate("""
+    CREATE INDEX IF NOT EXISTS idx_stat_history_player
+    ON stat_history(player_id, stat_type_id, server_id);
+""");
+
+// ← НОВОЕ
+            stmt.executeUpdate("""
+    CREATE TABLE IF NOT EXISTS player_achievements (
+        player_id INTEGER NOT NULL,
+        achievement_id TEXT NOT NULL,
+        unlocked_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY(player_id, achievement_id),
+        FOREIGN KEY(player_id) REFERENCES players(id) ON DELETE CASCADE
+    );
+""");
+
+            stmt.executeUpdate("""
+    CREATE INDEX IF NOT EXISTS idx_achievements_player
+    ON player_achievements(player_id);
+""");
         }
 
         insertDefaultStatTypes();
@@ -161,7 +193,12 @@ public class SQLiteConnection implements DatabaseConnection {
         List<String> types = new ArrayList<>(List.of(
                 "excluded", "play_time", "blocks_placed", "blocks_broken",
                 "kills", "deaths", "mobs_killed", "bosses_killed",
-                "balance", "group"
+                "balance", "group",
+                "distance_walked", "damage_dealt", "damage_taken",
+                "items_crafted", "food_consumed", "arrows_shot",
+                "fish_caught", "entities_tamed", "entities_bred",
+                "teleports", "portal_uses", "logins",
+                "killstreak", "best_killstreak"
         ));
 
         // Типы мобов

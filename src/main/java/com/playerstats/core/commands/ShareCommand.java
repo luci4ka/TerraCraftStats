@@ -6,16 +6,18 @@ import com.playerstats.core.config.LanguageManager;
 import com.playerstats.core.database.dao.PlayerDAO;
 import com.playerstats.core.database.dao.PlayerStatsDAO;
 import com.playerstats.core.services.PlayerGroupService;
+import com.playerstats.core.services.TopCache;
+import com.playerstats.core.utils.FormatUtil;
+import com.playerstats.core.utils.TimeUtil;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.event.HoverEvent;
-import net.kyori.adventure.text.format.NamedTextColor;
-import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
 import java.sql.SQLException;
 import java.util.Map;
+import java.util.UUID;
 
 public class ShareCommand {
 
@@ -31,13 +33,16 @@ public class ShareCommand {
         this.groupService = groupService;
     }
 
+    // ==================== /share ====================
+
     public void execute(Player player) {
         if (!player.hasPermission("playerstats.share")) {
-            player.sendMessage(lang.getComponent("no-permission"));
+            player.sendMessage(lang.getComponent(player, "no-permission"));
             return;
         }
 
         String playerName = player.getName();
+        UUID uuid = player.getUniqueId();
         int serverId = plugin.getServerId();
 
         plugin.getThreadManager().runAsync(() -> {
@@ -45,7 +50,7 @@ public class ShareCommand {
                 PlayerDAO playerDAO = plugin.getPlayerDAO();
                 PlayerStatsDAO statsDAO = plugin.getStatsDAO();
 
-                int playerId = playerDAO.getOrCreatePlayerId(player.getUniqueId(), playerName);
+                int playerId = playerDAO.getOrCreatePlayerId(uuid, playerName);
 
                 int playTimeSec = statsDAO.getStat(playerId, serverId, "play_time");
                 int mobsKilled = statsDAO.getStat(playerId, serverId, "mobs_killed");
@@ -61,16 +66,21 @@ public class ShareCommand {
                 int totalPlayTime = totalStats.getOrDefault("play_time", 0);
                 int totalMobs = totalStats.getOrDefault("mobs_killed", 0);
 
+                final String groupFinal = group;
+
                 plugin.getThreadManager().runSync(() -> {
                     if (!player.isOnline()) return;
 
-                    Component message = buildShareMessage(
-                            player, group, playTimeSec, totalPlayTime,
-                            mobsKilled, bossesKilled, totalMobs,
-                            blocksPlaced, kills, deaths, balance
-                    );
-
-                    Bukkit.broadcast(message);
+                    // Для каждого онлайн-игрока — на его языке
+                    for (Player online : Bukkit.getOnlinePlayers()) {
+                        Component message = buildShareMessage(
+                                online, player, uuid, groupFinal,
+                                playTimeSec, totalPlayTime,
+                                mobsKilled, bossesKilled, totalMobs,
+                                blocksPlaced, kills, deaths, balance
+                        );
+                        online.sendMessage(message);
+                    }
                 });
 
             } catch (SQLException e) {
@@ -78,30 +88,33 @@ public class ShareCommand {
                 e.printStackTrace();
                 plugin.getThreadManager().runSync(() -> {
                     if (player.isOnline()) {
-                        player.sendMessage(lang.getComponent("error"));
+                        player.sendMessage(lang.getComponent(player, "error"));
                     }
                 });
             }
         });
     }
 
+    // ==================== /share <player> ====================
+
     public void execute(Player sender, Player target) {
         if (!sender.hasPermission("playerstats.share")) {
-            sender.sendMessage(lang.getComponent("no-permission"));
+            sender.sendMessage(lang.getComponent(sender, "no-permission"));
             return;
         }
 
         if (target == null) {
-            sender.sendMessage(lang.getComponent("player-not-found", "player", "?"));
+            sender.sendMessage(lang.getComponent(sender, "player-not-found", "player", "?"));
             return;
         }
 
         if (target.equals(sender)) {
-            sender.sendMessage(lang.getComponent("share.self"));
+            sender.sendMessage(lang.getComponent(sender, "share.self"));
             return;
         }
 
         String playerName = sender.getName();
+        UUID uuid = sender.getUniqueId();
         int serverId = plugin.getServerId();
 
         plugin.getThreadManager().runAsync(() -> {
@@ -109,7 +122,7 @@ public class ShareCommand {
                 PlayerDAO playerDAO = plugin.getPlayerDAO();
                 PlayerStatsDAO statsDAO = plugin.getStatsDAO();
 
-                int playerId = playerDAO.getOrCreatePlayerId(sender.getUniqueId(), playerName);
+                int playerId = playerDAO.getOrCreatePlayerId(uuid, playerName);
 
                 int playTimeSec = statsDAO.getStat(playerId, serverId, "play_time");
                 int mobsKilled = statsDAO.getStat(playerId, serverId, "mobs_killed");
@@ -122,15 +135,21 @@ public class ShareCommand {
                 Map<String, Integer> totalStats = statsDAO.getTotalStatsForPlayer(playerId);
                 int totalPlayTime = totalStats.getOrDefault("play_time", 0);
 
+                final String groupFinal = group;
+
                 plugin.getThreadManager().runSync(() -> {
                     if (!sender.isOnline()) return;
 
+                    // Получателю — на его языке
                     Component message = buildPrivateShareMessage(
-                            sender, group, playTimeSec, totalPlayTime,
-                            mobsKilled, bossesKilled, kills, deaths, balance
+                            target, sender, uuid, groupFinal,
+                            playTimeSec, totalPlayTime,
+                            mobsKilled, bossesKilled,
+                            kills, deaths, balance
                     );
 
-                    sender.sendMessage(lang.getComponent("share.private-sender",
+                    // Отправителю — на его языке
+                    sender.sendMessage(lang.getComponent(sender, "share.private-sender",
                             "target", target.getName()));
 
                     if (target.isOnline()) {
@@ -143,35 +162,52 @@ public class ShareCommand {
                 e.printStackTrace();
                 plugin.getThreadManager().runSync(() -> {
                     if (sender.isOnline()) {
-                        sender.sendMessage(lang.getComponent("error"));
+                        sender.sendMessage(lang.getComponent(sender, "error"));
                     }
                 });
             }
         });
     }
 
+    // ==================== BUILD MESSAGES ====================
+
     /**
-     * Построить сообщение для шаринга в общий чат.
+     * Сообщение для шаринга в общий чат.
+     *
+     * @param receiver игрок, который УВИДИТ сообщение (для языка)
+     * @param sender   игрок, чью статистику показываем
      */
-    private Component buildShareMessage(Player player, String group,
+    private Component buildShareMessage(Player receiver, Player sender,
+                                        UUID uuid, String group,
                                         int playTime, int totalPlayTime,
                                         int mobs, int bosses, int totalMobs,
                                         int blocks, int kills, int deaths,
                                         double balance) {
         String serverDisplay = config.getServerDisplayName(plugin.getServerName());
+        String chips = getChipsForPlayer(uuid);
 
-        Component header = lang.getComponent("share.broadcast",
-                "player", player.getName(),
+        // Заголовок — на языке ПОЛУЧАТЕЛЯ
+        Component header = lang.getComponent(receiver, "share.broadcast",
+                "player", sender.getName(),
+                "chips", chips,
                 "server", serverDisplay,
                 "group", group);
 
-        // Клик и hover на имени игрока
-        header = header.clickEvent(ClickEvent.suggestCommand("/stats"))
-                .hoverEvent(HoverEvent.showText(lang.getComponent("share.broadcast-hover")));
+        // Hover — на языке ПОЛУЧАТЕЛЯ
+        Component hoverText = lang.getComponentFromString(
+                "<gray>Нажмите, чтобы открыть статистику\n" +
+                        "<gray>Игрок: <white>" + sender.getName() + "\n" +
+                        "<gray>Сервер: <white>" + serverDisplay + "\n" +
+                        "<gray>Группа: " + group + "\n" +
+                        "<gray>K/D: <white>" + formatKD(kills, deaths));
 
-        Component stats = lang.getComponent("share.stats",
-                "time", formatTime(playTime),
-                "total-time", formatTime(totalPlayTime),
+        header = header.clickEvent(ClickEvent.runCommand("/stats " + sender.getName()))
+                .hoverEvent(HoverEvent.showText(hoverText));
+
+        // Статистика — на языке ПОЛУЧАТЕЛЯ
+        Component stats = lang.getComponent(receiver, "share.stats",
+                "time", TimeUtil.formatTime(lang, receiver, playTime),
+                "total-time", TimeUtil.formatTime(lang, receiver, totalPlayTime),
                 "mobs", mobs,
                 "bosses", bosses,
                 "total-mobs", totalMobs,
@@ -179,43 +215,77 @@ public class ShareCommand {
                 "kills", kills,
                 "deaths", deaths,
                 "kd", formatKD(kills, deaths),
-                "balance", formatBalance(balance));
+                "balance", FormatUtil.formatBalance(plugin, lang, receiver, balance));
 
         return header.append(stats);
     }
 
     /**
-     * Построить сообщение для отправки в личные сообщения.
+     * Сообщение для ЛС.
+     *
+     * @param receiver игрок, который УВИДИТ сообщение (для языка)
+     * @param sender   игрок, чью статистику показываем
      */
-    private Component buildPrivateShareMessage(Player sender, String group,
+    private Component buildPrivateShareMessage(Player receiver, Player sender,
+                                               UUID uuid, String group,
                                                int playTime, int totalPlayTime,
                                                int mobs, int bosses,
                                                int kills, int deaths, double balance) {
         String serverDisplay = config.getServerDisplayName(plugin.getServerName());
+        String chips = getChipsForPlayer(uuid);
 
-        return lang.getComponent("share.private-target",
-                        "player", sender.getName(),
-                        "server", serverDisplay,
-                        "group", group,
-                        "time", formatTime(playTime),
-                        "total-time", formatTime(totalPlayTime),
-                        "mobs", mobs,
-                        "bosses", bosses,
-                        "kills", kills,
-                        "deaths", deaths,
-                        "kd", formatKD(kills, deaths),
-                        "balance", formatBalance(balance))
-                .hoverEvent(HoverEvent.showText(lang.getComponent("share.private-hover",
-                        "player", sender.getName())));
+        // Сообщение — на языке ПОЛУЧАТЕЛЯ
+        Component message = lang.getComponent(receiver, "share.private-target",
+                "player", sender.getName(),
+                "chips", chips,
+                "server", serverDisplay,
+                "group", group,
+                "time", TimeUtil.formatTime(lang, receiver, playTime),
+                "total-time", TimeUtil.formatTime(lang, receiver, totalPlayTime),
+                "mobs", mobs,
+                "bosses", bosses,
+                "kills", kills,
+                "deaths", deaths,
+                "kd", formatKD(kills, deaths),
+                "balance", FormatUtil.formatBalance(plugin, lang, receiver, balance));
+
+        Component hoverText = lang.getComponentFromString(
+                "<gray>Нажмите, чтобы открыть статистику\n" +
+                        "<gray>Игрок: <white>" + sender.getName() + "\n" +
+                        "<gray>K/D: <white>" + formatKD(kills, deaths));
+
+        return message.clickEvent(ClickEvent.runCommand("/stats " + sender.getName()))
+                .hoverEvent(HoverEvent.showText(hoverText));
     }
 
-    private String formatTime(int totalSeconds) {
-        int hours = totalSeconds / 3600;
-        int minutes = (totalSeconds % 3600) / 60;
-        if (hours > 0) {
-            return lang.get("time.hours", "hours", hours, "minutes", minutes);
+    // ==================== УТИЛИТЫ ====================
+
+    private String getChipsForPlayer(UUID uuid) {
+        TopCache topCache = plugin.getTopCache();
+        if (topCache == null) return "";
+        if (!config.isTopChipsEnabled()) return "";
+
+        StringBuilder sb = new StringBuilder();
+        for (String category : config.getTopChipsOrder()) {
+            String statName = mapCategoryToStat(category);
+            if (statName == null) continue;
+            if (topCache.isTop1(uuid, statName)) {
+                sb.append(config.getTopChip(category));
+            }
         }
-        return lang.get("time.minutes", "minutes", minutes);
+        if (sb.length() > 0) sb.append(" ");
+        return sb.toString();
+    }
+
+    private String mapCategoryToStat(String category) {
+        return switch (category) {
+            case "kills" -> "kills";
+            case "mobs" -> "mobs_killed";
+            case "blocks" -> "blocks_placed";
+            case "playtime" -> "play_time";
+            case "balance" -> "balance";
+            default -> null;
+        };
     }
 
     private String formatKD(int kills, int deaths) {
@@ -223,16 +293,4 @@ public class ShareCommand {
         return String.format("%.2f", (double) kills / deaths);
     }
 
-    private String formatBalance(double balance) {
-        if (plugin.getHooksManager() != null
-                && plugin.getHooksManager().getVaultHook() != null
-                && plugin.getHooksManager().getVaultHook().isEnabled()) {
-            try {
-                return plugin.getHooksManager().getVaultHook().format(balance);
-            } catch (Exception e) {
-                // fallback
-            }
-        }
-        return String.format("%.2f₽", balance);
-    }
 }

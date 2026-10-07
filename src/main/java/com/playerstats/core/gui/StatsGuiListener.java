@@ -29,14 +29,42 @@ public class StatsGuiListener implements Listener {
         int page = guiHolder.getPage();
         String subPage = guiHolder.getSubPage();
 
+        // ==================== ТАБЫ ====================
+        switch (slot) {
+            case 0 -> {
+                plugin.getStatsGui().openPage(player, 0, null);
+                return;
+            }
+            case 1 -> {
+                plugin.getStatsGui().openPage(player, 0, "pvp");
+                return;
+            }
+            case 2 -> {
+                player.closeInventory();
+                new AchievementsGui(plugin).open(player);
+                return;
+            }
+        }
+
         // ==================== ГЛАВНАЯ СТРАНИЦА ====================
         if (page == 0 && subPage == null) {
             switch (slot) {
+                // Кликабельные
                 case 10 -> plugin.getStatsGui().openPage(player, 0, "blocks_placed");
                 case 12 -> plugin.getStatsGui().openPage(player, 0, "mobs");
                 case 16 -> plugin.getStatsGui().openPage(player, 0, "pvp");
-                case 32 -> plugin.getStatsGui().openPage(player, 0, "blocks_placed");
-                case 34 -> plugin.getStatsGui().openPage(player, 0, "blocks_broken");
+                case 19 -> plugin.getStatsGui().openPage(player, 0, "killstreak");
+                case 21 -> plugin.getStatsGui().openPage(player, 0, "distance");
+                case 23 -> plugin.getStatsGui().openPage(player, 0, "damage");
+                case 25 -> plugin.getStatsGui().openPage(player, 0, "craft");
+                case 28 -> plugin.getStatsGui().openPage(player, 0, "arrows");
+                case 30 -> plugin.getStatsGui().openPage(player, 0, "animals");
+                case 32 -> plugin.getStatsGui().openPage(player, 0, "movement");
+                case 34 -> plugin.getStatsGui().openPage(player, 0, "economy");
+
+                // Время (инфо) — без действия
+                // case 14 → ничего
+
                 case 49 -> player.closeInventory();
                 default -> { /* ничего */ }
             }
@@ -45,23 +73,16 @@ public class StatsGuiListener implements Listener {
 
         // ==================== ПОДСТРАНИЦА ====================
         if (slot == 49) {
-            // Кнопка "Назад"
             plugin.getStatsGui().openPage(player, 0, null);
             return;
         }
 
-        // Навигация
-        if (slot == 48) {
-            // Предыдущая
-            if (page > 0) {
-                plugin.getStatsGui().openPage(player, page - 1, subPage);
-            }
+        if (slot == 48 && page > 0) {
+            plugin.getStatsGui().openPage(player, page - 1, subPage);
             return;
         }
         if (slot == 50) {
-            // Следующая
             plugin.getStatsGui().openPage(player, page + 1, subPage);
-            return;
         }
     }
 

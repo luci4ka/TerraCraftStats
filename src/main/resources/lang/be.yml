@@ -1,0 +1,892 @@
+# =========================================================================
+#                    PlayerStats — Беларуская
+# =========================================================================
+# Вы можаце рэдагаваць гэты файл. ConfigUpdater дадасць адсутныя ключы.
+# НЕ выкарыстоўвайце §-коды — толькі MiniMessage (<red>, <gold>, ...).
+# =========================================================================
+
+# ==================== Агульныя ====================
+prefix: "<gold>[PlayerStats]</gold> <gray>"
+no-permission: "<red>У вас няма правоў для гэтай каманды."
+player-not-found: "<red>Гульца '<yellow>{player}</yellow>' не знойдзена."
+error: "<red>Адбылася памылка. Праверце кансоль."
+
+
+# =========================================================================
+#                    Каманды — агульныя ключы
+# =========================================================================
+commands:
+  # ===== Агульныя =====
+  only-player: "<red>Толькі гулец можа выкарыстоўваць гэтую каманду."
+  only-player-short: "<red>Толькі гулец."
+  player-not-found: "<red>Гульца '<yellow>{player}</yellow>' не знойдзена."
+
+  # ===== Апісанні камандаў (plain text, без колераў) =====
+  descriptions:
+    stats: "Прагляд статыстыкі"
+    top: "Паказаць топ гульцоў"
+    share: "Падзяліцца статыстыкай"
+    compare: "Параўнаць статыстыку"
+    serverstats: "Статыстыка сервера"
+    exclude: "Кіраванне выключэннямі"
+    playerstats: "Кіраванне плагінам PlayerStats"
+
+
+# =========================================================================
+#                    Snapshot
+# =========================================================================
+snapshot:
+  creating: "<yellow>📸 Стварэнне снапшота..."
+  success: "<green>✅ Снапшот захаваны."
+  error: "<red>❌ Памылка: {error}"
+
+
+# =========================================================================
+#                    Holograms
+# =========================================================================
+holograms:
+  created: "<green>✅ Галаграма створана: <white>{stat}"
+  removed: "<green>✅ Галаграма выдалена: <white>{stat}"
+  list-empty: "<yellow>Няма актыўных галаграм."
+  list-header: "<green>Актыўныя галаграмы: <white>{list}"
+
+
+# =========================================================================
+#                    Stats GUI
+# =========================================================================
+stats-gui:
+  # ===== Загаловак =====
+  title: "<dark_gray>📊 Статыстыка"
+
+  # ===== Табы =====
+  tab-main: "<gold>🏠 Галоўная"
+  tab-main-hover: "<gray>Асноўныя катэгорыі"
+
+  tab-pvp: "<yellow>⚔ PvP"
+  tab-pvp-hover: "<gray>Забойствы і смерці"
+
+  tab-achievements: "<gold>🏆 Дасягненні <green>({unlocked}/{total})"
+  tab-achievements-hover: "<gray>Твой прагрэс дасягненняў\n<gray>Разблакавана: <green>{unlocked}\n<gray>Усяго: <white>{total}\n\n<green>▶ Націсніце для прагляду"
+
+  # ===== Кнопкі =====
+  back: "<yellow>◀ Назад"
+  back-hover: "<gray>Вярнуцца да асноўнай статыстыкі"
+
+  close: "<red>Закрыць"
+  close-hover: "<gray>Націсніце, каб закрыць"
+
+  # ===== Кнопка «Падрабязней» =====
+  click-details: "<green>▶ Націсніце для падрабязнасцяў"
+
+  # ===== Галоўная: Катэгорыі =====
+  cat-blocks: "<yellow>🧱 Блокі"
+  cat-blocks-lore: "<gray>Пастаўлена: <white>{placed}\n<gray>Зламана: <white>{broken}\n<gray>Усяго: <white>{total}"
+
+  cat-pve: "<yellow>☠ PvE"
+  cat-pve-lore: "<gray>Мобы: <white>{mobs}\n<gray>Босы: <white>{bosses}"
+
+  cat-time: "<yellow>⏳ Час"
+  cat-time-lore: "<gray>Гуляў: <white>{time}\n<gray>Уваходаў: <white>{logins}"
+
+  cat-pvp: "<yellow>⚔ PvP"
+  cat-pvp-lore: "<gray>Забойстваў: <white>{kills}\n<gray>Смерцяў: <white>{deaths}\n<gray>K/D: <white>{kd}"
+  cat-pvp-lore-with-players: "<gray>Забойстваў: <white>{kills}\n<gray>Смерцяў: <white>{deaths}\n<gray>K/D: <white>{kd}\n\n<gray>Забіта гульцоў (унік.): <white>{unique}"
+
+  cat-killstreak: "<yellow>🔥 Killstreak"
+  cat-killstreak-lore: "<gray>Бягучая: <white>{current}\n<gray>Найлепшая: <white>{best}\n\n<dark_gray>Серыя забойстваў без смерцяў"
+
+  cat-distance: "<yellow>🏃 Дыстанцыя"
+  cat-distance-lore: "<gray>Пройдзена: <white>{value} блокаў\n\n<dark_gray>Усяго пройдзена"
+
+  cat-damage: "<yellow>💥 Шкода"
+  cat-damage-lore: "<gray>Нанесена: <white>{dealt}\n<gray>Атрымана: <white>{taken}\n\n<dark_gray>Агульная шкода"
+
+  cat-craft: "<yellow>🔨 Крафт"
+  cat-craft-lore: "<gray>Створана: <white>{crafted}\n<gray>З'едзена ежы: <white>{food}\n\n<dark_gray>Усяго створана"
+
+  cat-arrows: "<yellow>🏹 Стральба"
+  cat-arrows-lore: "<gray>Стрэлаў: <white>{arrows}\n<gray>Злоўлена рыбы: <white>{fish}"
+
+  cat-animals: "<yellow>🐾 Жывёлы"
+  cat-animals-lore: "<gray>Прыручана: <white>{tamed}\n<gray>Разведзена: <white>{bred}"
+
+  cat-movement: "<yellow>🌐 Перамяшчэнне"
+  cat-movement-lore: "<gray>Тэлепортаў: <white>{teleports}\n<gray>Парталаў: <white>{portals}"
+
+  cat-economy: "<yellow>💰 Эканоміка"
+  cat-economy-lore: "<gray>Баланс: <gold>{balance}\n<gray>Група: {group}"
+
+  # ===== Падстаронкі — загалоўкі =====
+  sub-pvp-title: "Забойствы гульцоў"
+  sub-mobs-title: "Забойствы мобаў"
+  sub-blocks-placed-title: "Пастаўлена блокаў"
+  sub-blocks-broken-title: "Зламана блокаў"
+
+  sub-killstreak-title: "🔥 Killstreak"
+  sub-distance-title: "🏃 Дыстанцыя"
+  sub-damage-title: "💥 Шкода"
+  sub-craft-title: "🔨 Крафт"
+  sub-arrows-title: "🏹 Стральба"
+  sub-animals-title: "🐾 Жывёлы"
+  sub-movement-title: "🌐 Перамяшчэнне"
+  sub-economy-title: "💰 Эканоміка"
+
+  # ===== Падстаронкі — апісанні =====
+  sub-killstreak-desc: "<gray>Серыя забойстваў без смерцяў.\n<gray>Забі N гульцоў запар — серыя расце.\n<dark_gray>Памрэш — серыя абнуліцца."
+  sub-distance-desc: "<gray>Колькі блокаў ты прайшоў.\n<dark_gray>Улічваецца хада, бег, плаванне."
+  sub-damage-desc: "<gray>Колькі шкоды ты нанёс і атрымаў.\n<dark_gray>Шкода ў PvP і PvE."
+  sub-craft-desc: "<gray>Колькі прадметаў ты стварыў.\n<dark_gray>Толькі створаныя праз вярстак."
+  sub-arrows-desc: "<gray>Колькі стрэл ты выпусціў і рыб злавіў.\n<dark_gray>Улічваецца лук і вуда."
+  sub-animals-desc: "<gray>Колькі жывёл ты прыручыў і развёў.\n<dark_gray>Сабакі, коткі, коні і інш."
+  sub-movement-desc: "<gray>Колькі разоў ты тэлепартаваўся і выкарыстаў парталы.\n<dark_gray>Улічваюцца ўсе тыпы."
+  sub-economy-desc: "<gray>Твой баланс і прывілей.\n<dark_gray>Баланс з Vault."
+
+  # ===== Падстаронкі — загалоўкі секцый =====
+  sub-stat-current: "<gray>Бягучае: <white>{value}"
+  sub-stat-best: "<gray>Найлепшае: <white>{value}"
+  sub-stat-dealt: "<gray>Нанесена: <white>{value}"
+  sub-stat-taken: "<gray>Атрымана: <white>{value}"
+  sub-stat-crafted: "<gray>Створана: <white>{value}"
+  sub-stat-food: "<gray>З'едзена: <white>{value}"
+  sub-stat-arrows: "<gray>Стрэлаў: <white>{value}"
+  sub-stat-fish: "<gray>Рыбы: <white>{value}"
+  sub-stat-tamed: "<gray>Прыручана: <white>{value}"
+  sub-stat-bred: "<gray>Разведзена: <white>{value}"
+  sub-stat-teleports: "<gray>Тэлепортаў: <white>{value}"
+  sub-stat-portals: "<gray>Парталаў: <white>{value}"
+  sub-stat-kd: "<gray>K/D: <white>{value}"
+
+  # ===== Падстаронкі — радкі =====
+  sub-total-types: "<gray>Усяго тыпаў: <white>{count}"
+  sub-player-head-lore: "<gray>Забіта разоў: <white>{count}\n<gray>UUID: <dark_gray>{uuid}"
+  sub-item-lore: "<gray>Значэнне: <white>{value}\n<gray>Ключ: <dark_gray>{key}"
+
+  sub-player-prefix: "<yellow>☠ "
+  sub-item-prefix: "<yellow>"
+
+  # ===== Пагінацыя =====
+  page-prev: "<green>◀ Папярэдняя"
+  page-prev-hover: "<gray>Старонка {page} / {total}"
+  page-next: "<green>Наступная ▶"
+  page-next-hover: "<gray>Старонка {page} / {total}"
+
+  # ===== Памылкі =====
+  error-loading: "<red>Памылка загрузкі статыстыкі."
+
+
+# =========================================================================
+#                    Achievements GUI
+# =========================================================================
+achievements-gui:
+  title: "<dark_gray>🏆 Дасягненні"
+
+
+# =========================================================================
+#                    Achievements — дасягненні
+# =========================================================================
+achievements:
+  # ===== GUI =====
+  title: "<gold>🏆 Дасягненні"
+
+  header:
+    name: "<gold>🏆 Дасягненні"
+    unlocked: "<gray>Разблакавана: <green>{unlocked}</green><gray>/<white>{total}"
+    percent: "<gray>Прагрэс: <yellow>{percent}%"
+    bar: "<dark_gray>{bar}"
+    hint: "<dark_gray>Атрымлівай дасягненні за гульню!"
+
+  # ===== Статусы =====
+  status-prefix-unlocked: "<green>✓ "
+  status-prefix-locked: "<red>✗ "
+  status-unlocked: "<green>✓ Разблакавана"
+  status-locked: "<red>✗ Не разблакавана"
+  date: "<dark_gray>  {date}"
+
+  # ===== Памылкі =====
+  error-loading: "<red>Памылка загрузкі дасягненняў."
+
+  # ===== Фармат даты (Java SimpleDateFormat) =====
+  date-format: "dd.MM.yyyy HH:mm"
+
+  # ===== Колер апісання (апцыянальна) =====
+  description-color: "<gray>"
+
+  # ===== Радкі =====
+  category: "<dark_gray>▸ <gray>Катэгорыя: <yellow>{category}"
+  progress: "<dark_gray>▸ <gray>Прагрэс: {color}{current}<gray>/<white>{required}"
+  progress-bar: "<dark_gray>  {bar}"
+  requires: "<dark_gray>▸ <gray>Патрабуецца: <white>{stat} <dark_gray>(<white>{required}<dark_gray>)"
+
+  # ===== Кнопкі =====
+  back: "<yellow>◀ Назад"
+  back-hover: "<gray>Вярнуцца да статыстыкі"
+
+  # ===== Паведамленні =====
+  messages:
+    unlock-self: "<gold>🏆 <yellow>Дасягненне атрымана: <white>{name}"
+    unlock-description: "<gray>   {description}"
+    unlock-broadcast: "<gold>🏆 <yellow>{player} <gray>атрымаў дасягненне <white>{name}<gray>!"
+
+  # ===== Катэгорыі =====
+  categories:
+    pvp: "⚔ PvP"
+    pve: "☠ PvE"
+    blocks: "🧱 Блокі"
+    time: "⏳ Час"
+    killstreak: "🔥 Серыі"
+    misc: "📦 Рознае"
+    special: "⭐ Асаблівыя"
+
+  # ===== Пераклады статыстык =====
+  stats:
+    kills: "Забойствы гульцоў"
+    deaths: "Смерці"
+    killstreak: "Серыя забойстваў"
+    best_killstreak: "Найлепшая серыя"
+    mobs_killed: "Забойствы мобаў"
+    bosses_killed: "Забойствы босаў"
+    blocks_placed: "Пастаўлена блокаў"
+    blocks_broken: "Зламана блокаў"
+    play_time: "Час гульні"
+    distance_walked: "Пройдзена блокаў"
+    damage_dealt: "Нанесена шкоды"
+    damage_taken: "Атрымана шкоды"
+    items_crafted: "Створана прадметаў"
+    food_consumed: "З'едзена ежы"
+    arrows_shot: "Стрэлаў з лука"
+    fish_caught: "Злоўлена рыбы"
+    entities_tamed: "Прыручана жывёл"
+    entities_bred: "Разведзена жывёл"
+    teleports: "Тэлепартацый"
+    portal_uses: "Выкарыстанняў парталаў"
+    logins: "Уваходаў на сервер"
+
+  stat-prefixes:
+    mob_killed: "Забойствы: {name}"
+    block_broken: "Зламана: {name}"
+    block_placed: "Пастаўлена: {name}"
+
+  # ===== Назвы і апісанні дасягненняў =====
+  list:
+    # ===== PVP =====
+    first_kill: { name: "Першая кроў", description: "Забі першага гульца" }
+    killer_10: { name: "Пачатковец-забойца", description: "Забі 10 гульцоў" }
+    killer_50: { name: "Дасведчаны баец", description: "Забі 50 гульцоў" }
+    killer_100: { name: "Майстар PvP", description: "Забі 100 гульцоў" }
+    killer_500: { name: "Легенда PvP", description: "Забі 500 гульцоў" }
+    killer_1000: { name: "Бог вайны", description: "Забі 1000 гульцоў" }
+    killstreak_5: { name: "Серыя", description: "Забі 5 гульцоў без смерцяў" }
+    killstreak_10: { name: "Няспынны", description: "Забі 10 гульцоў без смерцяў" }
+    killstreak_25: { name: "Крыважэрны", description: "Забі 25 гульцоў без смерцяў" }
+    killstreak_50: { name: "Неўміручы", description: "Забі 50 гульцоў без смерцяў" }
+    killstreak_100: { name: "Машына смерці", description: "Забі 100 гульцоў без смерцяў" }
+    death_10: { name: "Няўдачлівы", description: "Памры 10 разоў" }
+    death_100: { name: "Пакутнік", description: "Памры 100 разоў" }
+    death_1000: { name: "Жывы мярцвяк", description: "Памры 1000 разоў" }
+
+    # ===== PVE =====
+    first_mob: { name: "Паляўнічы", description: "Забі першага моба" }
+    mobs_50: { name: "Знішчальнік", description: "Забі 50 мобаў" }
+    mobs_100: { name: "Навальніца мобаў", description: "Забі 100 мобаў" }
+    mobs_1000: { name: "Легенда PvE", description: "Забі 1000 мобаў" }
+    mobs_10000: { name: "Знішчальнік", description: "Забі 10 000 мобаў" }
+    mobs_50000: { name: "Кашмар мобаў", description: "Забі 50 000 мобаў" }
+    first_boss: { name: "Забойца босаў", description: "Забі першага боса" }
+    bosses_10: { name: "Паляўнічы на босаў", description: "Забі 10 босаў" }
+    bosses_100: { name: "Уладар босаў", description: "Забі 100 босаў" }
+
+    # ===== БЛОКІ =====
+    builder_100: { name: "Вучань будаўніка", description: "Пастаў 100 блокаў" }
+    builder_500: { name: "Будаўнік", description: "Пастаў 500 блокаў" }
+    builder_5000: { name: "Архітэктар", description: "Пастаў 5000 блокаў" }
+    builder_50000: { name: "Дойлід", description: "Пастаў 50 000 блокаў" }
+    builder_500000: { name: "Творца сусветаў", description: "Пастаў 500 000 блокаў" }
+    miner_100: { name: "Капальнік", description: "Зламай 100 блокаў" }
+    miner_1000: { name: "Шахцёр", description: "Зламай 1000 блокаў" }
+    miner_10000: { name: "Бурыльшчык", description: "Зламай 10 000 блокаў" }
+    miner_100000: { name: "Крот", description: "Зламай 100 000 блокаў" }
+    miner_1000000: { name: "Знішчальнік зямлі", description: "Зламай 1 000 000 блокаў" }
+
+    # ===== ЧАС =====
+    playtime_10m: { name: "Першы крок", description: "Гуляй 10 хвілін" }
+    playtime_1h: { name: "Навічок", description: "Гуляй 1 гадзіну" }
+    playtime_6h: { name: "Зацікаўлены", description: "Гуляй 6 гадзін" }
+    playtime_24h: { name: "Пастаянны гулец", description: "Гуляй 24 гадзіны" }
+    playtime_100h: { name: "Ветэран", description: "Гуляй 100 гадзін" }
+    playtime_500h: { name: "Старажыл", description: "Гуляй 500 гадзін" }
+    playtime_1000h: { name: "Легенда сервера", description: "Гуляй 1000 гадзін" }
+    playtime_5000h: { name: "Неўміручы", description: "Гуляй 5000 гадзін" }
+
+    # ===== ДЫСТАНЦЫЯ =====
+    distance_1k: { name: "Пешаход", description: "Пройдзі 1000 блокаў" }
+    distance_10k: { name: "Падарожнік", description: "Пройдзі 10 000 блокаў" }
+    distance_100k: { name: "Вандроўнік", description: "Пройдзі 100 000 блокаў" }
+    distance_1m: { name: "Заваёўнік свету", description: "Пройдзі 1 000 000 блокаў" }
+    distance_10m: { name: "Легенда дарог", description: "Пройдзі 10 000 000 блокаў" }
+
+    # ===== ШКОДА =====
+    damage_dealt_1k: { name: "Баец", description: "Нанесі 1000 шкоды" }
+    damage_dealt_10k: { name: "Берсерк", description: "Нанесі 10 000 шкоды" }
+    damage_dealt_100k: { name: "Разбуральнік", description: "Нанесі 100 000 шкоды" }
+    damage_dealt_1m: { name: "Катастрофа", description: "Нанесі 1 000 000 шкоды" }
+    damage_taken_10k: { name: "Таўстаскуры", description: "Атрымай 10 000 шкоды" }
+    damage_taken_100k: { name: "Жывучы", description: "Атрымай 100 000 шкоды" }
+
+    # ===== КРАФТ / ЕЖА / СТРАЛЬБА =====
+    crafter_100: { name: "Вучань рамесніка", description: "Ствары 100 прадметаў" }
+    crafter_500: { name: "Рамеснік", description: "Ствары 500 прадметаў" }
+    crafter_5000: { name: "Майстар-рамеснік", description: "Ствары 5000 прадметаў" }
+    crafter_50000: { name: "Фабрыка", description: "Ствары 50 000 прадметаў" }
+    food_100: { name: "Ядун", description: "З'еш 100 адзінак ежы" }
+    food_500: { name: "Гурман", description: "З'еш 500 адзінак ежы" }
+    food_5000: { name: "Абжора", description: "З'еш 5000 адзінак ежы" }
+    arrows_100: { name: "Лучнік", description: "Стрэль 100 стрэл" }
+    arrows_1000: { name: "Снайпер", description: "Стрэль 1000 стрэл" }
+    arrows_10000: { name: "Стралок", description: "Стрэль 10 000 стрэл" }
+
+    # ===== РЫБАЛКА =====
+    fisher_10: { name: "Пачатковец-рыбак", description: "Злаві 10 рыб" }
+    fisher_100: { name: "Рыбак", description: "Злаві 100 рыб" }
+    fisher_1000: { name: "Майстар-рыбак", description: "Злаві 1000 рыб" }
+    fisher_10000: { name: "Уладар мораў", description: "Злаві 10 000 рыб" }
+
+    # ===== ЖЫВЁЛЫ =====
+    tamer_1: { name: "Першы сябар", description: "Прыруч першую жывёлу" }
+    tamer_10: { name: "Сябры назаўсёды", description: "Прыруч 10 жывёл" }
+    tamer_100: { name: "Заолаг", description: "Прыруч 100 жывёл" }
+    breeder_10: { name: "Фермер-пачатковец", description: "Развядзі 10 жывёл" }
+    breeder_100: { name: "Фермер", description: "Развядзі 100 жывёл" }
+    breeder_1000: { name: "Жывёлавод", description: "Развядзі 1000 жывёл" }
+
+    # ===== УВАХОДЫ / ПЕРАМЯШЧЭННЕ =====
+    login_10: { name: "Заходзь яшчэ", description: "Заходзь 10 разоў" }
+    login_100: { name: "Верны гулец", description: "Заходзь 100 разоў" }
+    login_1000: { name: "Адданы гулец", description: "Заходзь 1000 разоў" }
+    login_10000: { name: "Жыхар сервера", description: "Заходзь 10 000 разоў" }
+    teleporter_100: { name: "Падарожнік", description: "Тэлепартуйся 100 разоў" }
+    teleporter_1000: { name: "Тэлепартэр", description: "Тэлепартуйся 1000 разоў" }
+    teleporter_10000: { name: "Майстар тэлепартацыі", description: "Тэлепартуйся 10 000 разоў" }
+    portal_100: { name: "Міжсусветны", description: "Выкарыстай парталы 100 разоў" }
+
+    # ===== АСАБЛІВЫЯ =====
+    dragon_slayer: { name: "Забойца Дракона", description: "Забі Дракона Краю" }
+    wither_slayer: { name: "Пераможца Візера", description: "Забі Візера" }
+    elder_guardian_slayer: { name: "Пераможца Старажытнага вартаўніка", description: "Забі Старажытнага вартаўніка" }
+    raid_winner: { name: "Выратавальнік вёскі", description: "Забі 10 рабаўнікоў" }
+    zombie_slayer: { name: "Ненавіснік зомбі", description: "Забі 1000 зомбі" }
+    skeleton_slayer: { name: "Косталам", description: "Забі 1000 шкілетаў" }
+    creeper_slayer: { name: "Сапёр", description: "Забі 1000 крыпераў" }
+    enderman_slayer: { name: "Ценявы", description: "Забі 1000 эндарменаў" }
+    diamond_miner: { name: "Алмазны шахцёр", description: "Зламай 1000 алмазных руд" }
+    debris_miner: { name: "Паляўнічы за старажытнымі абломкамі", description: "Зламай 500 старажытных абломкаў" }
+
+
+# =========================================================================
+#                    Milestones — вехі
+# =========================================================================
+milestones:
+  # ===== МОБЫ =====
+  mobs_killed:
+    "10": { message: "<gold>🏆 Вы забілі 10 мобаў!" }
+    "100": { message: "<gold>🏆 Вы забілі 100 мобаў!" }
+    "500": { message: "<gold>🏆 Вы забілі 500 мобаў!" }
+    "1000": { message: "<gold>🏆 Вы забілі 1000 мобаў!" }
+    "5000": { message: "<gold>🏆 Вы забілі 5000 мобаў!" }
+    "10000": { message: "<gold>🏆 Вы забілі 10 000 мобаў!" }
+
+  # ===== БОСЫ =====
+  bosses_killed:
+    "1": { message: "<gold>🏆 Першы бос пераможаны!" }
+    "10": { message: "<gold>🏆 Вы забілі 10 босаў!" }
+    "50": { message: "<gold>🏆 Вы забілі 50 босаў!" }
+    "100": { message: "<gold>🏆 Вы забілі 100 босаў!" }
+
+  # ===== PVP =====
+  kills:
+    "1": { message: "<gold>🏆 Першае забойства гульца!" }
+    "10": { message: "<gold>🏆 Вы забілі 10 гульцоў!" }
+    "50": { message: "<gold>🏆 Вы забілі 50 гульцоў!" }
+    "100": { message: "<gold>🏆 Вы забілі 100 гульцоў!" }
+    "500": { message: "<gold>🏆 Вы забілі 500 гульцоў!" }
+
+  deaths:
+    "10": { message: "<gray>💀 Вы памерлі 10 разоў." }
+    "100": { message: "<gray>💀 Вы памерлі 100 разоў." }
+    "1000": { message: "<gray>💀 Вы памерлі 1000 разоў." }
+
+  # ===== KILLSTREAK =====
+  killstreak:
+    "5": { message: "<gold>🔥 Серыя забойстваў: 5!" }
+    "10": { message: "<gold>🔥 Серыя забойстваў: 10!" }
+    "25": { message: "<gold>🔥 Серыя забойстваў: 25!" }
+    "50": { message: "<gold>🔥 Серыя забойстваў: 50!" }
+
+  # ===== БЛОКІ =====
+  blocks_placed:
+    "100": { message: "<gold>🏆 Вы паставілі 100 блокаў!" }
+    "500": { message: "<gold>🏆 Вы паставілі 500 блокаў!" }
+    "5000": { message: "<gold>🏆 Вы паставілі 5000 блокаў!" }
+    "50000": { message: "<gold>🏆 Вы паставілі 50 000 блокаў!" }
+
+  blocks_broken:
+    "100": { message: "<gold>⛏ Вы зламалі 100 блокаў!" }
+    "1000": { message: "<gold>⛏ Вы зламалі 1000 блокаў!" }
+    "10000": { message: "<gold>⛏ Вы зламалі 10 000 блокаў!" }
+    "100000": { message: "<gold>⛏ Вы зламалі 100 000 блокаў!" }
+
+  # ===== ЧАС =====
+  play_time:
+    "600": { message: "<gold>⏳ Вы гуляеце ўжо 10 хвілін!" }
+    "3600": { message: "<gold>⏳ Вы гуляеце ўжо 1 гадзіну!" }
+    "21600": { message: "<gold>⏳ Вы гуляеце ўжо 6 гадзін!" }
+    "86400": { message: "<gold>⏳ Вы гуляеце ўжо 24 гадзіны!" }
+    "604800": { message: "<gold>⏳ Вы гуляеце ўжо тыдзень!" }
+
+  # ===== ДЫСТАНЦЫЯ =====
+  distance_walked:
+    "1000": { message: "<gold>🏃 Вы прайшлі 1000 блокаў!" }
+    "10000": { message: "<gold>🏃 Вы прайшлі 10 000 блокаў!" }
+    "100000": { message: "<gold>🏃 Вы прайшлі 100 000 блокаў!" }
+    "1000000": { message: "<gold>🏃 Вы прайшлі 1 000 000 блокаў!" }
+
+  # ===== ШКОДА =====
+  damage_dealt:
+    "1000": { message: "<gold>💥 Вы нанеслі 1000 шкоды!" }
+    "10000": { message: "<gold>💥 Вы нанеслі 10 000 шкоды!" }
+    "100000": { message: "<gold>💥 Вы нанеслі 100 000 шкоды!" }
+
+  damage_taken:
+    "1000": { message: "<gray>🛡 Вы атрымалі 1000 шкоды." }
+    "10000": { message: "<gray>🛡 Вы атрымалі 10 000 шкоды." }
+
+  # ===== КРАФТ / ЕЖА =====
+  items_crafted:
+    "100": { message: "<gold>🔨 Вы стварылі 100 прадметаў!" }
+    "1000": { message: "<gold>🔨 Вы стварылі 1000 прадметаў!" }
+    "10000": { message: "<gold>🔨 Вы стварылі 10 000 прадметаў!" }
+
+  food_consumed:
+    "100": { message: "<gold>🍗 Вы з'елі 100 адзінак ежы!" }
+    "1000": { message: "<gold>🍗 Вы з'елі 1000 адзінак ежы!" }
+
+  # ===== СТРАЛЬБА =====
+  arrows_shot:
+    "100": { message: "<gold>🏹 Вы выпусцілі 100 стрэл!" }
+    "1000": { message: "<gold>🏹 Вы выпусцілі 1000 стрэл!" }
+    "10000": { message: "<gold>🏹 Вы выпусцілі 10 000 стрэл!" }
+
+  # ===== РЫБАЛКА =====
+  fish_caught:
+    "10": { message: "<gold>🎣 Вы злавілі 10 рыб!" }
+    "100": { message: "<gold>🎣 Вы злавілі 100 рыб!" }
+    "1000": { message: "<gold>🎣 Вы злавілі 1000 рыб!" }
+
+  # ===== ЖЫВЁЛЫ =====
+  entities_tamed:
+    "1": { message: "<gold>🐾 Першая прыручаная жывёла!" }
+    "10": { message: "<gold>🐾 Вы прыручылі 10 жывёл!" }
+    "100": { message: "<gold>🐾 Вы прыручылі 100 жывёл!" }
+
+  entities_bred:
+    "10": { message: "<gold>🐾 Вы развялі 10 жывёл!" }
+    "100": { message: "<gold>🐾 Вы развялі 100 жывёл!" }
+    "1000": { message: "<gold>🐾 Вы развялі 1000 жывёл!" }
+
+  # ===== ПЕРАМЯШЧЭННЕ =====
+  teleports:
+    "100": { message: "<gold>🌐 Вы тэлепартаваліся 100 разоў!" }
+    "1000": { message: "<gold>🌐 Вы тэлепартаваліся 1000 разоў!" }
+
+  portal_uses:
+    "10": { message: "<gold>🌀 Вы выкарысталі партал 10 разоў!" }
+    "100": { message: "<gold>🌀 Вы выкарысталі партал 100 разоў!" }
+
+  # ===== УВАХОДЫ =====
+  logins:
+    "10": { message: "<gold>👋 Вы зайшлі 10 разоў!" }
+    "100": { message: "<gold>👋 Вы зайшлі 100 разоў!" }
+    "1000": { message: "<gold>👋 Вы зайшлі 1000 разоў!" }
+
+  # ===== КАНКРЭТНЫЯ МОБЫ =====
+  mob_killed_zombie:
+    "50": { message: "<gold>🧟 Вы забілі 50 зомбі!" }
+    "500": { message: "<gold>🧟 Вы забілі 500 зомбі!" }
+  mob_killed_skeleton:
+    "50": { message: "<gold>💀 Вы забілі 50 шкілетаў!" }
+  mob_killed_creeper:
+    "50": { message: "<gold>💥 Вы забілі 50 крыпераў!" }
+  mob_killed_enderman:
+    "25": { message: "<gold>🌌 Вы забілі 25 эндарменаў!" }
+  mob_killed_wither:
+    "1": { message: "<gold>💀 Вы забілі Візера!" }
+  mob_killed_ender_dragon:
+    "1": { message: "<gold>🐉 Вы забілі Дракона Краю!" }
+
+  # ===== КАШТОЎНЫЯ БЛОКІ =====
+  block_broken_diamond_ore:
+    "100": { message: "<gold>💎 Вы зламалі 100 алмазных руд!" }
+  block_broken_ancient_debris:
+    "50": { message: "<gold>🔥 Вы зламалі 50 старажытных абломкаў!" }
+
+
+# =========================================================================
+#                    /stats — статыстыка гульца
+# =========================================================================
+stats:
+  # ===== Асноўны вывад =====
+  header: "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  title-self: "<gold>📊 {chips}Статыстыка на серверы <aqua>{server}</aqua>"
+  title-other: "<gold>📊 {chips}Статыстыка гульца <yellow>{player}</yellow> на серверы <aqua>{server}</aqua>"
+
+  # ===== Радкі =====
+  blocks: "<green>🧱 Блокі  <white>Пастаўлена: {placed} | Зламана: {broken}"
+  blocks-hover: "<gray>Усяго: {total-placed} / {total-broken}"
+
+  pve: "<green>☠ PvE  <white>Мобы: {mobs} | Босы: {bosses}"
+  pve-hover: "<gray>Усяго: {total-mobs} / {total-bosses}"
+
+  time: "<green>⏳ Час  <white>{time}"
+  time-hover: "<gray>Усяго: {total-time}"
+
+  pvp: "<green>⚔ PvP  <white>Забойстваў: {kills} | Смерцяў: {deaths} | <gold>K/D: {kd}"
+  pvp-hover: "<gray>Усяго: {total-kills} / {total-deaths}"
+
+  balance: "<green>💰 Баланс  <white>{value}"
+  balance-hover: "<gray>Бягучы баланс"
+
+  group: "<green>🎖 Прывілей  {value}"
+  group-hover: "<gray>Бягучая група"
+
+  # ===== Sparkline =====
+  sparkline: "<dark_gray>  📈 <gray>Прагрэс ({days}д): <white>{graph}"
+
+  # ===== Кнопкі =====
+  share-button: "<green>  [📤 Падзяліцца статыстыкай]"
+  share-hover: "<gray>Націсніце, каб адправіць статыстыку ў чат"
+
+  # ===== Падсказка =====
+  hint-subcommands: "<gray>Падрабязней: <yellow>/stats pvp <gray>| <yellow>/stats mob <gray>| <yellow>/stats block"
+
+  # ===== Падкаманда: PvP =====
+  pvp-title-self: "<yellow>⚔ <white>Ваша PvP-статыстыка <gray>| <green>Забойстваў: <white>{kills} <gray>| <red>Смерцяў: <white>{deaths} <gray>| <gold>K/D: <white>{kd}"
+  pvp-title-other: "<yellow>⚔ <white>PvP-статыстыка <yellow>{player} <gray>| <green>Забойстваў: <white>{kills} <gray>| <red>Смерцяў: <white>{deaths} <gray>| <gold>K/D: <white>{kd}"
+  pvp-header: "<gray>Забіта гульцоў: <white>{count}"
+  pvp-empty: "<gray>Няма даных пра PvP."
+
+  # ===== Падкаманда: Mob =====
+  mob-title-self: "<yellow>☠ <white>Ваша PvE-статыстыка <gray>| <green>Мобаў: <white>{mobs} <gray>| <gold>Босаў: <white>{bosses}"
+  mob-title-other: "<yellow>☠ <white>PvE-статыстыка <yellow>{player} <gray>| <green>Мобаў: <white>{mobs} <gray>| <gold>Босаў: <white>{bosses}"
+  mob-header: "<gray>Забіта тыпаў мобаў: <white>{count}"
+  mob-empty: "<gray>Няма даных пра мобаў."
+
+  # ===== Падкаманда: Block =====
+  block-title-self: "<yellow>🧱 <white>Ваша статыстыка блокаў <gray>| <green>Пастаўлена: <white>{placed} <gray>| <red>Зламана: <white>{broken}"
+  block-title-other: "<yellow>🧱 <white>Статыстыка блокаў <yellow>{player} <gray>| <green>Пастаўлена: <white>{placed} <gray>| <red>Зламана: <white>{broken}"
+  block-placed-header: "<green>🏗 Пастаўлена (<white>{count}<green> тыпаў):"
+  block-broken-header: "<gold>⛏ Зламана (<white>{count}<gold> тыпаў):"
+  block-empty: "<gray>Няма даных."
+
+  # ===== Старыя ключы (fallback) =====
+  mobs-header: "<gold>▸ Забойствы мобаў:"
+  blocks-placed-header: "<gold>▸ Пастаўлена блокаў:"
+  blocks-broken-header: "<gold>▸ Зламана блокаў:"
+  mob-line: "<gray>  {value}"
+  block-line: "<gray>  {value}"
+
+
+# =========================================================================
+#                    /serverstats — статыстыка сервера
+# =========================================================================
+serverstats:
+  title: "<gold>📊 Статыстыка сервера <aqua>{server}</aqua>"
+
+  # ===== Секцыі =====
+  section-players: "<dark_gray>━━ <gold>👥 Гульцы</gold> ━━"
+  section-activity: "<dark_gray>━━ <gold>📊 Актыўнасць</gold> ━━"
+  section-blocks: "<dark_gray>━━ <gold>🧱 Блокі</gold> ━━"
+  section-economy: "<dark_gray>━━ <gold>💰 Эканоміка</gold> ━━"
+
+  # ===== Радкі =====
+  unique-players: "   <green>👤 Унікальных гульцоў: <white>{value}"
+  line: "   <green>{value}"
+  line-time: "   <green>⏳ Агульны час гульні: <white>{value}"
+  line-balance: "   <green>💵 Агульны баланс: <gold>{value}"
+
+  # ===== Hover-ключы =====
+  stat-playtime-hover: "<gray>Сумарны час гульні ўсіх гульцоў"
+  stat-mobs-hover: "<gray>Сумарныя забойствы мобаў"
+  stat-bosses-hover: "<gray>Сумарныя забойствы босаў"
+  stat-kills-hover: "<gray>Сумарныя PvP-забойствы"
+  stat-deaths-hover: "<gray>Сумарныя смерці гульцоў"
+  stat-blocks-placed-hover: "<gray>Сумарна пастаўлена блокаў"
+  stat-blocks-broken-hover: "<gray>Сумарна зламана блокаў"
+  stat-balance-hover: "<gray>Сумарны баланс усіх гульцоў"
+
+
+# =========================================================================
+#                    /top — топы
+# =========================================================================
+top:
+  header: "<dark_gray>━━━━━━━━━━ <gold>Топы сервера</gold> ━━━━━━━━━━"
+  footer: "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+  # ===== Катэгорыі =====
+  category-time: "<yellow>▸ ⏳ Час гульні"
+  category-mobs: "<yellow>▸ ☠ Забіта мобаў"
+  category-blocks: "<yellow>▸ ⛏ Пастаўлена блокаў"
+  category-pvp: "<yellow>▸ ⚔ PvP (забойствы гульцоў)"
+  category-balance: "<yellow>▸ 💰 Баланс"
+
+  # ===== PvP па ахвяры =====
+  category-pvp-victim: "<yellow>⚔ Забойствы гульца <white>{victim}"
+
+  # ===== Кастом =====
+  category-custom: "<yellow>▸ Топ: <white>{stat}"
+
+  # ===== Рознае =====
+  chips-hover: "<gray>Значкі топ-1: <white>{chips}"
+  no-data: "<gray>   Няма даных"
+  refresh: "<gray>[Абнавіць]"
+  refresh-hover: "<gray>Націсніце, каб абнавіць топ"
+
+
+# =========================================================================
+#                    /compare — параўнанне
+# =========================================================================
+compare:
+  self: "<red>Нельга параўнаць статыстыку з самім сабой."
+  header: "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  title: "<gold>📊 Параўнанне: <yellow>{player1}</yellow> <gray>vs</gray> <yellow>{player2}</yellow>"
+
+  # ===== Пераможца =====
+  winner: "   <yellow>🏆 Пераможца: <gold>{winner}</gold> <gray>({wins1} : {wins2})"
+  draw: "   <gray>🤝 Нічыя! ({wins1} : {wins2})"
+
+  # ===== Радкі =====
+  line-blocks: "📊 Блокі"
+  line-pve: "☠ PvE"
+  line-time: "⏳ Час"
+  line-pvp: "⚔ PvP"
+  line-kd: "   K/D"
+  line-balance: "💰 Баланс"
+
+  # ===== Hover =====
+  hover-value-1: "<gray>Значэнне 1: <white>{value}"
+  hover-value-2: "<gray>Значэнне 2: <white>{value}"
+  hover-diff: "<gray>Розніца: <white>{diff}"
+
+  # ===== Кнопкі =====
+  buttons: "   <aqua>[👤 {player1}]</aqua> <aqua>[👤 {player2}]</aqua>"
+  button-hover: "<gray>Адкрыць статыстыку <white>{player}"
+
+
+# =========================================================================
+#                    /share — падзяліцца
+# =========================================================================
+share:
+  self: "<red>Нельга падзяліцца статыстыкай з самім сабой. Выкарыстоўвайце /stats."
+
+  broadcast: "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n<gold>📊 <yellow>{chips}{player}</yellow> падзяліўся статыстыкай!\n<gray>Сервер: <aqua>{server}</aqua> <gray>| Група: <light_purple>{group}"
+  broadcast-hover: "<gray>Націсніце, каб адкрыць статыстыку"
+
+  stats: "\n<green>⏳ Час: <white>{time} <gray>(усяго: {total-time})\n<green>☠ PvE: <white>Мобы {mobs} | Босы {bosses} <gray>(усяго мобаў: {total-mobs})\n<green>⛏ Блокі: <white>Пастаўлена {blocks}\n<green>⚔ PvP: <white>Забойстваў {kills} | Смерцяў {deaths} <gray>| K/D: {kd}\n<green>💰 Баланс: <gold>{balance}\n<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+  private-sender: "<green>Вы падзяліліся статыстыкай з <yellow>{target}</yellow>"
+  private-target: "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n<gold>📊 <yellow>{chips}{player}</yellow> падзяліўся з вамі статыстыкай:\n<gray>Сервер: <aqua>{server}</aqua> <gray>| Група: <light_purple>{group}\n<green>⏳ Час: <white>{time} <gray>(усяго: {total-time})\n<green>☠ PvE: <white>Мобы {mobs} | Босы {bosses}\n<green>⚔ PvP: <white>Забойстваў {kills} | Смерцяў {deaths} <gray>| K/D: {kd}\n<green>💰 Баланс: <gold>{balance}\n<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  private-hover: "<gray>Націсніце, каб адкрыць статыстыку {player}"
+
+
+# =========================================================================
+#                    /exclude — выключэнні
+# =========================================================================
+exclude:
+  added: "<green>✅ Гулец <yellow>{player}</yellow> выключаны са статыстыкі."
+  removed: "<green>✅ Гулец <yellow>{player}</yellow> вернуты ў статыстыку."
+  already-excluded: "<yellow>Гулец '<white>{player}</white>' ужо выключаны."
+  not-excluded: "<yellow>Гулец '<white>{player}</white>' не выключаны."
+  never-played: "<red>Гулец '<white>{player}</white>' ніколі не гуляў на серверы."
+
+  # ===== Кнопкі =====
+  button-undo: "↩ Адмяніць"
+  button-undo-hover: "<gray>Вярнуць <white>{player}</white> у статыстыку"
+
+  button-stats: "👤 Статыстыка"
+  button-stats-hover: "<gray>Адкрыць статыстыку <white>{player}"
+
+  # ===== Кнопкі (кароткія, для list) =====
+  button-undo-short: "↩"
+  button-undo-short-hover: "<gray>Вярнуць <white>{player}</white> у статыстыку"
+
+  button-stats-short: "👤"
+  button-stats-short-hover: "<gray>Адкрыць статыстыку <white>{player}"
+
+  # ===== Сімвалы =====
+  bullet: "  • "
+  separator-bracket-left: "  ["
+  separator-bracket-left-short: " ["
+  separator-bracket-right: "]"
+
+  list-header: "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━\n<gold>🚫 Выключаныя гульцы (<yellow>{count}</yellow>):"
+  list-empty: "<yellow>Няма выключаных гульцоў."
+  list-footer: "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  list-entry: "<dark_gray>  • <red>{player}"
+
+  help: |
+    <dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━
+    <gold>🚫 Кіраванне выключэннямі:
+    <yellow>/exclude <player> <gray>— выключыць са статыстыкі
+    <yellow>/exclude remove <player> <gray>— вярнуць у статыстыку
+    <yellow>/exclude list <gray>— спіс выключаных
+    <dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+# =========================================================================
+#                    /playerstats reload
+# =========================================================================
+reload:
+  header: "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  starting: "<gold>[PlayerStats] 🔄 Пачынаю перазагрузку..."
+
+  # ===== Этапы =====
+  step-config: "<green>   ✅</green> <gray>Канфіг перазагружаны"
+  step-caches: "<green>   ✅</green> <gray>Кэшы ачышчаны <white>({count})"
+  step-groups: "<green>   ✅</green> <gray>Кэш груп ачышчаны"
+  step-tops: "<green>   ✅</green> <gray>Кэш топу скінуты"
+  step-server: "<green>   ✅</green> <gray>Інфармацыя пра сервер абноўлена"
+
+  # ===== Секцыі =====
+  section-config: "<dark_gray>━━ <gold>📦 Канфіг</gold> ━━"
+  section-server: "<dark_gray>━━ <gold>🌐 Сервер</gold> ━━"
+  section-api: "<dark_gray>━━ <gold>🔌 API</gold> ━━"
+
+  # ===== Інфа =====
+  info-db: "<gray>   💾 База даных: <white>{type}"
+  info-caches: "<gray>   🗑 Ачышчана кэшаў: <white>{count}"
+  info-server: "<gray>   🎯 Імя: <white>{server} <gray>(ID: <white>{id}<gray>)"
+  info-multi: "<gray>   🌍 Мультысервернасць: {status}"
+  info-api: "<gray>   📡 HTTP API: {status}"
+  info-api-host: " <gray>(<white>{host}<gray>)"
+
+  # ===== Вынік =====
+  success: "<green>✅ Перазагрузка завершана за <white>{time} мс"
+  error: "<red>❌ Памылка пры перазагрузцы! Праверце кансоль."
+
+
+# =========================================================================
+#                    /playerstats info
+# =========================================================================
+info:
+  header: "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  title: "<gold>📊 PlayerStats <yellow>v{version}"
+  author: "<gray>   Аўтар: <white>{authors}"
+
+  # ===== Секцыі =====
+  section-server: "<dark_gray>━━ <gold>🌐 Сервер</gold> ━━"
+  section-database: "<dark_gray>━━ <gold>💾 База даных</gold> ━━"
+  section-hooks: "<dark_gray>━━ <gold>🔗 Інтэграцыі</gold> <gray>({active}/{total})</gray> ━━"
+  section-settings: "<dark_gray>━━ <gold>⚙ Налады</gold> ━━"
+
+  # ===== Сервер =====
+  server: "<gray>   Імя: <white>{server} <gray>(ID: <white>{id}<gray>)"
+  bukkit-server: "<gray>   Bukkit: <white>{name} {version}"
+
+  # ===== База =====
+  database: "<gray>   Тып: <white>{type} {status}"
+
+  # ===== API =====
+  api: "<gray>   HTTP API: {status}"
+  api-host: " <gray>(<white>{host}<gray>)"
+  hook-enabled-hover: "<green>✓ Інтэграцыя актыўная\n<gray>Плагін: <white>{name}"
+  hook-disabled-hover: "<red>✗ Інтэграцыя недаступная\n<gray>Плагін: <white>{name}\n<dark_gray>Усталюйце {name} для працы"
+
+  # ===== Інтэграцыі =====
+  integrations: "<gray>   Інтэграцыі:"
+  hook-enabled: "<gray>   <green>✅ {name}"
+  hook-disabled: "<gray>   <red>❌ {name}"
+
+  # ===== Налады =====
+  debug: "<gray>   Debug: {level}"
+  multi: "<gray>   Мультысервернасць: {status}"
+  top-chips: "<gray>   Top-chips: {status}"
+  sparkline: "<gray>   Sparkline: {status}"
+  pvp: "<gray>   PvP-статыстыка: {status}"
+
+
+# =========================================================================
+#                    /playerstats help
+# =========================================================================
+help:
+  header: "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  title: "<gold>📊 PlayerStats <yellow>— Даведка"
+  available: "<gray>   Даступна камандаў: <yellow>{count}"
+
+  # ===== Секцыі =====
+  section-stats: "<dark_gray>━━ <gold>📊 Статыстыка</gold> ━━"
+  section-tops: "<dark_gray>━━ <gold>🏆 Топы</gold> ━━"
+  section-social: "<dark_gray>━━ <gold>📤 Сацыяльнае</gold> ━━"
+  section-admin: "<dark_gray>━━ <gold>⚙ Кіраванне</gold> ━━"
+
+  # ===== Каманды =====
+  commands-title: "<gold>Каманды:"
+  command-stats: "<yellow>   /stats <gray>— свая статыстыка"
+  command-stats-other: "<yellow>   /stats <player> <gray>— статыстыка гульца"
+  command-stats-gui: "<yellow>   /stats gui <gray>— GUI са статыстыкай"
+  command-stats-pvp: "<yellow>   /stats pvp [player] <gray>— PvP-статыстыка"
+  command-top: "<yellow>   /top <gray>— топы сервера"
+  command-top-stat: "<yellow>   /top <stat> <gray>— топ па статыстыцы"
+  command-top-pvp: "<yellow>   /top pvp <нік> <gray>— топ забойцаў гульца"
+  command-share: "<yellow>   /share [player] <gray>— падзяліцца статыстыкай"
+  command-compare: "<yellow>   /compare <player> <gray>— параўнаць статыстыку"
+  command-exclude: "<yellow>   /exclude <player> [remove|list] <gray>— выключэнні"
+  command-reload: "<yellow>   /playerstats reload <gray>— перазагрузка"
+  command-info: "<yellow>   /playerstats info <gray>— інфармацыя пра плагін"
+  command-update: "<yellow>   /playerstats update <gray>— праверыць абнаўленні"
+
+  # ===== Пусты вывад =====
+  no-commands: "<gray>   У вас няма доступу ні да адной каманды."
+
+  # ===== Hover-падсказкі =====
+  hover-stats: "<gray>Паказвае вашу статыстыку\n<dark_gray>Прыклад: <white>/stats"
+  hover-stats-gui: "<gray>Адкрывае GUI са статыстыкай\n<dark_gray>Прыклад: <white>/stats gui"
+  hover-stats-other: "<gray>Статыстыка іншага гульца\n<dark_gray>Прыклад: <white>/stats Steve"
+  hover-stats-pvp: "<gray>Спіс забітых гульцоў (PvP)\n<dark_gray>Прыклад: <white>/stats pvp Steve"
+
+  hover-top: "<gray>Топы сервера па катэгорыях\n<dark_gray>Прыклад: <white>/top"
+  hover-top-stat: "<gray>Топ па канкрэтнай статыстыцы\n<dark_gray>Прыклад: <white>/top kills"
+  hover-top-pvp: "<gray>Топ забойцаў канкрэтнага гульца\n<dark_gray>Прыклад: <white>/top pvp Steve"
+
+  hover-share: "<gray>Падзяліцца статыстыкай у чат\n<dark_gray>Прыклад: <white>/share\n<dark_gray>Прыклад: <white>/share Steve"
+  hover-compare: "<gray>Параўнаць статыстыку з іншым гульцом\n<dark_gray>Прыклад: <white>/compare Steve"
+
+  hover-exclude: "<gray>Кіраванне выключэннямі са статыстыкі\n<dark_gray>Прыклад: <white>/exclude Steve\n<dark_gray>Прыклад: <white>/exclude list"
+  hover-reload: "<gray>Перазагрузіць канфіг і кэшы\n<dark_gray>Прыклад: <white>/playerstats reload"
+  hover-info: "<gray>Інфармацыя пра плагін і інтэграцыі\n<dark_gray>Прыклад: <white>/playerstats info"
+  hover-update: "<gray>Праверыць абнаўленні плагіна\n<dark_gray>Прыклад: <white>/playerstats update"
+
+  footer: "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+
+# =========================================================================
+#                    Валюта
+# =========================================================================
+currency:
+  # Fallback-фармат, калі Vault не падключаны.
+  # {value} — адфарматаваны лік (напрыклад, 1500.00)
+  format: "{value}₽"
+
+
+# =========================================================================
+#                    Утыліты
+# =========================================================================
+status:
+  enabled: "<green>Уключана"
+  disabled: "<red>Выключана"
+  enabled-f: "<green>Уключана"
+  disabled-f: "<red>Выключана"
+  connected: "<green>✅"
+  disconnected: "<red>❌"
+
+time:
+  seconds: "{seconds}с"
+  minutes: "{minutes}хв"
+  hours: "{hours}г {minutes}хв"

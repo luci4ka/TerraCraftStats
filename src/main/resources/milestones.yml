@@ -1,0 +1,293 @@
+# =========================================================================
+#                    Milestones — вехи
+# =========================================================================
+# ⚠ ТЕКСТЫ сообщений — в lang/<lang>.yml, секция `milestones`
+# =========================================================================
+
+enabled: true
+
+milestones:
+  # ===== МОБЫ =====
+  mobs_killed:
+    10:
+      commands: []
+    100:
+      commands:
+        - "give %player% diamond 1"
+    500:
+      commands:
+        - "give %player% diamond 3"
+    1000:
+      commands:
+        - "give %player% netherite_ingot 1"
+    5000:
+      commands:
+        - "give %player% netherite_ingot 5"
+    10000:
+      commands:
+        - "give %player% netherite_block 1"
+
+  # ===== БОССЫ =====
+  bosses_killed:
+    1:
+      commands:
+        - "give %player% diamond 1"
+    10:
+      commands:
+        - "give %player% diamond 5"
+    50:
+      commands:
+        - "give %player% netherite_ingot 1"
+    100:
+      commands:
+        - "give %player% netherite_ingot 3"
+
+  # ===== PVP =====
+  kills:
+    1:
+      commands: []
+    10:
+      commands:
+        - "give %player% golden_apple 3"
+    50:
+      commands:
+        - "give %player% diamond 2"
+    100:
+      commands:
+        - "give %player% netherite_ingot 1"
+    500:
+      commands:
+        - "give %player% netherite_block 1"
+
+  deaths:
+    10:
+      commands: []
+    100:
+      commands: []
+    1000:
+      commands:
+        - "give %player% golden_apple 1"
+
+  # ===== KILLSTREAK =====
+  killstreak:
+    5:
+      commands:
+        - "give %player% golden_apple 1"
+    10:
+      commands:
+        - "give %player% diamond 1"
+    25:
+      commands:
+        - "give %player% diamond 3"
+    50:
+      commands:
+        - "give %player% netherite_ingot 1"
+
+  # ===== БЛОКИ =====
+  blocks_placed:
+    100:
+      commands: []
+    500:
+      commands:
+        - "give %player% iron_ingot 5"
+    5000:
+      commands:
+        - "give %player% diamond 2"
+    50000:
+      commands:
+        - "give %player% netherite_ingot 1"
+
+  blocks_broken:
+    100:
+      commands: []
+    1000:
+      commands:
+        - "give %player% iron_pickaxe 1"
+    10000:
+      commands:
+        - "give %player% diamond 3"
+    100000:
+      commands:
+        - "give %player% netherite_ingot 1"
+
+  # ===== ВРЕМЯ =====
+  play_time:
+    600:
+      commands: []
+    3600:
+      commands:
+        - "give %player% golden_apple 1"
+    21600:
+      commands:
+        - "give %player% diamond 1"
+    86400:
+      commands:
+        - "give %player% diamond 3"
+    604800:
+      commands:
+        - "give %player% netherite_ingot 1"
+
+  # ===== ДИСТАНЦИЯ =====
+  distance_walked:
+    1000:
+      commands: []
+    10000:
+      commands:
+        - "give %player% leather_boots 1"
+    100000:
+      commands:
+        - "give %player% diamond_boots 1"
+    1000000:
+      commands:
+        - "give %player% netherite_ingot 1"
+
+  # ===== УРОН =====
+  damage_dealt:
+    1000:
+      commands: []
+    10000:
+      commands:
+        - "give %player% diamond_sword 1"
+    100000:
+      commands:
+        - "give %player% netherite_sword 1"
+
+  damage_taken:
+    1000:
+      commands: []
+    10000:
+      commands:
+        - "give %player% shield 1"
+
+  # ===== КРАФТ / ЕДА =====
+  items_crafted:
+    100:
+      commands: []
+    1000:
+      commands:
+        - "give %player% crafting_table 1"
+    10000:
+      commands:
+        - "give %player% diamond 2"
+
+  food_consumed:
+    100:
+      commands: []
+    1000:
+      commands:
+        - "give %player% golden_apple 3"
+
+  # ===== СТРЕЛЬБА =====
+  arrows_shot:
+    100:
+      commands: []
+    1000:
+      commands:
+        - "give %player% bow 1"
+        - "give %player% arrow 64"
+    10000:
+      commands:
+        - "give %player% diamond 2"
+
+  # ===== РЫБАЛКА =====
+  fish_caught:
+    10:
+      commands: []
+    100:
+      commands:
+        - "give %player% fishing_rod 1"
+    1000:
+      commands:
+        - "give %player% diamond 2"
+
+  # ===== ЖИВОТНЫЕ =====
+  entities_tamed:
+    1:
+      commands: []
+    10:
+      commands:
+        - "give %player% bone 16"
+    100:
+      commands:
+        - "give %player% diamond 2"
+
+  entities_bred:
+    10:
+      commands: []
+    100:
+      commands:
+        - "give %player% wheat 64"
+    1000:
+      commands:
+        - "give %player% diamond 3"
+
+  # ===== ПЕРЕМЕЩЕНИЕ =====
+  teleports:
+    100:
+      commands: []
+    1000:
+      commands:
+        - "give %player% ender_pearl 16"
+
+  portal_uses:
+    10:
+      commands: []
+    100:
+      commands:
+        - "give %player% obsidian 10"
+
+  # ===== ВХОДЫ =====
+  logins:
+    10:
+      commands: []
+    100:
+      commands:
+        - "give %player% diamond 1"
+    1000:
+      commands:
+        - "give %player% netherite_ingot 1"
+
+  # ===== КОНКРЕТНЫЕ МОБЫ =====
+  mob_killed_zombie:
+    50:
+      commands:
+        - "give %player% rotten_flesh 5"
+    500:
+      commands:
+        - "give %player% diamond 1"
+
+  mob_killed_skeleton:
+    50:
+      commands:
+        - "give %player% bone 16"
+
+  mob_killed_creeper:
+    50:
+      commands:
+        - "give %player% gunpowder 16"
+
+  mob_killed_enderman:
+    25:
+      commands:
+        - "give %player% ender_pearl 5"
+
+  mob_killed_wither:
+    1:
+      commands:
+        - "give %player% nether_star 1"
+
+  mob_killed_ender_dragon:
+    1:
+      commands:
+        - "give %player% elytra 1"
+
+  # ===== ЦЕННЫЕ БЛОКИ =====
+  block_broken_diamond_ore:
+    100:
+      commands:
+        - "give %player% diamond 3"
+
+  block_broken_ancient_debris:
+    50:
+      commands:
+        - "give %player% netherite_scrap 1"

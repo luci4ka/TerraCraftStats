@@ -2,15 +2,17 @@ package com.playerstats.hooks;
 
 import com.playerstats.Main;
 import com.playerstats.core.database.dao.PlayerStatsDAO;
+import com.playerstats.core.services.TopCache;
+import com.playerstats.core.utils.Sparkline;
 import me.clip.placeholderapi.expansion.PlaceholderExpansion;
 import org.bukkit.Bukkit;
-import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 
 import java.sql.SQLException;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -75,17 +77,8 @@ public class PlaceholderAPIHook implements Hook {
 
         private final Main plugin;
 
-        /**
-         * Кэш: UUID игрока → Map<ключ статистики, значение>.
-         */
         private final ConcurrentHashMap<UUID, Map<String, String>> cache = new ConcurrentHashMap<>();
-
-        /**
-         * Кэш динамических плейсхолдеров (mob_killed_*) для игроков.
-         * Обновляется по запросу, не в фоновом режиме.
-         */
         private final ConcurrentHashMap<UUID, Map<String, String>> dynamicCache = new ConcurrentHashMap<>();
-
         private final ConcurrentHashMap<UUID, Long> cacheTimestamps = new ConcurrentHashMap<>();
 
         private static final long CACHE_TTL_MS = 5_000L;
@@ -128,6 +121,20 @@ public class PlaceholderAPIHook implements Hook {
             data.put("bosses_killed", String.valueOf(statsDAO.getStat(playerId, serverId, "bosses_killed")));
             data.put("kills", String.valueOf(statsDAO.getStat(playerId, serverId, "kills")));
             data.put("deaths", String.valueOf(statsDAO.getStat(playerId, serverId, "deaths")));
+            data.put("distance_walked", String.valueOf(statsDAO.getStat(playerId, serverId, "distance_walked")));
+            data.put("damage_dealt", String.valueOf(statsDAO.getStat(playerId, serverId, "damage_dealt")));
+            data.put("damage_taken", String.valueOf(statsDAO.getStat(playerId, serverId, "damage_taken")));
+            data.put("items_crafted", String.valueOf(statsDAO.getStat(playerId, serverId, "items_crafted")));
+            data.put("food_consumed", String.valueOf(statsDAO.getStat(playerId, serverId, "food_consumed")));
+            data.put("arrows_shot", String.valueOf(statsDAO.getStat(playerId, serverId, "arrows_shot")));
+            data.put("fish_caught", String.valueOf(statsDAO.getStat(playerId, serverId, "fish_caught")));
+            data.put("entities_tamed", String.valueOf(statsDAO.getStat(playerId, serverId, "entities_tamed")));
+            data.put("entities_bred", String.valueOf(statsDAO.getStat(playerId, serverId, "entities_bred")));
+            data.put("teleports", String.valueOf(statsDAO.getStat(playerId, serverId, "teleports")));
+            data.put("portal_uses", String.valueOf(statsDAO.getStat(playerId, serverId, "portal_uses")));
+            data.put("logins", String.valueOf(statsDAO.getStat(playerId, serverId, "logins")));
+            data.put("killstreak", String.valueOf(statsDAO.getStat(playerId, serverId, "killstreak")));
+            data.put("best_killstreak", String.valueOf(statsDAO.getStat(playerId, serverId, "best_killstreak")));
             data.put("kdr", formatKDR(
                     statsDAO.getStat(playerId, serverId, "kills"),
                     statsDAO.getStat(playerId, serverId, "deaths")));
@@ -142,12 +149,7 @@ public class PlaceholderAPIHook implements Hook {
         }
 
         /**
-         * Обновляет динамический кэш (mob_killed_*) для игрока.
-         * Вызывается только при запросе динамического плейсхолдера.
-         */
-        /**
-         * Обновляет динамический кэш (mob_killed_*) для игрока.
-         * ОДИН SQL-запрос вместо 80.
+         * Обновляет динамический кэш (mob_killed_*, block_*, pvp_kill_*).
          */
         private void refreshDynamicCache(Player player) throws SQLException {
             PlayerStatsDAO statsDAO = plugin.getStatsDAO();
@@ -158,13 +160,18 @@ public class PlaceholderAPIHook implements Hook {
 
             Map<String, String> data = new HashMap<>();
 
-            // Один запрос на каждый префикс
-            for (String prefix : new String[]{"mob_killed_", "block_placed_", "block_broken_"}) {
+            for (String prefix : new String[]{"mob_killed_", "block_placed_", "block_broken_", "pvp_kill_"}) {
                 Map<String, Integer> stats = statsDAO.getStatsByPrefix(playerId, serverId, prefix);
                 for (Map.Entry<String, Integer> entry : stats.entrySet()) {
                     data.put(entry.getKey(), String.valueOf(entry.getValue()));
                 }
             }
+
+            // Суммы PvP
+            Map<String, Integer> pvpStats = statsDAO.getStatsByPrefix(playerId, serverId, "pvp_kill_");
+            data.put("pvp_total", String.valueOf(
+                    pvpStats.values().stream().mapToInt(Integer::intValue).sum()));
+            data.put("pvp_unique", String.valueOf(pvpStats.size()));
 
             dynamicCache.put(uuid, Collections.unmodifiableMap(data));
         }
@@ -202,14 +209,26 @@ public class PlaceholderAPIHook implements Hook {
             UUID uuid = player.getUniqueId();
             String key = identifier.toLowerCase();
 
-            // ==================== ДИНАМИЧЕСКИЕ ПЛЕЙСХОЛДЕРЫ (mob_killed_*) ====================
-            if (key.startsWith("mob_killed_")
-                    || key.startsWith("block_placed_")
-                    || key.startsWith("block_broken_")) {
-                return handleMobPlaceholder(player, uuid, key);
+            // ==================== TOP-CHIPS ====================
+            if (key.startsWith("top_")) {
+                return handleTopPlaceholder(uuid, key);
             }
 
-            // ==================== СТАНДАРТНЫЕ ПЛЕЙСХОЛДЕРЫ ====================
+            if (key.startsWith("sparkline_")) {
+                return handleSparklinePlaceholder(player, uuid, key);
+            }
+
+            // ==================== ДИНАМИЧЕСКИЕ ====================
+            if (key.startsWith("mob_killed_")
+                    || key.startsWith("block_placed_")
+                    || key.startsWith("block_broken_")
+                    || key.startsWith("pvp_kill_")
+                    || key.equals("pvp_total")
+                    || key.equals("pvp_unique")) {
+                return handleDynamicPlaceholder(player, uuid, key);
+            }
+
+            // ==================== СТАНДАРТНЫЕ ====================
             Map<String, String> data = cache.get(uuid);
             Long timestamp = cacheTimestamps.get(uuid);
 
@@ -232,11 +251,102 @@ public class PlaceholderAPIHook implements Hook {
         }
 
         /**
-         * Обработка плейсхолдера mob_killed_<mob>.
-         * Читает напрямую из БД (не кэширует постоянно).
+         * Обработка top_*-плейсхолдеров.
+         * Значки берутся из config.yml (top-chips.chips.*).
          */
-        private String handleMobPlaceholder(Player player, UUID uuid, String key) {
-            // Проверяем динамический кэш
+        private String handleTopPlaceholder(UUID uuid, String key) {
+            TopCache topCache = plugin.getTopCache();
+            if (topCache == null) return "";
+            if (!plugin.getConfigHandler().isTopChipsEnabled()) return "";
+
+            return switch (key) {
+                case "top_kills" -> topCache.isTop1(uuid, "kills")
+                        ? plugin.getConfigHandler().getTopChip("kills") : "";
+                case "top_mobs" -> topCache.isTop1(uuid, "mobs_killed")
+                        ? plugin.getConfigHandler().getTopChip("mobs") : "";
+                case "top_blocks" -> topCache.isTop1(uuid, "blocks_placed")
+                        ? plugin.getConfigHandler().getTopChip("blocks") : "";
+                case "top_playtime" -> topCache.isTop1(uuid, "play_time")
+                        ? plugin.getConfigHandler().getTopChip("playtime") : "";
+                case "top_balance" -> topCache.isTop1(uuid, "balance")
+                        ? plugin.getConfigHandler().getTopChip("balance") : "";
+
+                case "top_chips" -> buildChips(uuid, topCache, true);
+                case "top_chips_short" -> buildChips(uuid, topCache, false);
+                case "top_count" -> String.valueOf(countChips(uuid, topCache));
+
+                default -> "";
+            };
+        }
+
+        /**
+         * Собрать все значки игрока в одну строку.
+         *
+         * @param withSpace добавлять ли пробел в конце
+         */
+        private String buildChips(UUID uuid, TopCache topCache, boolean withSpace) {
+            StringBuilder sb = new StringBuilder();
+            List<String> order = plugin.getConfigHandler().getTopChipsOrder();
+
+            for (String category : order) {
+                String statName = mapCategoryToStat(category);
+                if (statName == null) continue;
+                if (topCache.isTop1(uuid, statName)) {
+                    sb.append(plugin.getConfigHandler().getTopChip(category));
+                }
+            }
+
+            if (withSpace && sb.length() > 0) {
+                sb.append(" ");
+            }
+            return sb.toString();
+        }
+
+        /**
+         * Посчитать количество значков у игрока.
+         */
+        private int countChips(UUID uuid, TopCache topCache) {
+            int count = 0;
+            for (String category : plugin.getConfigHandler().getTopChipsOrder()) {
+                String statName = mapCategoryToStat(category);
+                if (statName != null && topCache.isTop1(uuid, statName)) {
+                    count++;
+                }
+            }
+            return count;
+        }
+
+        private String handleSparklinePlaceholder(Player player, UUID uuid, String key) {
+            String statName = key.substring("sparkline_".length());
+            try {
+                int playerId = plugin.getPlayerDAO().getOrCreatePlayerId(uuid, player.getName());
+                int statTypeId = plugin.getStatTypeDAO().createOrGetStatType(statName);
+                List<Integer> history = plugin.getStatHistoryDAO().getHistory(
+                        playerId, statTypeId, plugin.getServerId(), 7);
+                return Sparkline.generatePretty(history);
+            } catch (SQLException e) {
+                return "—";
+            }
+        }
+
+        /**
+         * Маппинг категории (kills, mobs, blocks, playtime, balance) → statName в БД.
+         */
+        private String mapCategoryToStat(String category) {
+            return switch (category) {
+                case "kills" -> "kills";
+                case "mobs" -> "mobs_killed";
+                case "blocks" -> "blocks_placed";
+                case "playtime" -> "play_time";
+                case "balance" -> "balance";
+                default -> null;
+            };
+        }
+
+        /**
+         * Обработка динамических плейсхолдеров (mob_killed_*, block_*, pvp_kill_*).
+         */
+        private String handleDynamicPlaceholder(Player player, UUID uuid, String key) {
             Map<String, String> dynamicData = dynamicCache.get(uuid);
 
             if (dynamicData == null) {

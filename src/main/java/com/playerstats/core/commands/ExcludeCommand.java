@@ -5,9 +5,12 @@ import com.playerstats.core.config.LanguageManager;
 import com.playerstats.core.database.dao.PlayerDAO;
 import com.playerstats.core.database.dao.PlayerStatsDAO;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.event.HoverEvent;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -33,7 +36,7 @@ public class ExcludeCommand {
 
     public void execute(CommandSender sender, String[] args) {
         if (!sender.hasPermission("playerstats.exclude")) {
-            sender.sendMessage(lang.getComponent("no-permission"));
+            sender.sendMessage(getComponent(sender, "no-permission"));
             return;
         }
 
@@ -48,14 +51,14 @@ public class ExcludeCommand {
             case "list" -> executeList(sender);
             case "remove" -> {
                 if (args.length < 2) {
-                    sender.sendMessage(lang.getComponent("exclude.help"));
+                    sender.sendMessage(getComponent(sender, "exclude.help"));
                     return;
                 }
                 executeRemove(sender, args[1]);
             }
             case "add" -> {
                 if (args.length < 2) {
-                    sender.sendMessage(lang.getComponent("exclude.help"));
+                    sender.sendMessage(getComponent(sender, "exclude.help"));
                     return;
                 }
                 executeAdd(sender, args[1]);
@@ -64,13 +67,15 @@ public class ExcludeCommand {
         }
     }
 
+    // ==================== ADD ====================
+
     private void executeAdd(CommandSender sender, String playerName) {
         plugin.getThreadManager().runAsync(() -> {
             try {
                 OfflinePlayer target = Bukkit.getOfflinePlayer(playerName);
 
                 if (!target.hasPlayedBefore() && !target.isOnline()) {
-                    sendSyncMessage(sender, lang.getComponent(
+                    sendSyncMessage(sender, getComponent(sender,
                             "exclude.never-played", "player", playerName));
                     return;
                 }
@@ -78,7 +83,7 @@ public class ExcludeCommand {
                 UUID uuid = target.getUniqueId();
 
                 if (excludedPlayers.contains(uuid)) {
-                    sendSyncMessage(sender, lang.getComponent(
+                    sendSyncMessage(sender, getComponent(sender,
                             "exclude.already-excluded", "player", playerName));
                     return;
                 }
@@ -92,20 +97,47 @@ public class ExcludeCommand {
                 statsDAO.setStatString(playerId, plugin.getServerId(), "excluded", "true");
                 excludedPlayers.add(uuid);
 
-                sendSyncMessage(sender, lang.getComponent(
-                        "exclude.added", "player", playerName));
+                plugin.getThreadManager().runSync(() -> {
+                    Component line = getComponent(sender, "exclude.added",
+                            "player", name);
+
+                    // Кнопка «Отменить» — на языке отправителя
+                    Component undoButton = getComponentFromString(sender,
+                            getRaw(sender, "exclude.separator-bracket-left") +
+                                    "<yellow>" + getRaw(sender, "exclude.button-undo") +
+                                    getRaw(sender, "exclude.separator-bracket-right"))
+                            .clickEvent(ClickEvent.runCommand("/exclude remove " + name))
+                            .hoverEvent(HoverEvent.showText(
+                                    getComponent(sender, "exclude.button-undo-hover",
+                                            "player", name)));
+
+                    // Кнопка «Статистика» — на языке отправителя
+                    Component statsButton = getComponentFromString(sender,
+                            getRaw(sender, "exclude.separator-bracket-left-short") +
+                                    "<aqua>" + getRaw(sender, "exclude.button-stats") +
+                                    getRaw(sender, "exclude.separator-bracket-right"))
+                            .clickEvent(ClickEvent.runCommand("/stats " + name))
+                            .hoverEvent(HoverEvent.showText(
+                                    getComponent(sender, "exclude.button-stats-hover",
+                                            "player", name)));
+
+                    sender.sendMessage(line);
+                    sender.sendMessage(undoButton.append(statsButton));
+                });
 
                 plugin.getLogger().info(sender.getName()
-                        + " исключил игрока " + playerName + " из статистики.");
+                        + " исключил игрока " + name + " из статистики.");
 
             } catch (SQLException e) {
                 plugin.getLogger().severe("Ошибка при исключении игрока "
                         + playerName + ": " + e.getMessage());
                 e.printStackTrace();
-                sendSyncMessage(sender, lang.getComponent("error"));
+                sendSyncMessage(sender, getComponent(sender, "error"));
             }
         });
     }
+
+    // ==================== REMOVE ====================
 
     private void executeRemove(CommandSender sender, String playerName) {
         plugin.getThreadManager().runAsync(() -> {
@@ -114,7 +146,7 @@ public class ExcludeCommand {
                 UUID uuid = target.getUniqueId();
 
                 if (!excludedPlayers.contains(uuid)) {
-                    sendSyncMessage(sender, lang.getComponent(
+                    sendSyncMessage(sender, getComponent(sender,
                             "exclude.not-excluded", "player", playerName));
                     return;
                 }
@@ -128,49 +160,108 @@ public class ExcludeCommand {
                 statsDAO.setStatString(playerId, plugin.getServerId(), "excluded", "false");
                 excludedPlayers.remove(uuid);
 
-                sendSyncMessage(sender, lang.getComponent(
-                        "exclude.removed", "player", playerName));
+                plugin.getThreadManager().runSync(() -> {
+                    Component line = getComponent(sender, "exclude.removed",
+                            "player", name);
+
+                    // Кнопка «Статистика» — на языке отправителя
+                    Component statsButton = getComponentFromString(sender,
+                            getRaw(sender, "exclude.separator-bracket-left") +
+                                    "<aqua>" + getRaw(sender, "exclude.button-stats") +
+                                    getRaw(sender, "exclude.separator-bracket-right"))
+                            .clickEvent(ClickEvent.runCommand("/stats " + name))
+                            .hoverEvent(HoverEvent.showText(
+                                    getComponent(sender, "exclude.button-stats-hover",
+                                            "player", name)));
+
+                    sender.sendMessage(line);
+                    sender.sendMessage(statsButton);
+                });
 
                 plugin.getLogger().info(sender.getName()
-                        + " вернул игрока " + playerName + " в статистику.");
+                        + " вернул игрока " + name + " в статистику.");
 
             } catch (SQLException e) {
                 plugin.getLogger().severe("Ошибка при возвращении игрока "
                         + playerName + ": " + e.getMessage());
                 e.printStackTrace();
-                sendSyncMessage(sender, lang.getComponent("error"));
+                sendSyncMessage(sender, getComponent(sender, "error"));
             }
         });
     }
+
+    // ==================== LIST ====================
 
     private void executeList(CommandSender sender) {
         plugin.getThreadManager().runAsync(() -> {
             try {
                 List<String> excludedNames = loadExcludedNamesFromDb();
 
-                if (excludedNames.isEmpty()) {
-                    sendSyncMessage(sender, lang.getComponent("exclude.list-empty"));
-                    return;
-                }
+                plugin.getThreadManager().runSync(() -> {
+                    if (excludedNames.isEmpty()) {
+                        sender.sendMessage(getComponent(sender, "exclude.list-empty"));
+                        return;
+                    }
 
-                sendSyncMessage(sender, lang.getComponent(
-                        "exclude.list-header", "count", excludedNames.size()));
+                    sender.sendMessage(getComponent(sender,
+                            "exclude.list-header", "count", excludedNames.size()));
 
-                for (String name : excludedNames) {
-                    Component line = lang.getComponent("exclude.list-entry", "player", name);
-                    sendSyncMessage(sender, line);
-                }
+                    for (String name : excludedNames) {
+                        Component line = getComponentFromString(sender,
+                                getRaw(sender, "exclude.bullet") +
+                                        "<red>" + name +
+                                        "  " +
+                                        getRaw(sender, "exclude.separator-bracket-left") +
+                                        "<yellow>" + getRaw(sender, "exclude.button-undo-short") +
+                                        getRaw(sender, "exclude.separator-bracket-right") +
+                                        getRaw(sender, "exclude.separator-bracket-left-short") +
+                                        "<aqua>" + getRaw(sender, "exclude.button-stats-short") +
+                                        getRaw(sender, "exclude.separator-bracket-right"))
+                                .clickEvent(ClickEvent.runCommand("/exclude remove " + name))
+                                .hoverEvent(HoverEvent.showText(
+                                        getComponent(sender, "exclude.button-undo-short-hover",
+                                                "player", name)));
 
-                sendSyncMessage(sender, lang.getComponent("exclude.list-footer"));
+                        // Кнопка «Отменить» и «Статистика» — раздельно
+                        Component undoPart = getComponentFromString(sender,
+                                getRaw(sender, "exclude.separator-bracket-left") +
+                                        "<yellow>" + getRaw(sender, "exclude.button-undo-short") +
+                                        getRaw(sender, "exclude.separator-bracket-right"))
+                                .clickEvent(ClickEvent.runCommand("/exclude remove " + name))
+                                .hoverEvent(HoverEvent.showText(
+                                        getComponent(sender, "exclude.button-undo-short-hover",
+                                                "player", name)));
+
+                        Component statsPart = getComponentFromString(sender,
+                                getRaw(sender, "exclude.separator-bracket-left-short") +
+                                        "<aqua>" + getRaw(sender, "exclude.button-stats-short") +
+                                        getRaw(sender, "exclude.separator-bracket-right"))
+                                .clickEvent(ClickEvent.runCommand("/stats " + name))
+                                .hoverEvent(HoverEvent.showText(
+                                        getComponent(sender, "exclude.button-stats-short-hover",
+                                                "player", name)));
+
+                        Component finalLine = getComponentFromString(sender,
+                                getRaw(sender, "exclude.bullet") + "<red>" + name)
+                                .append(undoPart)
+                                .append(statsPart);
+
+                        sender.sendMessage(finalLine);
+                    }
+
+                    sender.sendMessage(getComponent(sender, "exclude.list-footer"));
+                });
 
             } catch (SQLException e) {
                 plugin.getLogger().severe("Ошибка при получении списка исключённых: "
                         + e.getMessage());
                 e.printStackTrace();
-                sendSyncMessage(sender, lang.getComponent("error"));
+                sendSyncMessage(sender, getComponent(sender, "error"));
             }
         });
     }
+
+    // ==================== LOAD ====================
 
     public void loadExcludedPlayers() {
         try {
@@ -212,6 +303,8 @@ public class ExcludeCommand {
         return names;
     }
 
+    // ==================== PUBLIC API ====================
+
     public boolean isExcluded(UUID uuid) {
         return excludedPlayers.contains(uuid);
     }
@@ -236,11 +329,33 @@ public class ExcludeCommand {
         excludedPlayers.clear();
     }
 
+    // ==================== UTIL ====================
+
     private void showHelp(CommandSender sender) {
-        sender.sendMessage(lang.getComponent("exclude.help"));
+        sender.sendMessage(getComponent(sender, "exclude.help"));
     }
 
     private void sendSyncMessage(CommandSender sender, Component message) {
         plugin.getThreadManager().runSync(() -> sender.sendMessage(message));
+    }
+
+    // ==================== LANG HELPERS ====================
+
+    private Component getComponent(CommandSender sender, String key, Object... replacements) {
+        if (sender instanceof Player player) {
+            return lang.getComponent(player, key, replacements);
+        }
+        return lang.getComponent(key, replacements);
+    }
+
+    private String getRaw(CommandSender sender, String key) {
+        if (sender instanceof Player player) {
+            return lang.getRaw(player, key);
+        }
+        return lang.getRaw(key);
+    }
+
+    private Component getComponentFromString(CommandSender sender, String message, Object... replacements) {
+        return lang.getComponentFromString(message, replacements);
     }
 }

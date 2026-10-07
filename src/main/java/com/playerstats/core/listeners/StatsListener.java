@@ -14,24 +14,25 @@ import com.playerstats.hooks.EssentialsHook;
 import com.playerstats.hooks.VaultHook;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
+import org.bukkit.Location;
 import org.bukkit.Material;
-import org.bukkit.entity.Entity;
-import org.bukkit.entity.EntityType;
-import org.bukkit.entity.Player;
-import org.bukkit.entity.Projectile;
+import org.bukkit.entity.*;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
-import org.bukkit.event.entity.EntityDamageByEntityEvent;
-import org.bukkit.event.entity.EntityDeathEvent;
-import org.bukkit.event.entity.PlayerDeathEvent;
+import org.bukkit.event.entity.*;
+import org.bukkit.event.inventory.CraftItemEvent;
+import org.bukkit.event.player.*;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.projectiles.ProjectileSource;
 
 import java.sql.SQLException;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 
 public class StatsListener implements Listener {
@@ -46,6 +47,11 @@ public class StatsListener implements Listener {
     private PvPTracker pvpTracker;
     private final int serverId;
     private final boolean verboseDebug;
+
+    /**
+     * Буфер для distance_walked (не пишем в БД каждый шаг).
+     */
+    private final Map<UUID, Double> distanceBuffer = new ConcurrentHashMap<>();
 
     private ExcludeCommand excludeCommand;
 
@@ -68,6 +74,7 @@ public class StatsListener implements Listener {
         this.verboseDebug = plugin.getConfigHandler().isVerboseDebug();
 
         startPeriodicUpdate();
+        startDistanceFlusher();
     }
 
     public void setExcludeCommand(ExcludeCommand excludeCommand) {
@@ -93,8 +100,6 @@ public class StatsListener implements Listener {
             }
         }, 20L, 20L * 60);
     }
-
-    // ==================== Снимок данных игрока ====================
 
     private static class PlayerSnapshot {
         final UUID uuid;
@@ -198,9 +203,8 @@ public class StatsListener implements Listener {
         return true;
     }
 
-    /**
-     * Сохранить статистику всех онлайн-игроков (вызывается при выключении).
-     */
+    // ==================== Сохранение онлайн ====================
+
     public void saveAllOnline() {
         plugin.getLogger().info("Сохранение статистики онлайн-игроков...");
 
@@ -245,7 +249,7 @@ public class StatsListener implements Listener {
         plugin.getLogger().info("Статистика онлайн-игроков сохранена.");
     }
 
-    // ==================== Обработчики событий ====================
+    // ==================== БЛОКИ ====================
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBlockPlace(BlockPlaceEvent event) {
@@ -258,16 +262,6 @@ public class StatsListener implements Listener {
         if (tracked != null && tracked.isTracked(type)) {
             String blockStatKey = "block_placed_" + type.name().toLowerCase();
             handleStatEvent(player, blockStatKey);
-
-            if (verboseDebug) {
-                plugin.getLogger().info("[DEBUG] BlockPlaceEvent: " + player.getName()
-                        + " поставил " + type + " → blocks_placed +1, " + blockStatKey + " +1");
-            }
-        } else {
-            if (verboseDebug) {
-                plugin.getLogger().info("[DEBUG] BlockPlaceEvent: " + player.getName()
-                        + " поставил " + type + " → blocks_placed +1 (не отслеживается)");
-            }
         }
     }
 
@@ -282,18 +276,10 @@ public class StatsListener implements Listener {
         if (tracked != null && tracked.isTracked(type)) {
             String blockStatKey = "block_broken_" + type.name().toLowerCase();
             handleStatEvent(player, blockStatKey);
-
-            if (verboseDebug) {
-                plugin.getLogger().info("[DEBUG] BlockBreakEvent: " + player.getName()
-                        + " сломал " + type + " → blocks_broken +1, " + blockStatKey + " +1");
-            }
-        } else {
-            if (verboseDebug) {
-                plugin.getLogger().info("[DEBUG] BlockBreakEvent: " + player.getName()
-                        + " сломал " + type + " → blocks_broken +1 (не отслеживается)");
-            }
         }
     }
+
+    // ==================== PVP ====================
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onPlayerDeath(PlayerDeathEvent event) {
@@ -301,6 +287,7 @@ public class StatsListener implements Listener {
         Player killer = dead.getKiller();
 
         handleStatEvent(dead, "deaths");
+        handleKillstreakReset(dead);
 
         if (killer == null || killer == dead) return;
         if (!shouldCount(killer)) return;
@@ -335,6 +322,7 @@ public class StatsListener implements Listener {
         // ==================== ОСНОВНАЯ СТАТИСТИКА ====================
         if (countFullKill) {
             handleStatEvent(killer, "kills");
+            handleKillstreakIncrement(killer);
         }
 
         // ==================== СТАТИСТИКА ПО ЖЕРТВЕ ====================
@@ -342,6 +330,44 @@ public class StatsListener implements Listener {
             handleStatEvent(killer, "pvp_kill_" + victimUuid);
         }
     }
+
+    // ==================== KILLSTREAK ====================
+
+    private void handleKillstreakIncrement(Player killer) {
+        if (!plugin.getConfigHandler().isTracked("killstreak")) return;
+
+        threadManager.runAsync(() -> {
+            try {
+                int killerId = playerDAO.getOrCreatePlayerId(
+                        killer.getUniqueId(), killer.getName());
+                statsDAO.incrementStat(killerId, serverId, "killstreak", 1);
+
+                int current = statsDAO.getStat(killerId, serverId, "killstreak");
+                int best = statsDAO.getStat(killerId, serverId, "best_killstreak");
+                if (current > best) {
+                    statsDAO.setStat(killerId, serverId, "best_killstreak", current);
+                }
+            } catch (SQLException e) {
+                logError("Ошибка killstreak", e);
+            }
+        });
+    }
+
+    private void handleKillstreakReset(Player dead) {
+        if (!plugin.getConfigHandler().isTracked("killstreak")) return;
+
+        threadManager.runAsync(() -> {
+            try {
+                int victimId = playerDAO.getOrCreatePlayerId(
+                        dead.getUniqueId(), dead.getName());
+                statsDAO.setStat(victimId, serverId, "killstreak", 0);
+            } catch (SQLException e) {
+                logError("Ошибка сброса killstreak", e);
+            }
+        });
+    }
+
+    // ==================== МОБЫ ====================
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onMobKill(EntityDeathEvent event) {
@@ -388,7 +414,13 @@ public class StatsListener implements Listener {
         return false;
     }
 
+    // ==================== handleStatEvent ====================
+
     private void handleStatEvent(Player player, String statKey) {
+        handleStatEvent(player, statKey, 1);
+    }
+
+    private void handleStatEvent(Player player, String statKey, int amount) {
         if (!shouldCount(player)) {
             if (verboseDebug) {
                 plugin.getLogger().info("[DEBUG] shouldCount=false для "
@@ -400,26 +432,33 @@ public class StatsListener implements Listener {
         UUID uuid = player.getUniqueId();
         String name = player.getName();
 
-        if (verboseDebug) {
-            plugin.getLogger().info("[DEBUG] Событие: " + name + " → " + statKey);
-        }
-
         threadManager.runAsync(() -> {
             try {
                 int playerId = playerDAO.getOrCreatePlayerId(uuid, name);
 
-                statsDAO.incrementStat(playerId, serverId, statKey, 1);
-                serverStatsDAO.incrementStat(serverId, statKey, 1);
+                statsDAO.incrementStat(playerId, serverId, statKey, amount);
+                serverStatsDAO.incrementStat(serverId, statKey, amount);
 
+                // ← ОДИН final
                 final int finalPlayerId = playerId;
+
                 plugin.getThreadManager().runSync(() -> {
                     if (player.isOnline() && plugin.getMilestoneManager() != null) {
                         try {
                             int newValue = statsDAO.getStat(finalPlayerId, serverId, statKey);
+
+                            // Milestones
                             plugin.getMilestoneManager().check(player, statKey, newValue);
+
+                            // Achievements ← БЕЗ повторного final
+                            if (plugin.getAchievementManager() != null) {
+                                plugin.getAchievementManager().check(
+                                        player, finalPlayerId, statKey, newValue);
+                            }
+
                         } catch (SQLException ex) {
                             plugin.getLogger().log(Level.WARNING,
-                                    "Ошибка проверки Milestone для " + name, ex);
+                                    "Ошибка проверки Milestone/Achievement для " + name, ex);
                         }
                     }
                 });
@@ -437,6 +476,215 @@ public class StatsListener implements Listener {
             }
         });
     }
+
+    // ==================== DISTANCE WALKED ====================
+
+    private void startDistanceFlusher() {
+        threadManager.runAsyncRepeating(() -> {
+            if (distanceBuffer.isEmpty()) return;
+
+            Map<UUID, Double> snapshot = new ConcurrentHashMap<>(distanceBuffer);
+            distanceBuffer.clear();
+
+            for (Map.Entry<UUID, Double> entry : snapshot.entrySet()) {
+                UUID uuid = entry.getKey();
+                int blocks = (int) Math.floor(entry.getValue());
+                if (blocks <= 0) continue;
+
+                try {
+                    Player player = Bukkit.getPlayer(uuid);
+                    if (player == null || !player.isOnline()) continue;
+
+                    int playerId = playerDAO.getOrCreatePlayerId(uuid, player.getName());
+                    statsDAO.incrementStat(playerId, serverId, "distance_walked", blocks);
+                    serverStatsDAO.incrementStat(serverId, "distance_walked", blocks);
+
+                    if (plugin.getHooksManager() != null
+                            && plugin.getHooksManager().getPlaceholderAPIHook() != null) {
+                        plugin.getHooksManager().getPlaceholderAPIHook().invalidate(uuid);
+                    }
+                } catch (SQLException e) {
+                    logError("Ошибка distance_walked", e);
+                }
+            }
+        }, 30, 30);
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onPlayerMove(PlayerMoveEvent event) {
+        if (!plugin.getConfigHandler().isTracked("distance_walked")) return;
+
+        Location from = event.getFrom();
+        Location to = event.getTo();
+
+        if (from.getX() == to.getX() && from.getY() == to.getY()
+                && from.getZ() == to.getZ()) {
+            return;
+        }
+
+        Player player = event.getPlayer();
+        if (!shouldCount(player)) return;
+
+        double distance = from.distance(to);
+        if (distance <= 0 || distance > 10) return;
+
+        distanceBuffer.merge(player.getUniqueId(), distance, Double::sum);
+    }
+
+    // ==================== DAMAGE ====================
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onEntityDamage(EntityDamageByEntityEvent event) {
+        if (plugin.getConfigHandler().isTracked("damage_dealt")
+                && event.getDamager() instanceof Player attacker
+                && shouldCount(attacker)) {
+            int damage = (int) Math.round(event.getFinalDamage());
+            if (damage > 0) {
+                handleStatEvent(attacker, "damage_dealt", damage);
+            }
+        }
+
+        if (plugin.getConfigHandler().isTracked("damage_taken")
+                && event.getEntity() instanceof Player victim
+                && shouldCount(victim)) {
+            int damage = (int) Math.round(event.getFinalDamage());
+            if (damage > 0) {
+                handleStatEvent(victim, "damage_taken", damage);
+            }
+        }
+    }
+
+    // ==================== CRAFT ====================
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onCraft(CraftItemEvent event) {
+        if (!plugin.getConfigHandler().isTracked("items_crafted")) return;
+        if (!(event.getWhoClicked() instanceof Player player)) return;
+        if (!shouldCount(player)) return;
+
+        int amount = getCraftAmount(event);
+        if (amount > 0) {
+            handleStatEvent(player, "items_crafted", amount);
+        }
+    }
+
+    private int getCraftAmount(CraftItemEvent event) {
+        ItemStack result = event.getRecipe().getResult();
+        int amount = result.getAmount();
+
+        if (event.isShiftClick()) {
+            int max = 64;
+            for (ItemStack item : event.getInventory().getMatrix()) {
+                if (item != null && !item.getType().isAir()) {
+                    max = Math.min(max, item.getAmount());
+                }
+            }
+            amount *= max;
+        }
+        return amount;
+    }
+
+    // ==================== CONSUME ====================
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onConsume(PlayerItemConsumeEvent event) {
+        if (!plugin.getConfigHandler().isTracked("food_consumed")) return;
+        Player player = event.getPlayer();
+        if (!shouldCount(player)) return;
+
+        ItemStack item = event.getItem();
+        if (item.getType().isEdible()) {
+            handleStatEvent(player, "food_consumed", 1);
+        }
+    }
+
+    // ==================== ARROWS ====================
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onShootBow(EntityShootBowEvent event) {
+        if (!plugin.getConfigHandler().isTracked("arrows_shot")) return;
+        if (!(event.getEntity() instanceof Player player)) return;
+        if (!shouldCount(player)) return;
+
+        handleStatEvent(player, "arrows_shot", 1);
+    }
+
+    // ==================== FISHING ====================
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onFish(PlayerFishEvent event) {
+        if (!plugin.getConfigHandler().isTracked("fish_caught")) return;
+        if (event.getState() != PlayerFishEvent.State.CAUGHT_FISH) return;
+
+        Player player = event.getPlayer();
+        if (!shouldCount(player)) return;
+
+        handleStatEvent(player, "fish_caught", 1);
+    }
+
+    // ==================== TAMING ====================
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onTame(EntityTameEvent event) {
+        if (!plugin.getConfigHandler().isTracked("entities_tamed")) return;
+        if (!(event.getOwner() instanceof Player player)) return;
+        if (!shouldCount(player)) return;
+
+        handleStatEvent(player, "entities_tamed", 1);
+    }
+
+    // ==================== BREEDING ====================
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onBreed(EntityBreedEvent event) {
+        if (!plugin.getConfigHandler().isTracked("entities_bred")) return;
+        if (!(event.getBreeder() instanceof Player player)) return;
+        if (!shouldCount(player)) return;
+
+        handleStatEvent(player, "entities_bred", 1);
+    }
+
+    // ==================== TELEPORT ====================
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onTeleport(PlayerTeleportEvent event) {
+        Player player = event.getPlayer();
+        if (!shouldCount(player)) return;
+
+        if (plugin.getConfigHandler().isTracked("teleports")) {
+            handleStatEvent(player, "teleports", 1);
+        }
+
+        if (plugin.getConfigHandler().isTracked("portal_uses")) {
+            PlayerTeleportEvent.TeleportCause cause = event.getCause();
+            if (cause == PlayerTeleportEvent.TeleportCause.NETHER_PORTAL
+                    || cause == PlayerTeleportEvent.TeleportCause.END_PORTAL
+                    || cause == PlayerTeleportEvent.TeleportCause.END_GATEWAY) {
+                handleStatEvent(player, "portal_uses", 1);
+            }
+        }
+    }
+
+    // ==================== LOGINS ====================
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onJoin(PlayerJoinEvent event) {
+        if (!plugin.getConfigHandler().isTracked("logins")) return;
+        Player player = event.getPlayer();
+
+        threadManager.runAsync(() -> {
+            try {
+                int playerId = playerDAO.getOrCreatePlayerId(
+                        player.getUniqueId(), player.getName());
+                statsDAO.incrementStat(playerId, serverId, "logins", 1);
+                serverStatsDAO.incrementStat(serverId, "logins", 1);
+            } catch (SQLException e) {
+                logError("Ошибка logins", e);
+            }
+        });
+    }
+
+    // ==================== UTIL ====================
 
     private boolean isBossMob(Entity entity) {
         String name = entity.getCustomName();

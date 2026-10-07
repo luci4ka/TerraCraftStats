@@ -140,6 +140,32 @@ public class MySQLConnection implements DatabaseConnection {
                     FOREIGN KEY (player_id) REFERENCES players(id) ON DELETE CASCADE
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
             """);
+
+            stmt.executeUpdate("""
+        CREATE TABLE IF NOT EXISTS stat_history (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            player_id INT NOT NULL,
+            stat_type_id INT NOT NULL,
+            server_id INT NOT NULL,
+            value INT NOT NULL,
+            date DATE NOT NULL,
+            UNIQUE KEY unique_snapshot (player_id, stat_type_id, server_id, date),
+            INDEX idx_player_stat (player_id, stat_type_id, server_id)
+        );
+""");
+
+// ← НОВОЕ
+            stmt.executeUpdate("""
+        CREATE TABLE IF NOT EXISTS player_achievements (
+            player_id INT NOT NULL,
+            achievement_id VARCHAR(64) NOT NULL,
+            unlocked_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY(player_id, achievement_id),
+            FOREIGN KEY (player_id) REFERENCES players(id) ON DELETE CASCADE,
+            INDEX idx_player (player_id),
+            INDEX idx_achievement (achievement_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+""");
         }
 
         insertDefaultStatTypes();
@@ -149,7 +175,12 @@ public class MySQLConnection implements DatabaseConnection {
         List<String> types = new ArrayList<>(List.of(
                 "excluded", "play_time", "blocks_placed", "blocks_broken",
                 "kills", "deaths", "mobs_killed", "bosses_killed",
-                "balance", "group"
+                "balance", "group",
+                "distance_walked", "damage_dealt", "damage_taken",
+                "items_crafted", "food_consumed", "arrows_shot",
+                "fish_caught", "entities_tamed", "entities_bred",
+                "teleports", "portal_uses", "logins",
+                "killstreak", "best_killstreak"
         ));
 
         // Типы мобов

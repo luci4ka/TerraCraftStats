@@ -1,0 +1,819 @@
+# =========================================================================
+#                    Достижения
+# =========================================================================
+# ⚠ ТЕКСТЫ (name, description) — в lang/<lang>.yml → achievements.list.<id>
+# ⚠ СООБЩЕНИЯ — в lang/<lang>.yml → achievements.messages.*
+#
+# Здесь — только технические поля:
+#   icon: MATERIAL       # Material для GUI
+#   stat: kills          # статистика для проверки
+#   threshold: 100       # порог
+#   category: pvp        # pvp, pve, blocks, time, killstreak, misc, special
+#   broadcast: true      # сообщать в чат
+#   commands:            # награды (от консоли)
+#     - "give %player% diamond 1"
+# =========================================================================
+
+achievements:
+  # =====================================================================
+  #                          PVP
+  # =====================================================================
+  first_kill:
+    icon: IRON_SWORD
+    stat: kills
+    threshold: 1
+    category: pvp
+    broadcast: true
+    commands:
+      - "give %player% golden_apple 1"
+
+  killer_10:
+    icon: DIAMOND_SWORD
+    stat: kills
+    threshold: 10
+    category: pvp
+    broadcast: true
+    commands:
+      - "give %player% diamond 1"
+
+  killer_50:
+    icon: GOLDEN_SWORD
+    stat: kills
+    threshold: 50
+    category: pvp
+    broadcast: true
+    commands:
+      - "give %player% diamond 2"
+
+  killer_100:
+    icon: NETHERITE_SWORD
+    stat: kills
+    threshold: 100
+    category: pvp
+    broadcast: true
+    commands:
+      - "give %player% netherite_ingot 1"
+
+  killer_500:
+    icon: NETHERITE_SWORD
+    stat: kills
+    threshold: 500
+    category: pvp
+    broadcast: true
+    commands:
+      - "give %player% netherite_block 1"
+
+  killer_1000:
+    icon: TRIDENT
+    stat: kills
+    threshold: 1000
+    category: pvp
+    broadcast: true
+    commands:
+      - "give %player% netherite_block 3"
+
+  killstreak_5:
+    icon: BLAZE_POWDER
+    stat: killstreak
+    threshold: 5
+    category: pvp
+    broadcast: true
+    commands: []
+
+  killstreak_10:
+    icon: BLAZE_ROD
+    stat: killstreak
+    threshold: 10
+    category: pvp
+    broadcast: true
+    commands:
+      - "give %player% diamond 2"
+
+  killstreak_25:
+    icon: MAGMA_CREAM
+    stat: killstreak
+    threshold: 25
+    category: pvp
+    broadcast: true
+    commands:
+      - "give %player% netherite_ingot 1"
+
+  killstreak_50:
+    icon: NETHER_STAR
+    stat: killstreak
+    threshold: 50
+    category: pvp
+    broadcast: true
+    commands:
+      - "give %player% netherite_block 1"
+
+  killstreak_100:
+    icon: WITHER_SKELETON_SKULL
+    stat: killstreak
+    threshold: 100
+    category: pvp
+    broadcast: true
+    commands:
+      - "give %player% netherite_block 2"
+
+  death_10:
+    icon: BONE
+    stat: deaths
+    threshold: 10
+    category: pvp
+    broadcast: false
+    commands: []
+
+  death_100:
+    icon: SKELETON_SKULL
+    stat: deaths
+    threshold: 100
+    category: pvp
+    broadcast: false
+    commands: []
+
+  death_1000:
+    icon: ZOMBIE_HEAD
+    stat: deaths
+    threshold: 1000
+    category: pvp
+    broadcast: true
+    commands: []
+
+  # =====================================================================
+  #                          PVE
+  # =====================================================================
+  first_mob:
+    icon: WOODEN_SWORD
+    stat: mobs_killed
+    threshold: 1
+    category: pve
+    broadcast: false
+    commands: []
+
+  mobs_50:
+    icon: STONE_SWORD
+    stat: mobs_killed
+    threshold: 50
+    category: pve
+    broadcast: false
+    commands: []
+
+  mobs_100:
+    icon: IRON_SWORD
+    stat: mobs_killed
+    threshold: 100
+    category: pve
+    broadcast: true
+    commands:
+      - "give %player% iron_ingot 5"
+
+  mobs_1000:
+    icon: DIAMOND_SWORD
+    stat: mobs_killed
+    threshold: 1000
+    category: pve
+    broadcast: true
+    commands:
+      - "give %player% diamond 3"
+
+  mobs_10000:
+    icon: NETHERITE_SWORD
+    stat: mobs_killed
+    threshold: 10000
+    category: pve
+    broadcast: true
+    commands:
+      - "give %player% netherite_ingot 2"
+
+  mobs_50000:
+    icon: TRIDENT
+    stat: mobs_killed
+    threshold: 50000
+    category: pve
+    broadcast: true
+    commands:
+      - "give %player% netherite_block 1"
+
+  first_boss:
+    icon: NETHER_STAR
+    stat: bosses_killed
+    threshold: 1
+    category: pve
+    broadcast: true
+    commands:
+      - "give %player% diamond 1"
+
+  bosses_10:
+    icon: DRAGON_HEAD
+    stat: bosses_killed
+    threshold: 10
+    category: pve
+    broadcast: true
+    commands:
+      - "give %player% diamond 5"
+
+  bosses_100:
+    icon: WITHER_SKELETON_SKULL
+    stat: bosses_killed
+    threshold: 100
+    category: pve
+    broadcast: true
+    commands:
+      - "give %player% netherite_ingot 3"
+
+  # =====================================================================
+  #                          БЛОКИ
+  # =====================================================================
+  builder_100:
+    icon: OAK_PLANKS
+    stat: blocks_placed
+    threshold: 100
+    category: blocks
+    broadcast: false
+    commands: []
+
+  builder_500:
+    icon: BRICKS
+    stat: blocks_placed
+    threshold: 500
+    category: blocks
+    broadcast: true
+    commands: []
+
+  builder_5000:
+    icon: BRICK
+    stat: blocks_placed
+    threshold: 5000
+    category: blocks
+    broadcast: true
+    commands:
+      - "give %player% diamond 2"
+
+  builder_50000:
+    icon: BEACON
+    stat: blocks_placed
+    threshold: 50000
+    category: blocks
+    broadcast: true
+    commands:
+      - "give %player% netherite_ingot 1"
+
+  builder_500000:
+    icon: STRUCTURE_BLOCK
+    stat: blocks_placed
+    threshold: 500000
+    category: blocks
+    broadcast: true
+    commands:
+      - "give %player% netherite_block 1"
+
+  miner_100:
+    icon: WOODEN_PICKAXE
+    stat: blocks_broken
+    threshold: 100
+    category: blocks
+    broadcast: false
+    commands: []
+
+  miner_1000:
+    icon: IRON_PICKAXE
+    stat: blocks_broken
+    threshold: 1000
+    category: blocks
+    broadcast: true
+    commands: []
+
+  miner_10000:
+    icon: DIAMOND_PICKAXE
+    stat: blocks_broken
+    threshold: 10000
+    category: blocks
+    broadcast: true
+    commands:
+      - "give %player% diamond 3"
+
+  miner_100000:
+    icon: NETHERITE_PICKAXE
+    stat: blocks_broken
+    threshold: 100000
+    category: blocks
+    broadcast: true
+    commands:
+      - "give %player% netherite_ingot 2"
+
+  miner_1000000:
+    icon: NETHERITE_PICKAXE
+    stat: blocks_broken
+    threshold: 1000000
+    category: blocks
+    broadcast: true
+    commands:
+      - "give %player% netherite_block 2"
+
+  # =====================================================================
+  #                          ВРЕМЯ
+  # =====================================================================
+  playtime_10m:
+    icon: CLOCK
+    stat: play_time
+    threshold: 600
+    category: time
+    broadcast: false
+    commands: []
+
+  playtime_1h:
+    icon: CLOCK
+    stat: play_time
+    threshold: 3600
+    category: time
+    broadcast: false
+    commands: []
+
+  playtime_6h:
+    icon: CLOCK
+    stat: play_time
+    threshold: 21600
+    category: time
+    broadcast: false
+    commands: []
+
+  playtime_24h:
+    icon: CLOCK
+    stat: play_time
+    threshold: 86400
+    category: time
+    broadcast: true
+    commands:
+      - "give %player% diamond 1"
+
+  playtime_100h:
+    icon: CLOCK
+    stat: play_time
+    threshold: 360000
+    category: time
+    broadcast: true
+    commands:
+      - "give %player% diamond 5"
+
+  playtime_500h:
+    icon: CLOCK
+    stat: play_time
+    threshold: 1800000
+    category: time
+    broadcast: true
+    commands:
+      - "give %player% netherite_ingot 1"
+
+  playtime_1000h:
+    icon: BEACON
+    stat: play_time
+    threshold: 3600000
+    category: time
+    broadcast: true
+    commands:
+      - "give %player% netherite_block 1"
+
+  playtime_5000h:
+    icon: DRAGON_EGG
+    stat: play_time
+    threshold: 18000000
+    category: time
+    broadcast: true
+    commands:
+      - "give %player% netherite_block 5"
+
+  # =====================================================================
+  #                          ДИСТАНЦИЯ
+  # =====================================================================
+  distance_1k:
+    icon: LEATHER_BOOTS
+    stat: distance_walked
+    threshold: 1000
+    category: misc
+    broadcast: false
+    commands: []
+
+  distance_10k:
+    icon: IRON_BOOTS
+    stat: distance_walked
+    threshold: 10000
+    category: misc
+    broadcast: true
+    commands: []
+
+  distance_100k:
+    icon: GOLDEN_BOOTS
+    stat: distance_walked
+    threshold: 100000
+    category: misc
+    broadcast: true
+    commands:
+      - "give %player% diamond_boots 1"
+
+  distance_1m:
+    icon: NETHERITE_BOOTS
+    stat: distance_walked
+    threshold: 1000000
+    category: misc
+    broadcast: true
+    commands:
+      - "give %player% netherite_ingot 1"
+
+  distance_10m:
+    icon: ELYTRA
+    stat: distance_walked
+    threshold: 10000000
+    category: misc
+    broadcast: true
+    commands:
+      - "give %player% elytra 1"
+
+  # =====================================================================
+  #                          УРОН
+  # =====================================================================
+  damage_dealt_1k:
+    icon: WOODEN_SWORD
+    stat: damage_dealt
+    threshold: 1000
+    category: pvp
+    broadcast: false
+    commands: []
+
+  damage_dealt_10k:
+    icon: IRON_SWORD
+    stat: damage_dealt
+    threshold: 10000
+    category: pvp
+    broadcast: true
+    commands: []
+
+  damage_dealt_100k:
+    icon: DIAMOND_SWORD
+    stat: damage_dealt
+    threshold: 100000
+    category: pvp
+    broadcast: true
+    commands:
+      - "give %player% diamond_sword 1"
+
+  damage_dealt_1m:
+    icon: NETHERITE_SWORD
+    stat: damage_dealt
+    threshold: 1000000
+    category: pvp
+    broadcast: true
+    commands:
+      - "give %player% netherite_sword 1"
+
+  damage_taken_10k:
+    icon: SHIELD
+    stat: damage_taken
+    threshold: 10000
+    category: pvp
+    broadcast: false
+    commands: []
+
+  damage_taken_100k:
+    icon: NETHERITE_CHESTPLATE
+    stat: damage_taken
+    threshold: 100000
+    category: pvp
+    broadcast: true
+    commands: []
+
+  # =====================================================================
+  #                          КРАФТ / ЕДА / СТРЕЛЬБА
+  # =====================================================================
+  crafter_100:
+    icon: CRAFTING_TABLE
+    stat: items_crafted
+    threshold: 100
+    category: misc
+    broadcast: false
+    commands: []
+
+  crafter_500:
+    icon: CRAFTING_TABLE
+    stat: items_crafted
+    threshold: 500
+    category: misc
+    broadcast: true
+    commands: []
+
+  crafter_5000:
+    icon: CRAFTING_TABLE
+    stat: items_crafted
+    threshold: 5000
+    category: misc
+    broadcast: true
+    commands:
+      - "give %player% diamond 2"
+
+  crafter_50000:
+    icon: CRAFTING_TABLE
+    stat: items_crafted
+    threshold: 50000
+    category: misc
+    broadcast: true
+    commands:
+      - "give %player% netherite_ingot 1"
+
+  food_100:
+    icon: APPLE
+    stat: food_consumed
+    threshold: 100
+    category: misc
+    broadcast: false
+    commands: []
+
+  food_500:
+    icon: COOKED_BEEF
+    stat: food_consumed
+    threshold: 500
+    category: misc
+    broadcast: true
+    commands: []
+
+  food_5000:
+    icon: CAKE
+    stat: food_consumed
+    threshold: 5000
+    category: misc
+    broadcast: true
+    commands:
+      - "give %player% golden_apple 5"
+
+  arrows_100:
+    icon: ARROW
+    stat: arrows_shot
+    threshold: 100
+    category: misc
+    broadcast: false
+    commands: []
+
+  arrows_1000:
+    icon: BOW
+    stat: arrows_shot
+    threshold: 1000
+    category: misc
+    broadcast: true
+    commands: []
+
+  arrows_10000:
+    icon: CROSSBOW
+    stat: arrows_shot
+    threshold: 10000
+    category: misc
+    broadcast: true
+    commands:
+      - "give %player% diamond 2"
+
+  # =====================================================================
+  #                          РЫБАЛКА
+  # =====================================================================
+  fisher_10:
+    icon: FISHING_ROD
+    stat: fish_caught
+    threshold: 10
+    category: misc
+    broadcast: false
+    commands: []
+
+  fisher_100:
+    icon: FISHING_ROD
+    stat: fish_caught
+    threshold: 100
+    category: misc
+    broadcast: true
+    commands: []
+
+  fisher_1000:
+    icon: FISHING_ROD
+    stat: fish_caught
+    threshold: 1000
+    category: misc
+    broadcast: true
+    commands:
+      - "give %player% diamond 1"
+
+  fisher_10000:
+    icon: FISHING_ROD
+    stat: fish_caught
+    threshold: 10000
+    category: misc
+    broadcast: true
+    commands:
+      - "give %player% trident 1"
+
+  # =====================================================================
+  #                          ЖИВОТНЫЕ
+  # =====================================================================
+  tamer_1:
+    icon: BONE
+    stat: entities_tamed
+    threshold: 1
+    category: misc
+    broadcast: false
+    commands: []
+
+  tamer_10:
+    icon: BONE
+    stat: entities_tamed
+    threshold: 10
+    category: misc
+    broadcast: true
+    commands: []
+
+  tamer_100:
+    icon: LEAD
+    stat: entities_tamed
+    threshold: 100
+    category: misc
+    broadcast: true
+    commands:
+      - "give %player% diamond 2"
+
+  breeder_10:
+    icon: WHEAT
+    stat: entities_bred
+    threshold: 10
+    category: misc
+    broadcast: false
+    commands: []
+
+  breeder_100:
+    icon: WHEAT
+    stat: entities_bred
+    threshold: 100
+    category: misc
+    broadcast: true
+    commands: []
+
+  breeder_1000:
+    icon: HAY_BLOCK
+    stat: entities_bred
+    threshold: 1000
+    category: misc
+    broadcast: true
+    commands:
+      - "give %player% diamond 3"
+
+  # =====================================================================
+  #                          ВХОДЫ / ПЕРЕМЕЩЕНИЕ
+  # =====================================================================
+  login_10:
+    icon: OAK_DOOR
+    stat: logins
+    threshold: 10
+    category: misc
+    broadcast: false
+    commands: []
+
+  login_100:
+    icon: OAK_DOOR
+    stat: logins
+    threshold: 100
+    category: misc
+    broadcast: false
+    commands: []
+
+  login_1000:
+    icon: IRON_DOOR
+    stat: logins
+    threshold: 1000
+    category: misc
+    broadcast: true
+    commands:
+      - "give %player% diamond 2"
+
+  login_10000:
+    icon: IRON_DOOR
+    stat: logins
+    threshold: 10000
+    category: misc
+    broadcast: true
+    commands:
+      - "give %player% netherite_ingot 1"
+
+  teleporter_100:
+    icon: ENDER_PEARL
+    stat: teleports
+    threshold: 100
+    category: misc
+    broadcast: false
+    commands: []
+
+  teleporter_1000:
+    icon: ENDER_EYE
+    stat: teleports
+    threshold: 1000
+    category: misc
+    broadcast: true
+    commands: []
+
+  teleporter_10000:
+    icon: ENDER_CHEST
+    stat: teleports
+    threshold: 10000
+    category: misc
+    broadcast: true
+    commands:
+      - "give %player% diamond 3"
+
+  portal_100:
+    icon: OBSIDIAN
+    stat: portal_uses
+    threshold: 100
+    category: misc
+    broadcast: true
+    commands: []
+
+  # =====================================================================
+  #                          ОСОБЫЕ
+  # =====================================================================
+  dragon_slayer:
+    icon: DRAGON_EGG
+    stat: mob_killed_ender_dragon
+    threshold: 1
+    category: special
+    broadcast: true
+    commands:
+      - "give %player% elytra 1"
+
+  wither_slayer:
+    icon: WITHER_SKELETON_SKULL
+    stat: mob_killed_wither
+    threshold: 1
+    category: special
+    broadcast: true
+    commands:
+      - "give %player% nether_star 1"
+
+  elder_guardian_slayer:
+    icon: PRISMARINE_SHARD
+    stat: mob_killed_elder_guardian
+    threshold: 1
+    category: special
+    broadcast: true
+    commands:
+      - "give %player% sponge 10"
+
+  raid_winner:
+    icon: CROSSBOW
+    stat: mob_killed_pillager
+    threshold: 10
+    category: special
+    broadcast: true
+    commands:
+      - "give %player% emerald 16"
+
+  zombie_slayer:
+    icon: ZOMBIE_HEAD
+    stat: mob_killed_zombie
+    threshold: 1000
+    category: special
+    broadcast: true
+    commands: []
+
+  skeleton_slayer:
+    icon: SKELETON_SKULL
+    stat: mob_killed_skeleton
+    threshold: 1000
+    category: special
+    broadcast: true
+    commands: []
+
+  creeper_slayer:
+    icon: GUNPOWDER
+    stat: mob_killed_creeper
+    threshold: 1000
+    category: special
+    broadcast: true
+    commands: []
+
+  enderman_slayer:
+    icon: ENDER_PEARL
+    stat: mob_killed_enderman
+    threshold: 1000
+    category: special
+    broadcast: true
+    commands: []
+
+  diamond_miner:
+    icon: DIAMOND
+    stat: block_broken_diamond_ore
+    threshold: 1000
+    category: special
+    broadcast: true
+    commands:
+      - "give %player% diamond_block 1"
+
+  debris_miner:
+    icon: NETHERITE_SCRAP
+    stat: block_broken_ancient_debris
+    threshold: 500
+    category: special
+    broadcast: true
+    commands:
+      - "give %player% netherite_ingot 1"

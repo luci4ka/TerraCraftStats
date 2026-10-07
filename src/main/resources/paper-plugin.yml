@@ -20,3 +20,9 @@ dependencies:
     LuckPerms:
       load: BEFORE
       required: false
+    DecentHolograms:
+      load: BEFORE
+      required: false
+    Jobs:
+      load: BEFORE
+      required: false

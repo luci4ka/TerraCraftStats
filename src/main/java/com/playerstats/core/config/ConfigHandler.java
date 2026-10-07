@@ -13,6 +13,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 
 public final class ConfigHandler {
@@ -25,6 +26,11 @@ public final class ConfigHandler {
     private volatile FileConfiguration config;
     private volatile Map<String, String> groupColors;
     private volatile TrackedBlocks trackedBlocks;
+
+    /**
+     * Загруженные модули: fileName → ModuleConfig.
+     */
+    private final Map<String, ModuleConfig> moduleConfigs = new ConcurrentHashMap<>();
 
     // ==================== Конструктор ====================
 
@@ -57,6 +63,9 @@ public final class ConfigHandler {
     // ==================== Загрузка / Миграция ====================
 
     private void loadConfig() {
+        // Очищаем модули
+        moduleConfigs.clear();
+
         File file = new File(plugin.getDataFolder(), "config.yml");
         if (!file.exists()) {
             file.getParentFile().mkdirs();
@@ -80,15 +89,40 @@ public final class ConfigHandler {
         this.groupColors = loadGroupColors();
         this.trackedBlocks = new TrackedBlocks(config.getStringList("tracked-blocks"));
 
+        // ==================== МОДУЛИ ====================
+        loadModule("achievements.yml");
+        loadModule("milestones.yml");
+        loadModule("top-chips.yml");
+        loadModule("top-notifications.yml");
+        loadModule("sparkline.yml");
+        // Добавляйте сюда новые модули
+
         applyDebugLevel();
     }
 
     /**
+     * Загрузить модуль (если он включён).
+     */
+    private void loadModule(String fileName) {
+        // Имя модуля в config.yml: achievements.yml → "achievements"
+        String moduleKey = fileName.replace(".yml", "");
+
+        if (!isModuleEnabled(moduleKey)) {
+            plugin.getLogger().info("Модуль '" + moduleKey + "' выключен в config.yml.");
+            return;
+        }
+
+        try {
+            ModuleConfig mc = new ModuleConfig(plugin, fileName);
+            moduleConfigs.put(fileName, mc);
+        } catch (Exception e) {
+            plugin.getLogger().log(Level.WARNING,
+                    "Не удалось загрузить модуль " + fileName, e);
+        }
+    }
+
+    /**
      * Миграция конфига через ConfigUpdater.
-     * Сохраняет комментарии и значения пользователя, добавляет новые ключи.
-     * <p>
-     * ВАЖНО: в ignoredSections можно передавать ТОЛЬКО секции (database, api и т.д.),
-     * но НЕ одиночные ключи (например, "language" — это ключ, а не секция).
      */
     private void migrate(int fromVersion, File file) {
         plugin.getLogger().info("Миграция конфига с версии " + fromVersion
@@ -96,7 +130,6 @@ public final class ConfigHandler {
 
         makeBackup(file, fromVersion);
 
-        // Список ТОЛЬКО ConfigurationSection:
         List<String> ignoredSections = List.of(
                 "database",
                 "api",
@@ -121,9 +154,6 @@ public final class ConfigHandler {
         }
     }
 
-    /**
-     * Создать бэкап старого конфига.
-     */
     private void makeBackup(File file, int oldVersion) {
         try {
             File backupDir = new File(plugin.getDataFolder(), "backups");
@@ -156,7 +186,150 @@ public final class ConfigHandler {
         }
     }
 
-    // ==================== Геттеры конфига ====================
+    // ==================== Модули ====================
+
+    /**
+     * Проверить, включён ли модуль.
+     */
+    public boolean isModuleEnabled(String module) {
+        return config.getBoolean("modules." + module, true);
+    }
+
+    /**
+     * Получить ModuleConfig по имени файла.
+     */
+    public ModuleConfig getModule(String fileName) {
+        return moduleConfigs.get(fileName);
+    }
+
+    /**
+     * Получить YAML-конфиг модуля (или пустой, если не загружен).
+     */
+    public YamlConfiguration getModuleConfig(String fileName) {
+        ModuleConfig mc = moduleConfigs.get(fileName);
+        return mc != null ? mc.get() : new YamlConfiguration();
+    }
+
+    /**
+     * Сохранить модуль.
+     */
+    public void saveModule(String fileName) {
+        ModuleConfig mc = moduleConfigs.get(fileName);
+        if (mc != null) mc.save();
+    }
+
+    // ==================== Achievements ====================
+
+    /**
+     * Получить секцию достижений.
+     */
+    public org.bukkit.configuration.ConfigurationSection getAchievementsSection() {
+        return getModuleConfig("achievements.yml").getConfigurationSection("achievements");
+    }
+
+    // ==================== Milestones ====================
+
+    /**
+     * Получить секцию вех.
+     */
+    public org.bukkit.configuration.ConfigurationSection getMilestonesSection() {
+        return getModuleConfig("milestones.yml").getConfigurationSection("milestones");
+    }
+
+    public boolean isMilestonesEnabled() {
+        return getModuleConfig("milestones.yml").getBoolean("enabled", true);
+    }
+
+    // ==================== Top Chips ====================
+
+    public boolean isTopChipsEnabled() {
+        return isModuleEnabled("top-chips")
+                && getModuleConfig("top-chips.yml").getBoolean("enabled", true);
+    }
+
+    public long getTopChipsRefreshSeconds() {
+        return getModuleConfig("top-chips.yml").getLong("refresh-seconds", 300);
+    }
+
+    public String getTopChip(String category) {
+        return getModuleConfig("top-chips.yml").getString("chips." + category, "");
+    }
+
+    public List<String> getTopChipsOrder() {
+        List<String> order = getModuleConfig("top-chips.yml").getStringList("order");
+        if (order.isEmpty()) {
+            return List.of("kills", "mobs", "blocks", "playtime", "balance");
+        }
+        return order;
+    }
+
+    // ==================== Top Notifications ====================
+
+    public boolean isTopNotificationsEnabled() {
+        return isModuleEnabled("top-notifications")
+                && getModuleConfig("top-notifications.yml").getBoolean("enabled", true);
+    }
+
+    public long getTopNotificationsCheckSeconds() {
+        return getModuleConfig("top-notifications.yml").getLong("check-seconds", 300);
+    }
+
+    public boolean isTopNotificationsOnlyFirstPlace() {
+        return getModuleConfig("top-notifications.yml").getBoolean("only-first-place", false);
+    }
+
+    public boolean isTopNotificationsSendToDiscord() {
+        return getModuleConfig("top-notifications.yml").getBoolean("send-to-discord", true);
+    }
+
+    public boolean isTopNotificationCategoryEnabled(String category) {
+        return getModuleConfig("top-notifications.yml")
+                .getBoolean("categories." + category, true);
+    }
+
+    public String getTopNotificationMessage(String key) {
+        return getModuleConfig("top-notifications.yml").getString("messages." + key, "");
+    }
+
+    public String getTopNotificationCategoryDisplay(String category) {
+        return getModuleConfig("top-notifications.yml")
+                .getString("messages.categories." + category, category);
+    }
+
+    // ==================== Sparkline ====================
+
+    public boolean isSparklineEnabled() {
+        return isModuleEnabled("sparkline")
+                && getModuleConfig("sparkline.yml").getBoolean("enabled", true);
+    }
+
+    public int getSparklineDays() {
+        return getModuleConfig("sparkline.yml").getInt("days", 7);
+    }
+
+    public boolean isSparklineShowInStats() {
+        return getModuleConfig("sparkline.yml").getBoolean("show-in-stats", true);
+    }
+
+    public boolean isSparklineCategoryEnabled(String category) {
+        return getModuleConfig("sparkline.yml")
+                .getBoolean("categories." + category, true);
+    }
+
+    // ==================== Holograms ====================
+
+    public boolean isHologramsEnabled() {
+        return isModuleEnabled("holograms")
+                && config.getBoolean("holograms.enabled", true);
+    }
+
+    // ==================== Tracked Stats ====================
+
+    public boolean isTracked(String stat) {
+        return config.getBoolean("tracked-stats." + stat, true);
+    }
+
+    // ==================== Общие геттеры ====================
 
     public FileConfiguration getConfig() {
         return config;
@@ -182,12 +355,16 @@ public final class ConfigHandler {
         return config.getBoolean("rainbow.enabled", false);
     }
 
-    public java.util.List<String> getRainbowKeys() {
+    public List<String> getRainbowKeys() {
         return config.getStringList("rainbow.apply-to");
     }
 
     public boolean isFestiveEnabled() {
         return config.getBoolean("festive.enabled", false);
+    }
+
+    public List<String> getFestiveKeys() {
+        return config.getStringList("festive.apply-to");
     }
 
     public boolean isPvpPerVictimStats() {
@@ -204,10 +381,6 @@ public final class ConfigHandler {
 
     public int getPvpDailyLimitPerVictim() {
         return config.getInt("pvp.daily-limit-per-victim", 0);
-    }
-
-    public java.util.List<String> getFestiveKeys() {
-        return config.getStringList("festive.apply-to");
     }
 
     public boolean isStatSharingEnabled() {
@@ -294,15 +467,15 @@ public final class ConfigHandler {
 
     // ==================== Боссы ====================
 
-    public java.util.List<String> getBossKeywords() {
-        java.util.List<String> keywords = config.getStringList("mob-boss-keywords");
+    public List<String> getBossKeywords() {
+        List<String> keywords = config.getStringList("mob-boss-keywords");
         return keywords != null ? keywords : Collections.emptyList();
     }
 
     // ==================== HTTP API ====================
 
     public boolean isApiEnabled() {
-        return config.getBoolean("api.enabled", false);
+        return isModuleEnabled("api") && config.getBoolean("api.enabled", false);
     }
 
     public String getApiHost() {
@@ -317,5 +490,11 @@ public final class ConfigHandler {
 
     public String getLanguage() {
         return config.getString("language", "ru");
+    }
+
+    // ==================== Сохранение ====================
+
+    public void save() throws IOException {
+        config.save(new File(plugin.getDataFolder(), "config.yml"));
     }
 }

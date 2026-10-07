@@ -4,8 +4,11 @@ import com.playerstats.Main;
 import com.playerstats.core.config.LanguageManager;
 import com.playerstats.core.database.dao.PlayerDAO;
 import com.playerstats.core.database.dao.PlayerStatsDAO;
+import com.playerstats.core.utils.FormatUtil;
+import com.playerstats.core.utils.TimeUtil;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.minimessage.MiniMessage;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
@@ -19,39 +22,32 @@ import org.jetbrains.annotations.NotNull;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 public class StatsGui {
 
+    private static final int PAGE_SIZE = 45;
+
+    private static final MiniMessage MM = MiniMessage.miniMessage();
+    private static final LegacyComponentSerializer LEGACY =
+            LegacyComponentSerializer.legacySection();
+
     private final Main plugin;
     private final LanguageManager lang;
-
-    /**
-     * Размер одной страницы (27 слотов + 27 навигация = 54).
-     */
-    private static final int PAGE_SIZE = 45;
 
     public StatsGui(Main plugin) {
         this.plugin = plugin;
         this.lang = plugin.getLanguageManager();
     }
 
-    /**
-     * Открыть GUI со статистикой игрока (главная страница).
-     */
+    // ==================== OPEN ====================
+
     public void open(Player player) {
         openPage(player, 0, null);
     }
 
-    /**
-     * Открыть GUI с указанной страницей.
-     *
-     * @param page    номер страницы (0 = главная)
-     * @param subPage подстраница (mobs / blocks_placed / blocks_broken / pvp) или null
-     */
     public void openPage(Player player, int page, String subPage) {
         plugin.getThreadManager().runAsync(() -> {
             try {
@@ -73,19 +69,39 @@ public class StatsGui {
                 double balance = statsDAO.getStatDouble(playerId, serverId, "balance");
                 String group = plugin.getGroupService().getPlayerGroup(player, playerId);
 
-                // ==================== Статистика по мобам ====================
+                // ==================== Новые статы ====================
+                int killstreak = statsDAO.getStat(playerId, serverId, "killstreak");
+                int bestKillstreak = statsDAO.getStat(playerId, serverId, "best_killstreak");
+                int distanceWalked = statsDAO.getStat(playerId, serverId, "distance_walked");
+                int damageDealt = statsDAO.getStat(playerId, serverId, "damage_dealt");
+                int damageTaken = statsDAO.getStat(playerId, serverId, "damage_taken");
+                int itemsCrafted = statsDAO.getStat(playerId, serverId, "items_crafted");
+                int foodConsumed = statsDAO.getStat(playerId, serverId, "food_consumed");
+                int arrowsShot = statsDAO.getStat(playerId, serverId, "arrows_shot");
+                int fishCaught = statsDAO.getStat(playerId, serverId, "fish_caught");
+                int entitiesTamed = statsDAO.getStat(playerId, serverId, "entities_tamed");
+                int entitiesBred = statsDAO.getStat(playerId, serverId, "entities_bred");
+                int teleports = statsDAO.getStat(playerId, serverId, "teleports");
+                int portalUses = statsDAO.getStat(playerId, serverId, "portal_uses");
+                int logins = statsDAO.getStat(playerId, serverId, "logins");
+
+                // ==================== Префиксы ====================
                 Map<String, Integer> mobStats = statsDAO.getStatsByPrefix(
                         playerId, serverId, "mob_killed_");
-
-                // ==================== Статистика по блокам ====================
                 Map<String, Integer> blocksPlacedStats = statsDAO.getStatsByPrefix(
                         playerId, serverId, "block_placed_");
                 Map<String, Integer> blocksBrokenStats = statsDAO.getStatsByPrefix(
                         playerId, serverId, "block_broken_");
-
-                // ==================== PvP-статистика (по жертвам) ====================
                 Map<String, Integer> pvpStats = statsDAO.getStatsByPrefix(
                         playerId, serverId, "pvp_kill_");
+
+                // ==================== Достижения ====================
+                int unlockedAchievements = plugin.getAchievementDAO()
+                        .getUnlockedAchievements(playerId).size();
+                int totalAchievements = plugin.getAchievementManager().getTotal();
+
+                final int finalUnlockedAch = unlockedAchievements;
+                final int finalTotalAch = totalAchievements;
 
                 plugin.getThreadManager().runSync(() -> {
                     if (!player.isOnline()) return;
@@ -93,53 +109,169 @@ public class StatsGui {
                     StatsGuiHolder holder = new StatsGuiHolder(page, subPage);
 
                     Inventory inv = Bukkit.createInventory(holder, 54,
-                            Component.text("📊 Статистика", NamedTextColor.DARK_GRAY));
+                            lang.getComponent(player, "stats-gui.title"));
                     holder.setInventory(inv);
 
                     // Заполняем стеклом
                     ItemStack filler = createItem(Material.GRAY_STAINED_GLASS_PANE, " ", null);
-                    for (int i = 0; i < 54; i++) {
-                        inv.setItem(i, filler);
-                    }
+                    for (int i = 0; i < 54; i++) inv.setItem(i, filler);
 
-                    // ==================== ГЛАВНАЯ СТРАНИЦА ====================
+                    // ==================== ТАБЫ ====================
+                    inv.setItem(0, createItem(player, Material.NETHER_STAR,
+                            "stats-gui.tab-main", "stats-gui.tab-main-hover"));
+
+                    inv.setItem(1, createItem(player, Material.IRON_SWORD,
+                            "stats-gui.tab-pvp", "stats-gui.tab-pvp-hover"));
+
+                    inv.setItem(2, createItem(player, Material.NETHER_STAR,
+                            "stats-gui.tab-achievements",
+                            "stats-gui.tab-achievements-hover",
+                            "unlocked", finalUnlockedAch,
+                            "total", finalTotalAch));
+
+                    // ==================== ГЛАВНАЯ ====================
                     if (page == 0 && subPage == null) {
-                        openMainPage(inv, blocksPlaced, blocksBroken,
-                                mobsKilled, bossesKilled, playTimeSec,
-                                kills, deaths, balance, group,
-                                mobStats, blocksPlacedStats, blocksBrokenStats,
+                        openMainPage(player, inv,
+                                blocksPlaced, blocksBroken,
+                                mobsKilled, bossesKilled,
+                                playTimeSec, kills, deaths, balance, group,
+                                killstreak, bestKillstreak, distanceWalked,
+                                damageDealt, damageTaken,
+                                itemsCrafted, foodConsumed, arrowsShot,
+                                fishCaught, entitiesTamed, entitiesBred,
+                                teleports, portalUses, logins,
                                 pvpStats);
                     }
-                    // ==================== ПОДСТРАНИЦА: МОБЫ ====================
-                    else if ("mobs".equals(subPage)) {
-                        openSubPage(inv, page, "Убийства мобов", mobStats,
-                                "mob_killed_", Material.DIAMOND_SWORD, holder, false);
-                    }
-                    // ==================== ПОДСТРАНИЦА: ПОСТАВЛЕННЫЕ БЛОКИ ====================
-                    else if ("blocks_placed".equals(subPage)) {
-                        openSubPage(inv, page, "Поставлено блоков", blocksPlacedStats,
-                                "block_placed_", Material.BRICKS, holder, false);
-                    }
-                    // ==================== ПОДСТРАНИЦА: СЛОМАННЫЕ БЛОКИ ====================
-                    else if ("blocks_broken".equals(subPage)) {
-                        openSubPage(inv, page, "Сломано блоков", blocksBrokenStats,
-                                "block_broken_", Material.IRON_PICKAXE, holder, false);
-                    }
-                    // ==================== ПОДСТРАНИЦА: PvP ====================
+                    // ==================== PvP ====================
                     else if ("pvp".equals(subPage)) {
-                        openSubPage(inv, page, "Убийства игроков", pvpStats,
-                                "pvp_kill_", Material.PLAYER_HEAD, holder, true);
+                        openSubPage(player, inv, page, "stats-gui.sub-pvp-title",
+                                pvpStats, "pvp_kill_", Material.PLAYER_HEAD, true);
+                    }
+                    // ==================== МОБЫ ====================
+                    else if ("mobs".equals(subPage)) {
+                        openSubPage(player, inv, page, "stats-gui.sub-mobs-title",
+                                mobStats, "mob_killed_", Material.DIAMOND_SWORD, false);
+                    }
+                    // ==================== БЛОКИ ====================
+                    else if ("blocks_placed".equals(subPage)) {
+                        openSubPage(player, inv, page, "stats-gui.sub-blocks-placed-title",
+                                blocksPlacedStats, "block_placed_", Material.BRICKS, false);
+                    }
+                    else if ("blocks_broken".equals(subPage)) {
+                        openSubPage(player, inv, page, "stats-gui.sub-blocks-broken-title",
+                                blocksBrokenStats, "block_broken_", Material.IRON_PICKAXE, false);
+                    }
+                    // ==================== KILLSTREAK ====================
+                    else if ("killstreak".equals(subPage)) {
+                        openInfoPage(player, inv,
+                                "stats-gui.sub-killstreak-title",
+                                Material.BLAZE_POWDER,
+                                List.of(
+                                        lang.getComponent(player, "stats-gui.sub-stat-current",
+                                                "value", killstreak),
+                                        lang.getComponent(player, "stats-gui.sub-stat-best",
+                                                "value", bestKillstreak)
+                                ),
+                                "stats-gui.sub-killstreak-desc");
+                    }
+                    // ==================== DISTANCE ====================
+                    else if ("distance".equals(subPage)) {
+                        openInfoPage(player, inv,
+                                "stats-gui.sub-distance-title",
+                                Material.LEATHER_BOOTS,
+                                List.of(
+                                        lang.getComponent(player, "stats-gui.sub-stat-current",
+                                                "value", FormatUtil.formatNumber(distanceWalked))
+                                ),
+                                "stats-gui.sub-distance-desc");
+                    }
+                    // ==================== DAMAGE ====================
+                    else if ("damage".equals(subPage)) {
+                        openInfoPage(player, inv,
+                                "stats-gui.sub-damage-title",
+                                Material.DIAMOND_SWORD,
+                                List.of(
+                                        lang.getComponent(player, "stats-gui.sub-stat-dealt",
+                                                "value", FormatUtil.formatNumber(damageDealt)),
+                                        lang.getComponent(player, "stats-gui.sub-stat-taken",
+                                                "value", FormatUtil.formatNumber(damageTaken)),
+                                        lang.getComponent(player, "stats-gui.sub-stat-kd",
+                                                "value", FormatUtil.formatKD(kills, deaths))
+                                ),
+                                "stats-gui.sub-damage-desc");
+                    }
+                    // ==================== CRAFT ====================
+                    else if ("craft".equals(subPage)) {
+                        openInfoPage(player, inv,
+                                "stats-gui.sub-craft-title",
+                                Material.CRAFTING_TABLE,
+                                List.of(
+                                        lang.getComponent(player, "stats-gui.sub-stat-crafted",
+                                                "value", FormatUtil.formatNumber(itemsCrafted)),
+                                        lang.getComponent(player, "stats-gui.sub-stat-food",
+                                                "value", FormatUtil.formatNumber(foodConsumed))
+                                ),
+                                "stats-gui.sub-craft-desc");
+                    }
+                    // ==================== ARROWS ====================
+                    else if ("arrows".equals(subPage)) {
+                        openInfoPage(player, inv,
+                                "stats-gui.sub-arrows-title",
+                                Material.BOW,
+                                List.of(
+                                        lang.getComponent(player, "stats-gui.sub-stat-arrows",
+                                                "value", FormatUtil.formatNumber(arrowsShot)),
+                                        lang.getComponent(player, "stats-gui.sub-stat-fish",
+                                                "value", FormatUtil.formatNumber(fishCaught))
+                                ),
+                                "stats-gui.sub-arrows-desc");
+                    }
+                    // ==================== ANIMALS ====================
+                    else if ("animals".equals(subPage)) {
+                        openInfoPage(player, inv,
+                                "stats-gui.sub-animals-title",
+                                Material.BONE,
+                                List.of(
+                                        lang.getComponent(player, "stats-gui.sub-stat-tamed",
+                                                "value", FormatUtil.formatNumber(entitiesTamed)),
+                                        lang.getComponent(player, "stats-gui.sub-stat-bred",
+                                                "value", FormatUtil.formatNumber(entitiesBred))
+                                ),
+                                "stats-gui.sub-animals-desc");
+                    }
+                    // ==================== MOVEMENT ====================
+                    else if ("movement".equals(subPage)) {
+                        openInfoPage(player, inv,
+                                "stats-gui.sub-movement-title",
+                                Material.ENDER_PEARL,
+                                List.of(
+                                        lang.getComponent(player, "stats-gui.sub-stat-teleports",
+                                                "value", FormatUtil.formatNumber(teleports)),
+                                        lang.getComponent(player, "stats-gui.sub-stat-portals",
+                                                "value", FormatUtil.formatNumber(portalUses))
+                                ),
+                                "stats-gui.sub-movement-desc");
+                    }
+                    // ==================== ECONOMY ====================
+                    else if ("economy".equals(subPage)) {
+                        openInfoPage(player, inv,
+                                "stats-gui.sub-economy-title",
+                                Material.GOLD_INGOT,
+                                List.of(
+                                        lang.getComponent(player, "stats-gui.sub-stat-current",
+                                                "value", FormatUtil.formatBalance(plugin, lang,
+                                                        player, balance))
+                                ),
+                                "stats-gui.sub-economy-desc");
                     }
 
-                    // ==================== КНОПКА "НАЗАД" / "ЗАКРЫТЬ" ====================
+                    // ==================== НИЖНЯЯ ПАНЕЛЬ ====================
                     if (subPage != null) {
-                        inv.setItem(49, createItem(Material.ARROW,
-                                "§e◀ Назад",
-                                List.of("§7Вернуться к основной статистике")));
+                        inv.setItem(49, createItem(player, Material.ARROW,
+                                "stats-gui.back", "stats-gui.back-hover"));
                     } else {
-                        inv.setItem(49, createItem(Material.BARRIER,
-                                "§cЗакрыть",
-                                List.of("§7Нажмите, чтобы закрыть")));
+                        inv.setItem(49, createItem(player, Material.BARRIER,
+                                "stats-gui.close", "stats-gui.close-hover"));
                     }
 
                     player.openInventory(inv);
@@ -149,8 +281,8 @@ public class StatsGui {
                 plugin.getLogger().severe("Ошибка GUI для " + player.getName() + ": " + e.getMessage());
                 plugin.getThreadManager().runSync(() -> {
                     if (player.isOnline()) {
-                        player.sendMessage(Component.text(
-                                "Ошибка загрузки статистики.", NamedTextColor.RED));
+                        player.sendMessage(lang.getComponent(player,
+                                "stats-gui.error-loading"));
                     }
                 });
             }
@@ -159,180 +291,242 @@ public class StatsGui {
 
     // ==================== ГЛАВНАЯ СТРАНИЦА ====================
 
-    private void openMainPage(Inventory inv,
+    private void openMainPage(Player viewer, Inventory inv,
                               int blocksPlaced, int blocksBroken,
                               int mobsKilled, int bossesKilled,
                               int playTimeSec, int kills, int deaths,
                               double balance, String group,
-                              Map<String, Integer> mobStats,
-                              Map<String, Integer> blocksPlacedStats,
-                              Map<String, Integer> blocksBrokenStats,
+                              int killstreak, int bestKillstreak, int distanceWalked,
+                              int damageDealt, int damageTaken,
+                              int itemsCrafted, int foodConsumed, int arrowsShot,
+                              int fishCaught, int entitiesTamed, int entitiesBred,
+                              int teleports, int portalUses, int logins,
                               Map<String, Integer> pvpStats) {
-        // Слот 10 — Блоки
-        inv.setItem(10, createItem(Material.BRICKS,
-                "§e🧱 Блоки",
-                List.of(
-                        "§7Поставлено: §f" + blocksPlaced,
-                        "§7Сломано: §f" + blocksBroken,
-                        "§7Всего: §f" + (blocksPlaced + blocksBroken),
-                        "",
-                        "§a▶ Нажмите для подробностей"
-                )));
 
-        // Слот 12 — PvE
-        inv.setItem(12, createItem(Material.DIAMOND_SWORD,
-                "§e☠ PvE",
-                List.of(
-                        "§7Мобы: §f" + mobsKilled,
-                        "§7Боссы: §f" + bossesKilled,
-                        "",
-                        "§a▶ Нажмите для подробностей"
-                )));
+        // ==================== БЛОКИ ====================
+        inv.setItem(10, createItem(viewer, Material.BRICKS,
+                "stats-gui.cat-blocks", "stats-gui.cat-blocks-lore",
+                "placed", blocksPlaced,
+                "broken", blocksBroken,
+                "total", blocksPlaced + blocksBroken));
 
-        // Слот 14 — Время
-        inv.setItem(14, createItem(Material.CLOCK,
-                "§e⏳ Время",
-                List.of("§7Играл: §f" + formatTime(playTimeSec))));
+        // ==================== PVE ====================
+        inv.setItem(12, createItem(viewer, Material.DIAMOND_SWORD,
+                "stats-gui.cat-pve", "stats-gui.cat-pve-lore",
+                "mobs", mobsKilled,
+                "bosses", bossesKilled));
 
-        // Слот 16 — PvP (теперь кликабельный)
+        // ==================== ВРЕМЯ ====================
+        inv.setItem(14, createItem(viewer, Material.CLOCK,
+                "stats-gui.cat-time", "stats-gui.cat-time-lore",
+                "time", TimeUtil.formatTime(lang, viewer, playTimeSec),
+                "logins", logins));
+
+        // ==================== PVP ====================
         int pvpTotal = pvpStats.values().stream().mapToInt(Integer::intValue).sum();
-        List<String> pvpLore = new ArrayList<>();
-        pvpLore.add("§7Убийств (честных): §f" + kills);
-        pvpLore.add("§7Смертей: §f" + deaths);
-        pvpLore.add("§7K/D: §f" + formatKD(kills, deaths));
-        if (pvpTotal > 0) {
-            pvpLore.add("");
-            pvpLore.add("§7Убито игроков (уник.): §f" + pvpStats.size());
-            pvpLore.add("§7Всего убийств игроков: §f" + pvpTotal);
-            pvpLore.add("");
-            pvpLore.add("§a▶ Нажмите для подробностей");
-        } else {
-            pvpLore.add("");
-            pvpLore.add("§8Нет данных");
-        }
-        inv.setItem(16, createItem(Material.IRON_SWORD,
-                "§e⚔ PvP",
-                pvpLore));
+        String pvpLoreKey = pvpTotal > 0
+                ? "stats-gui.cat-pvp-lore-with-players"
+                : "stats-gui.cat-pvp-lore";
 
-        // Слот 28 — Баланс
-        inv.setItem(28, createItem(Material.GOLD_INGOT,
-                "§e💰 Баланс",
-                List.of("§7Баланс: §6" + String.format("%.2f₽", balance))));
+        inv.setItem(16, createItem(viewer, Material.IRON_SWORD,
+                "stats-gui.cat-pvp", pvpLoreKey,
+                "kills", kills,
+                "deaths", deaths,
+                "kd", FormatUtil.formatKD(kills, deaths),
+                "unique", pvpStats.size()));
 
-        // Слот 30 — Группа
-        inv.setItem(30, createItem(Material.NETHER_STAR,
-                "§e🎖 Привилегия",
-                List.of("§7Группа: " + group)));
+        // ==================== KILLSTREAK ====================
+        inv.setItem(19, createItem(viewer, Material.BLAZE_POWDER,
+                "stats-gui.cat-killstreak", "stats-gui.cat-killstreak-lore",
+                "current", killstreak,
+                "best", bestKillstreak));
 
-        // Слот 32 — Поставленные блоки (подробно)
-        if (!blocksPlacedStats.isEmpty()) {
-            inv.setItem(32, createItem(Material.BRICKS,
-                    "§e🏗 Поставленные блоки",
-                    List.of(
-                            "§7Всего типов: §f" + blocksPlacedStats.size(),
-                            "",
-                            "§a▶ Нажмите для подробностей"
-                    )));
-        }
+        // ==================== ДИСТАНЦИЯ ====================
+        inv.setItem(21, createItem(viewer, Material.LEATHER_BOOTS,
+                "stats-gui.cat-distance", "stats-gui.cat-distance-lore",
+                "value", FormatUtil.formatNumber(distanceWalked)));
 
-        // Слот 34 — Сломанные блоки (подробно)
-        if (!blocksBrokenStats.isEmpty()) {
-            inv.setItem(34, createItem(Material.IRON_PICKAXE,
-                    "§e⛏ Сломанные блоки",
-                    List.of(
-                            "§7Всего типов: §f" + blocksBrokenStats.size(),
-                            "",
-                            "§a▶ Нажмите для подробностей"
-                    )));
-        }
+        // ==================== УРОН ====================
+        inv.setItem(23, createItem(viewer, Material.DIAMOND_SWORD,
+                "stats-gui.cat-damage", "stats-gui.cat-damage-lore",
+                "dealt", FormatUtil.formatNumber(damageDealt),
+                "taken", FormatUtil.formatNumber(damageTaken)));
+
+        // ==================== КРАФТ ====================
+        inv.setItem(25, createItem(viewer, Material.CRAFTING_TABLE,
+                "stats-gui.cat-craft", "stats-gui.cat-craft-lore",
+                "crafted", FormatUtil.formatNumber(itemsCrafted),
+                "food", FormatUtil.formatNumber(foodConsumed)));
+
+        // ==================== СТРЕЛЬБА ====================
+        inv.setItem(28, createItem(viewer, Material.BOW,
+                "stats-gui.cat-arrows", "stats-gui.cat-arrows-lore",
+                "arrows", FormatUtil.formatNumber(arrowsShot),
+                "fish", FormatUtil.formatNumber(fishCaught)));
+
+        // ==================== ЖИВОТНЫЕ ====================
+        inv.setItem(30, createItem(viewer, Material.BONE,
+                "stats-gui.cat-animals", "stats-gui.cat-animals-lore",
+                "tamed", FormatUtil.formatNumber(entitiesTamed),
+                "bred", FormatUtil.formatNumber(entitiesBred)));
+
+        // ==================== ПЕРЕМЕЩЕНИЕ ====================
+        inv.setItem(32, createItem(viewer, Material.ENDER_PEARL,
+                "stats-gui.cat-movement", "stats-gui.cat-movement-lore",
+                "teleports", FormatUtil.formatNumber(teleports),
+                "portals", FormatUtil.formatNumber(portalUses)));
+
+        // ==================== ЭКОНОМИКА ====================
+        inv.setItem(34, createItem(viewer, Material.GOLD_INGOT,
+                "stats-gui.cat-economy", "stats-gui.cat-economy-lore",
+                "balance", FormatUtil.formatBalance(plugin, lang, viewer, balance),
+                "group", group));
     }
 
-    // ==================== ПОДСТРАНИЦА ====================
+    // ==================== ПОДСТРАНИЦА (СПИСОК) ====================
 
-    /**
-     * @param isPlayerHead если true — рисуем голову игрока (для PvP),
-     *                     резолвим UUID → имя
-     */
-    private void openSubPage(Inventory inv, int page, String title,
+    private void openSubPage(Player viewer, Inventory inv, int page, String titleKey,
                              Map<String, Integer> stats, String prefix,
-                             Material icon, StatsGuiHolder holder,
-                             boolean isPlayerHead) {
-        // Заголовок
-        inv.setItem(4, createItem(Material.PAPER,
-                "§e" + title,
-                List.of("§7Всего типов: §f" + stats.size())));
+                             Material icon, boolean isPlayerHead) {
+        inv.setItem(4, createItem(viewer, Material.PAPER,
+                titleKey, "stats-gui.sub-total-types",
+                "count", stats.size()));
 
-        // Сортируем по убыванию значения
         List<Map.Entry<String, Integer>> sorted = new ArrayList<>(stats.entrySet());
         sorted.sort((a, b) -> Integer.compare(b.getValue(), a.getValue()));
 
-        // Вычисляем диапазон
         int start = page * PAGE_SIZE;
         int end = Math.min(start + PAGE_SIZE, sorted.size());
 
-        // Заполняем слоты 9-44 (36 слотов)
         int slot = 9;
         for (int i = start; i < end && slot < 45; i++) {
             Map.Entry<String, Integer> entry = sorted.get(i);
             String rawKey = entry.getKey().substring(prefix.length());
 
             if (isPlayerHead) {
-                // rawKey = UUID жертвы
                 String victimName = resolvePlayerName(rawKey);
-                inv.setItem(slot, createPlayerHead(
+                inv.setItem(slot, createPlayerHead(viewer,
                         rawKey,
-                        "§e☠ " + victimName,
-                        List.of(
-                                "§7Убито раз: §f" + entry.getValue(),
-                                "§7UUID: §8" + rawKey
-                        )));
+                        lang.get(viewer, "stats-gui.sub-player-prefix") + victimName,
+                        "stats-gui.sub-player-head-lore",
+                        "count", entry.getValue(),
+                        "uuid", rawKey));
             } else {
                 String displayName = prettify(rawKey);
-                inv.setItem(slot, createItem(icon,
-                        "§e" + displayName,
-                        List.of(
-                                "§7Значение: §f" + entry.getValue(),
-                                "§7Ключ: §8" + entry.getKey()
-                        )));
+                inv.setItem(slot, createItem(viewer, icon,
+                        lang.get(viewer, "stats-gui.sub-item-prefix") + displayName,
+                        "stats-gui.sub-item-lore",
+                        "value", entry.getValue(),
+                        "key", entry.getKey()));
             }
             slot++;
         }
 
-        // Навигация
         int totalPages = (int) Math.ceil((double) sorted.size() / PAGE_SIZE);
 
         if (page > 0) {
-            inv.setItem(48, createItem(Material.LIME_DYE,
-                    "§a◀ Предыдущая",
-                    List.of("§7Страница " + page + " / " + totalPages)));
+            inv.setItem(48, createItem(viewer, Material.LIME_DYE,
+                    "stats-gui.page-prev", "stats-gui.page-prev-hover",
+                    "page", page,
+                    "total", totalPages));
         }
 
         if (page < totalPages - 1) {
-            inv.setItem(50, createItem(Material.LIME_DYE,
-                    "§aСледующая ▶",
-                    List.of("§7Страница " + (page + 2) + " / " + totalPages)));
+            inv.setItem(50, createItem(viewer, Material.LIME_DYE,
+                    "stats-gui.page-next", "stats-gui.page-next-hover",
+                    "page", page + 2,
+                    "total", totalPages));
         }
     }
 
-    // ==================== УТИЛИТЫ ====================
+    // ==================== ПОДСТРАНИЦА (ИНФО) ====================
+
+    /**
+     * Информационная подстраница (2-4 значения + описание).
+     *
+     * @param viewer     игрок
+     * @param inv        инвентарь
+     * @param titleKey   ключ заголовка
+     * @param icon       иконка
+     * @param statLines  готовые компоненты строк статистики
+     * @param descKey    ключ описания
+     */
+    private void openInfoPage(Player viewer, Inventory inv,
+                              String titleKey, Material icon,
+                              List<Component> statLines,
+                              String descKey) {
+        // ==================== ЗАГОЛОВОК ====================
+        inv.setItem(4, createItem(viewer, Material.PAPER,
+                titleKey, "stats-gui.sub-empty-lore"));
+
+        // ==================== ИКОНКА ====================
+        inv.setItem(13, createItem(viewer, icon,
+                titleKey, "stats-gui.sub-empty-lore"));
+
+        // ==================== СТРОКИ ====================
+        int slot = 20;
+        for (Component line : statLines) {
+            if (slot >= 26) break;
+
+            ItemStack item = new ItemStack(Material.LIME_DYE);
+            ItemMeta meta = item.getItemMeta();
+            if (meta != null) {
+                meta.setDisplayName("");
+                meta.setLore(List.of(LEGACY.serialize(line)));
+                item.setItemMeta(meta);
+            }
+            inv.setItem(slot, item);
+            slot += 2;
+        }
+
+        // ==================== ОПИСАНИЕ ====================
+        String descRaw = lang.get(viewer, descKey);
+        List<String> descLore = new ArrayList<>();
+        for (String line : descRaw.split("\n")) {
+            descLore.add(toLegacy(line));
+        }
+
+        inv.setItem(40, createItem(Material.BOOK,
+                toLegacy(lang.get(viewer, "stats-gui.sub-desc-title")),
+                descLore));
+    }
+
+    // ==================== ITEM HELPERS ====================
+
+    private ItemStack createItem(Player viewer, Material material,
+                                 String nameKey, String loreKey,
+                                 Object... lorePlaceholders) {
+        String name = lang.get(viewer, nameKey);
+        String loreRaw = lang.get(viewer, loreKey);
+
+        for (int i = 0; i < lorePlaceholders.length - 1; i += 2) {
+            String placeholder = "{" + lorePlaceholders[i] + "}";
+            String value = String.valueOf(lorePlaceholders[i + 1]);
+            loreRaw = loreRaw.replace(placeholder, value);
+        }
+
+        List<String> lore = new ArrayList<>();
+        for (String line : loreRaw.split("\n")) {
+            lore.add(toLegacy(line));
+        }
+
+        return createItem(material, toLegacy(name), lore);
+    }
 
     private ItemStack createItem(Material material, String name, List<String> lore) {
         ItemStack item = new ItemStack(material);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
             meta.setDisplayName(name);
-            if (lore != null) {
-                meta.setLore(lore);
-            }
+            if (lore != null) meta.setLore(lore);
             item.setItemMeta(meta);
         }
         return item;
     }
 
-    /**
-     * Создать голову игрока по UUID (с фоллбэком на имя, если UUID невалиден).
-     */
-    private ItemStack createPlayerHead(String uuidStr, String name, List<String> lore) {
+    private ItemStack createPlayerHead(Player viewer, String uuidStr,
+                                       String name, String loreKey,
+                                       Object... lorePlaceholders) {
         ItemStack item = new ItemStack(Material.PLAYER_HEAD);
         ItemMeta meta = item.getItemMeta();
         if (meta instanceof SkullMeta skullMeta) {
@@ -341,70 +535,64 @@ public class StatsGui {
                 OfflinePlayer offline = Bukkit.getOfflinePlayer(uuid);
                 skullMeta.setOwningPlayer(offline);
             } catch (IllegalArgumentException ignored) {
-                // некорректный UUID — оставим дефолтную голову
             }
-            skullMeta.setDisplayName(name);
-            if (lore != null) {
-                skullMeta.setLore(lore);
+
+            String loreRaw = lang.get(viewer, loreKey);
+            for (int i = 0; i < lorePlaceholders.length - 1; i += 2) {
+                loreRaw = loreRaw.replace("{" + lorePlaceholders[i] + "}",
+                        String.valueOf(lorePlaceholders[i + 1]));
             }
+
+            List<String> lore = new ArrayList<>();
+            for (String line : loreRaw.split("\n")) {
+                lore.add(toLegacy(line));
+            }
+
+            skullMeta.setDisplayName(toLegacy(name));
+            skullMeta.setLore(lore);
             item.setItemMeta(skullMeta);
         }
         return item;
     }
 
-    /**
-     * Резолв UUID → имя игрока. Если не получилось — вернуть короткий UUID.
-     */
+    private String toLegacy(String miniMessage) {
+        if (miniMessage == null) return "";
+        try {
+            return LEGACY.serialize(MM.deserialize(miniMessage));
+        } catch (Exception e) {
+            return miniMessage.replaceAll("<[^>]+>", "");
+        }
+    }
+
+    // ==================== UTIL ====================
+
     private String resolvePlayerName(String uuidStr) {
         try {
             UUID uuid = UUID.fromString(uuidStr);
             OfflinePlayer offline = Bukkit.getOfflinePlayer(uuid);
             String name = offline.getName();
-            if (name != null && !name.isEmpty()) {
-                return name;
-            }
+            if (name != null && !name.isEmpty()) return name;
             return uuidStr.substring(0, 8) + "…";
         } catch (IllegalArgumentException e) {
             return uuidStr;
         }
     }
 
-    private String formatTime(int totalSeconds) {
-        int hours = totalSeconds / 3600;
-        int minutes = (totalSeconds % 3600) / 60;
-        if (hours > 0) return hours + "ч " + minutes + "м";
-        return minutes + "м";
-    }
-
-    private String formatKD(int kills, int deaths) {
-        if (deaths == 0) return kills > 0 ? "∞" : "0.00";
-        return String.format("%.2f", (double) kills / deaths);
-    }
-
-    /**
-     * "diamond_ore" → "Diamond Ore".
-     */
     private String prettify(String input) {
         if (input == null || input.isEmpty()) return input;
-
         String[] parts = input.split("_");
         StringBuilder sb = new StringBuilder();
-
         for (String part : parts) {
             if (part.isEmpty()) continue;
             sb.append(Character.toUpperCase(part.charAt(0)))
                     .append(part.substring(1).toLowerCase())
                     .append(" ");
         }
-
         return sb.toString().trim();
     }
 
     // ==================== HOLDER ====================
 
-    /**
-     * Holder для GUI — позволяет определить, какой инвентарь открыт.
-     */
     public static class StatsGuiHolder implements InventoryHolder {
         private final int page;
         private final String subPage;
@@ -415,21 +603,11 @@ public class StatsGui {
             this.subPage = subPage;
         }
 
-        public int getPage() {
-            return page;
-        }
-
-        public String getSubPage() {
-            return subPage;
-        }
-
-        public void setInventory(Inventory inventory) {
-            this.inventory = inventory;
-        }
+        public int getPage() { return page; }
+        public String getSubPage() { return subPage; }
+        public void setInventory(Inventory inventory) { this.inventory = inventory; }
 
         @Override
-        public @NotNull Inventory getInventory() {
-            return inventory;
-        }
+        public @NotNull Inventory getInventory() { return inventory; }
     }
 }
