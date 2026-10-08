@@ -1,6 +1,8 @@
 package com.playerstats.core.achievements;
 
 import com.playerstats.Main;
+import com.playerstats.api.java.event.PlayerAchievementResetEvent;
+import com.playerstats.api.java.event.PlayerAchievementUnlockEvent;
 import com.playerstats.core.config.ConfigHandler;
 import com.playerstats.core.config.LanguageManager;
 import com.playerstats.core.database.dao.AchievementDAO;
@@ -88,7 +90,9 @@ public class AchievementManager {
                         acSection.getInt("threshold", 1),
                         acSection.getStringList("commands"),
                         acSection.getBoolean("broadcast", true),
-                        acSection.getString("category", "other")
+                        acSection.getString("category", "other"),
+                        acSection.getString("reset", null),           // ← новое
+                        acSection.getBoolean("repeat-reward", false)  // ← новое
                 );
 
                 if (ac.stat().isEmpty()) {
@@ -122,12 +126,23 @@ public class AchievementManager {
      * Вызывается из StatsListener.handleStatEvent.
      */
     public void check(Player player, int playerId, String statName, int value) {
+
+        if (plugin.getExcludeCommand() != null
+                && plugin.getExcludeCommand().isExcluded(player.getUniqueId())) {
+            return;
+        }
+
         for (Achievement ac : achievements.values()) {
             if (!ac.stat().equals(statName)) continue;
             if (value < ac.threshold()) continue;
 
             try {
-                if (isUnlocked(playerId, ac.id())) continue;
+                // Временные — сначала проверить, не пора ли сбросить
+                if (ac.isTemporary() && shouldResetNow(playerId, ac)) {
+                    resetAchievement(player, playerId, ac);
+                }
+
+                if (isUnlocked(player, playerId, ac.id())) continue;
                 unlock(player, playerId, ac);
             } catch (SQLException e) {
                 plugin.getLogger().log(Level.WARNING,
@@ -136,13 +151,11 @@ public class AchievementManager {
         }
     }
 
-    private boolean isUnlocked(int playerId, String achievementId) throws SQLException {
-        // Проверяем кэш
-        UUID uuid = getPlayerUuid(playerId);
-        if (uuid != null) {
-            Set<String> cached = unlockedCache.get(uuid);
-            if (cached != null && cached.contains(achievementId)) return true;
-        }
+    private boolean isUnlocked(Player player, int playerId, String achievementId)
+            throws SQLException {
+        Set<String> cached = unlockedCache.get(player.getUniqueId());
+        if (cached != null && cached.contains(achievementId)) return true;
+
         return achievementDAO.isUnlocked(playerId, achievementId);
     }
 
@@ -173,11 +186,22 @@ public class AchievementManager {
         unlockedCache.computeIfAbsent(player.getUniqueId(), k -> new HashSet<>())
                 .add(ac.id());
 
+
+        boolean repeat = ac.isTemporary()
+                && achievementDAO.getLastReset(playerId, ac.id()) != -1;
+
+        PlayerAchievementUnlockEvent event = new PlayerAchievementUnlockEvent(
+                player.getUniqueId(), ac.id(), repeat);
+        Bukkit.getPluginManager().callEvent(event);
+
         // 3. Выполнить команды
-        for (String cmd : ac.commands()) {
-            String finalCmd = cmd.replace("%player%", player.getName());
-            Bukkit.getScheduler().runTask(plugin, () ->
-                    Bukkit.dispatchCommand(Bukkit.getConsoleSender(), finalCmd));
+        boolean canReward = !ac.isTemporary() || ac.repeatReward();
+        if (canReward) {
+            for (String cmd : ac.commands()) {
+                String finalCmd = cmd.replace("%player%", player.getName());
+                Bukkit.getScheduler().runTask(plugin, () ->
+                        Bukkit.dispatchCommand(Bukkit.getConsoleSender(), finalCmd));
+            }
         }
 
         // 4. Сообщение игроку (из lang.yml)
@@ -242,6 +266,74 @@ public class AchievementManager {
 
     public void clearCache(UUID uuid) {
         unlockedCache.remove(uuid);
+    }
+
+    // ==================== RESET (временные достижения) ====================
+
+    /**
+     * Пора ли сбросить временное достижение.
+     *
+     * <p>Первый вызов — только ставит метку, не сбрасывает.
+     * Последующие — сравнивают с интервалом.</p>
+     */
+    private boolean shouldResetNow(int playerId, Achievement ac) throws SQLException {
+        long lastReset = achievementDAO.getLastReset(playerId, ac.id());
+        long interval = ac.resetIntervalMs();
+
+        if (interval <= 0) return false;
+
+        if (lastReset == -1) {
+            // Ещё не сбрасывали — ставим метку сейчас, не сбрасываем
+            achievementDAO.setLastReset(playerId, ac.id(), System.currentTimeMillis());
+            return false;
+        }
+
+        return System.currentTimeMillis() - lastReset >= interval;
+    }
+
+    /**
+     * Сбросить достижение:
+     * <ul>
+     *   <li>удалить флаг unlocked в БД</li>
+     *   <li>обновить timestamp сброса</li>
+     *   <li>убрать из локального кэша</li>
+     *   <li>уведомить игрока (опционально)</li>
+     * </ul>
+     */
+    private void resetAchievement(Player player, int playerId, Achievement ac)
+            throws SQLException {
+
+        long lastReset = achievementDAO.getLastReset(playerId, ac.id());
+
+        achievementDAO.removeUnlock(playerId, ac.id());
+        achievementDAO.setLastReset(playerId, ac.id(), System.currentTimeMillis());
+
+        // Кэш
+        Set<String> cached = unlockedCache.get(player.getUniqueId());
+        if (cached != null) cached.remove(ac.id());
+
+        // ===== API-ИВЕНТ =====
+        PlayerAchievementResetEvent event = new PlayerAchievementResetEvent(
+                player.getUniqueId(),
+                ac.id(),
+                ac.reset(),
+                lastReset
+        );
+        Bukkit.getPluginManager().callEvent(event);
+
+        // Сообщение игроку
+        Component msg = lang.getComponent("achievements.messages.reset",
+                "name", ac.name());
+        if (msg != null && !msg.equals(Component.empty())) {
+            player.sendMessage(msg);
+        }
+
+        // Debug
+        if (plugin.getConfigHandler().isVerboseDebug()) {
+            plugin.getLogger().info("[DEBUG] Achievement reset: "
+                    + player.getName() + " → " + ac.id()
+                    + " (" + ac.reset() + ")");
+        }
     }
 
     // ==================== UTIL ====================

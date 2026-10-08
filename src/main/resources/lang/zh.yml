@@ -30,6 +30,9 @@ commands:
     serverstats: "服务器统计"
     exclude: "管理排除"
     playerstats: "管理 PlayerStats 插件"
+    hologram: "管理全息图"
+    backup: "管理数据库备份"
+    rollback: "回滚统计"
 
 
 # =========================================================================
@@ -45,10 +48,25 @@ snapshot:
 #                    Holograms
 # =========================================================================
 holograms:
+  # 管理
   created: "<green>✅ 全息图已创建: <white>{stat}"
-  removed: "<green>✅ 全息图已移除: <white>{stat}"
+  removed: "<green>✅ 全息图已移除: <white>{name}"
   list-empty: "<yellow>没有活动的全息图。"
   list-header: "<green>活动的全息图: <white>{list}"
+  reloaded: "<green>✅ 全息图已重新加载。"
+  module-disabled: "<red>'holograms' 模块在 config.yml 中已禁用。"
+
+  # 统计名称（用于 defaultTitle）
+  stats:
+    play_time: "游戏时间"
+    kills: "击杀"
+    mobs_killed: "怪物"
+    bosses_killed: "首领"
+    blocks_placed: "放置方块"
+    blocks_broken: "破坏方块"
+    balance: "余额"
+    deaths: "死亡"
+    killstreak: "连杀"
 
 
 # =========================================================================
@@ -202,6 +220,30 @@ achievements:
   status-locked: "<red>✗ 未解锁"
   date: "<dark_gray>  {date}"
 
+  # ===== 行 =====
+  category: "<dark_gray>▸ <gray>类别: <yellow>{category}"
+  progress: "<dark_gray>▸ <gray>进度: {color}{current}<gray>/<white>{required} <dark_gray>(<yellow>{percent}%<dark_gray>)"
+  progress-bar: "<dark_gray>  {bar}"
+  requires: "<dark_gray>▸ <gray>要求: <white>{stat} <dark_gray>(<white>{required}<dark_gray>)"
+
+  # ===== 临时成就 =====
+  reset:
+    label: "<dark_gray>▸ <gray>重置: <yellow>{period}"
+    reward-repeatable: "<dark_gray>▸ <gray>奖励: <green>可重复"
+    reward-once: "<dark_gray>▸ <gray>奖励: <red>一次性"
+    in: "<dark_gray>▸ <gray>下次重置: <white>{time} 后"
+    ready: "<dark_gray>▸ <gray>下次重置: <green>准备就绪"
+    not-started: "<dark_gray>▸ <gray>下次重置: <dark_gray>尚未开始"
+
+    # 周期名称（key = ac.reset()）
+    daily: "每日"
+    weekly: "每周"
+    monthly: "每月"
+
+  # ===== 按钮 =====
+  back: "<yellow>◀ 返回"
+  back-hover: "<gray>返回统计"
+
   # ===== 错误 =====
   error-loading: "<red>加载成就失败。"
 
@@ -211,21 +253,12 @@ achievements:
   # ===== 描述颜色（可选） =====
   description-color: "<gray>"
 
-  # ===== 行 =====
-  category: "<dark_gray>▸ <gray>类别: <yellow>{category}"
-  progress: "<dark_gray>▸ <gray>进度: {color}{current}<gray>/<white>{required}"
-  progress-bar: "<dark_gray>  {bar}"
-  requires: "<dark_gray>▸ <gray>要求: <white>{stat} <dark_gray>(<white>{required}<dark_gray>)"
-
-  # ===== 按钮 =====
-  back: "<yellow>◀ 返回"
-  back-hover: "<gray>返回统计"
-
   # ===== 消息 =====
   messages:
     unlock-self: "<gold>🏆 <yellow>成就解锁: <white>{name}"
     unlock-description: "<gray>   {description}"
     unlock-broadcast: "<gold>🏆 <yellow>{player} <gray>解锁了成就 <white>{name}<gray>!"
+    reset: "<gray>⏳ 成就 <white>{name}</white> 已重置——可以再次获得。"
 
   # ===== 类别 =====
   categories:
@@ -573,11 +606,16 @@ stats:
   pvp-header: "<gray>击杀玩家: <white>{count}"
   pvp-empty: "<gray>无 PvP 数据。"
 
+  # ===== PvP 列表 =====
+  pvp-entry: "<red>  ☠ <yellow>{player} <gray>— <white>{count} {times}"
+  pvp-entry-hover: "<gray>点击查看 <white>{player} 的统计\n<gray>UUID: <dark_gray>{uuid}"
+
   # ===== 子命令: Mob =====
   mob-title-self: "<yellow>☠ <white>您的 PvE 统计 <gray>| <green>怪物: <white>{mobs} <gray>| <gold>首领: <white>{bosses}"
   mob-title-other: "<yellow>☠ <white>玩家 <yellow>{player} <white>的 PvE 统计 <gray>| <green>怪物: <white>{mobs} <gray>| <gold>首领: <white>{bosses}"
   mob-header: "<gray>击杀怪物种类: <white>{count}"
   mob-empty: "<gray>无怪物数据。"
+  mob-entry: "<dark_red>  ☠ <yellow>{name} <gray>— <white>{count} {unit}"
 
   # ===== 子命令: Block =====
   block-title-self: "<yellow>🧱 <white>您的方块统计 <gray>| <green>放置: <white>{placed} <gray>| <red>破坏: <white>{broken}"
@@ -585,6 +623,17 @@ stats:
   block-placed-header: "<green>🏗 已放置 (<white>{count}<green> 种):"
   block-broken-header: "<gold>⛏ 已破坏 (<white>{count}<gold> 种):"
   block-empty: "<gray>无数据。"
+
+  # ===== 方块列表 =====
+  block-placed-entry: "<green>  🏗 <yellow>{name} <gray>— <white>{count} {unit}"
+  block-broken-entry: "<gold>  ⛏ <yellow>{name} <gray>— <white>{count} {unit}"
+
+  # ===== 单位 =====
+  unit-pieces: "个"
+
+  # ===== 分页 =====
+  pagination-prev-hover: "<gray>第 {page} 页"
+  pagination-next-hover: "<gray>第 {page} 页"
 
   # ===== 旧键 (fallback) =====
   mobs-header: "<gold>▸ 怪物击杀:"
@@ -621,6 +670,7 @@ serverstats:
   stat-blocks-placed-hover: "<gray>总放置方块数"
   stat-blocks-broken-hover: "<gray>总破坏方块数"
   stat-balance-hover: "<gray>所有玩家的总余额"
+  click-hint: "<dark_gray>点击查看 /top {stat}"
 
 
 # =========================================================================
@@ -649,6 +699,27 @@ top:
   refresh: "<gray>[刷新]"
   refresh-hover: "<gray>点击刷新排行榜"
 
+  # ===== 排行榜条目 hover =====
+  entry-hover: "<gray>玩家: <white>{player}\n<gray>排名: <yellow>#{rank}\n<gray>数值: <white>{value}\n<dark_gray>点击查看"
+
+  # ===== 前缀 =====
+  stat-prefixes:
+    pvp_kill: "击杀: {name}"
+    mob_killed: "击杀: {name}"
+    block_placed: "放置: {name}"
+    block_broken: "破坏: {name}"
+
+  # ===== 统计名称 =====
+  stats:
+    mobs_killed: "击杀怪物"
+    bosses_killed: "击杀首领"
+    kills: "玩家击杀"
+    deaths: "死亡"
+    play_time: "游戏时间"
+    blocks_placed: "放置方块"
+    blocks_broken: "破坏方块"
+    balance: "余额"
+
 
 # =========================================================================
 #                    /compare — 对比
@@ -657,6 +728,10 @@ compare:
   self: "<red>不能与自己对比统计。"
   header: "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   title: "<gold>📊 对比: <yellow>{player1}</yellow> <gray>vs</gray> <yellow>{player2}</yellow>"
+
+  # ===== 玩家按钮 =====
+  button: "<aqua>[👤 {player}]</aqua>"
+  button-hover: "<gray>打开 <white>{player} 的统计"
 
   # ===== 获胜者 =====
   winner: "   <yellow>🏆 获胜者: <gold>{winner}</gold> <gray>({wins1} : {wins2})"
@@ -675,10 +750,6 @@ compare:
   hover-value-2: "<gray>值 2: <white>{value}"
   hover-diff: "<gray>差异: <white>{diff}"
 
-  # ===== 按钮 =====
-  buttons: "   <aqua>[👤 {player1}]</aqua> <aqua>[👤 {player2}]</aqua>"
-  button-hover: "<gray>打开 <white>{player} 的统计"
-
 
 # =========================================================================
 #                    /share — 分享
@@ -686,14 +757,21 @@ compare:
 share:
   self: "<red>不能与自己分享统计。请使用 /stats。"
 
+  # ===== Broadcast =====
   broadcast: "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n<gold>📊 <yellow>{chips}{player}</yellow> 分享了统计数据!\n<gray>服务器: <aqua>{server}</aqua> <gray>| 权限组: <light_purple>{group}"
-  broadcast-hover: "<gray>点击查看统计"
+  broadcast-hover: "<gray>点击查看统计\n<gray>玩家: <white>{player}\n<gray>服务器: <white>{server}\n<gray>权限组: {group}\n<gray>K/D: <white>{kd}"
 
   stats: "\n<green>⏳ 时间: <white>{time} <gray>(总计: {total-time})\n<green>☠ PvE: <white>怪物 {mobs} | 首领 {bosses} <gray>(总计怪物: {total-mobs})\n<green>⛏ 方块: <white>已放置 {blocks}\n<green>⚔ PvP: <white>击杀 {kills} | 死亡 {deaths} <gray>| K/D: {kd}\n<green>💰 余额: <gold>{balance}\n<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
+  # ===== Private =====
   private-sender: "<green>您已与 <yellow>{target}</yellow> 分享统计"
   private-target: "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n<gold>📊 <yellow>{chips}{player}</yellow> 与您分享了统计:\n<gray>服务器: <aqua>{server}</aqua> <gray>| 权限组: <light_purple>{group}\n<green>⏳ 时间: <white>{time} <gray>(总计: {total-time})\n<green>☠ PvE: <white>怪物 {mobs} | 首领 {bosses}\n<green>⚔ PvP: <white>击杀 {kills} | 死亡 {deaths} <gray>| K/D: {kd}\n<green>💰 余额: <gold>{balance}\n<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-  private-hover: "<gray>点击查看 {player} 的统计"
+  private-hover: "<gray>点击查看统计\n<gray>玩家: <white>{player}\n<gray>K/D: <white>{kd}"
+
+  # ===== K/D =====
+  kd-infinite: "∞"
+  kd-zero: "0.00"
+  kd-format: "%.2f"
 
 
 # =========================================================================
@@ -766,10 +844,24 @@ reload:
   info-multi: "<gray>   🌍 多服务器: {status}"
   info-api: "<gray>   📡 HTTP API: {status}"
   info-api-host: " <gray>(<white>{host}<gray>)"
+  info-api-host-hover: "<gray>主机: <white>{host}\n<dark_gray>点击复制"
 
   # ===== 结果 =====
   success: "<green>✅ 重新加载完成，用时 <white>{time} 毫秒"
   error: "<red>❌ 重新加载错误! 请检查控制台。"
+
+
+# =========================================================================
+#                    /playerstats update
+# =========================================================================
+update:
+  header: "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  available: "<gold>📢 有可用更新!"
+  current: "<gray>  当前: <white>v{current}"
+  latest: "<gray>  最新: <green>v{latest}"
+  download: "<gray>  下载: <aqua>{url}"
+  up-to-date: "<green>✅ 插件已是最新版本 (v{version})"
+  not-initialized: "<red>UpdateChecker 未初始化。"
 
 
 # =========================================================================
@@ -796,20 +888,41 @@ info:
   # ===== API =====
   api: "<gray>   HTTP API: {status}"
   api-host: " <gray>(<white>{host}<gray>)"
-  hook-enabled-hover: "<green>✓ 集成已激活\n<gray>插件: <white>{name}"
-  hook-disabled-hover: "<red>✗ 集成不可用\n<gray>插件: <white>{name}\n<dark_gray>安装 {name} 以启用"
+  api-host-hover: "<gray>主机: <white>{host}\n<dark_gray>点击复制"
 
   # ===== 集成 =====
   integrations: "<gray>   集成:"
   hook-enabled: "<gray>   <green>✅ {name}"
   hook-disabled: "<gray>   <red>❌ {name}"
+  hook-enabled-hover: "<green>✓ 集成已激活\n<gray>插件: <white>{name}"
+  hook-disabled-hover: "<red>✗ 集成不可用\n<gray>插件: <white>{name}\n<dark_gray>安装 {name} 以启用"
 
   # ===== 设置 =====
   debug: "<gray>   Debug: {level}"
+  debug-off: "<red>关闭"
+  debug-basic: "<yellow>基础"
+  debug-detailed: "<green>详细"
+  debug-unknown: "<gray>未知"
   multi: "<gray>   多服务器: {status}"
   top-chips: "<gray>   Top-chips: {status}"
   sparkline: "<gray>   Sparkline: {status}"
   pvp: "<gray>   PvP 统计: {status}"
+
+  # ===== 标题 hover =====
+  title-hover: "<gray>作者: <white>{authors}\n<gray>版本: <white>{version}\n<dark_gray>Paper 统计插件"
+
+
+# =========================================================================
+#                    /playerstats apikey
+# =========================================================================
+apikey:
+  header: "<dark_gray>━━━━━━━━━━ <gold>🔑 API Key</gold> ━━━━━━━━━━"
+  current: "<gray>当前密钥: <white>{key}"
+  hint: "<dark_gray>通过 <white>X-API-Key</white> 或 <white>Authorization: Bearer <key> 传递"
+  regenerated: "<green>✅ 已生成新的 API 密钥。"
+  warning: "<red>所有现有客户端将失去访问权限。"
+  api-disabled: "<red>API 服务器未运行。"
+  no-key: "<red>API 密钥未设置 (auto-generate-key: false)。"
 
 
 # =========================================================================
@@ -828,18 +941,31 @@ help:
 
   # ===== 命令 =====
   commands-title: "<gold>命令:"
+
+  # Stats
   command-stats: "<yellow>   /stats <gray>— 您的统计"
   command-stats-other: "<yellow>   /stats <player> <gray>— 玩家统计"
   command-stats-gui: "<yellow>   /stats gui <gray>— 统计 GUI"
   command-stats-pvp: "<yellow>   /stats pvp [player] <gray>— PvP 统计"
+  command-stats-rollback: "<yellow>   /stats rollback <player> <stat> <value> <gray>— 回滚统计"
+
+  # Tops
   command-top: "<yellow>   /top <gray>— 服务器排行"
   command-top-stat: "<yellow>   /top <stat> <gray>— 按统计排行"
   command-top-pvp: "<yellow>   /top pvp <玩家> <gray>— 击杀某玩家排行"
+
+  # Social
   command-share: "<yellow>   /share [player] <gray>— 分享统计"
   command-compare: "<yellow>   /compare <player> <gray>— 对比统计"
+
+  # Admin
   command-exclude: "<yellow>   /exclude <player> [remove|list] <gray>— 排除"
   command-reload: "<yellow>   /playerstats reload <gray>— 重新加载"
+  command-snapshot: "<yellow>   /playerstats snapshot <gray>— 创建快照"
+  command-backup: "<yellow>   /playerstats backup [now|list|restore] <gray>— 数据库备份"
+  command-hologram: "<yellow>   /playerstats hologram <gray>— 全息图管理"
   command-info: "<yellow>   /playerstats info <gray>— 插件信息"
+  command-apikey: "<yellow>   /playerstats apikey [regenerate] <gray>— API 密钥"
   command-update: "<yellow>   /playerstats update <gray>— 检查更新"
 
   # ===== 空输出 =====
@@ -850,6 +976,7 @@ help:
   hover-stats-gui: "<gray>打开统计 GUI\n<dark_gray>示例: <white>/stats gui"
   hover-stats-other: "<gray>其他玩家的统计\n<dark_gray>示例: <white>/stats Steve"
   hover-stats-pvp: "<gray>击杀的玩家列表 (PvP)\n<dark_gray>示例: <white>/stats pvp Steve"
+  hover-stats-rollback: "<gray>回滚玩家统计\n<dark_gray>示例: <white>/stats rollback Steve kills 0"
 
   hover-top: "<gray>按类别的服务器排行\n<dark_gray>示例: <white>/top"
   hover-top-stat: "<gray>按特定统计排行\n<dark_gray>示例: <white>/top kills"
@@ -860,7 +987,11 @@ help:
 
   hover-exclude: "<gray>管理统计排除\n<dark_gray>示例: <white>/exclude Steve\n<dark_gray>示例: <white>/exclude list"
   hover-reload: "<gray>重新加载配置和缓存\n<dark_gray>示例: <white>/playerstats reload"
+  hover-snapshot: "<gray>创建统计快照\n<dark_gray>示例: <white>/playerstats snapshot"
+  hover-backup: "<gray>管理数据库备份\n<dark_gray>示例: <white>/playerstats backup now"
+  hover-hologram: "<gray>管理全息图\n<dark_gray>示例: <white>/playerstats hologram list"
   hover-info: "<gray>插件和集成信息\n<dark_gray>示例: <white>/playerstats info"
+  hover-apikey: "<gray>查看/重新生成 API 密钥\n<dark_gray>示例: <white>/playerstats apikey"
   hover-update: "<gray>检查插件更新\n<dark_gray>示例: <white>/playerstats update"
 
   footer: "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -873,6 +1004,58 @@ currency:
   # 如果未连接 Vault，则使用 fallback 格式。
   # {value} — 格式化后的数字 (例如 1500.00)
   format: "¥{value}"
+
+
+# =========================================================================
+#                    数据库备份
+# =========================================================================
+backup:
+  starting: "<yellow>📦 正在创建数据库备份..."
+  done: "<green>✅ 备份已创建。"
+  error: "<red>❌ 备份错误。请检查控制台。"
+
+  usage: |-
+    <dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━
+    <gold>📦 备份管理:
+    <yellow>/playerstats backup <gray>— 立即创建
+    <yellow>/playerstats backup list <gray>— 列表
+    <yellow>/playerstats backup restore <file> <gray>— 恢复
+    <dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  list-empty: "<yellow>没有保存的备份。"
+  list-header: "<gold>📦 备份 (<white>{count}<gold>):"
+  list-entry: "<gray>  • <white>{file} <dark_gray>({size})"
+
+  restore-usage: "<red>用法: <yellow>/playerstats backup restore <file>"
+  restore-starting: "<yellow>⏳ 正在从 <white>{file}</white> 恢复..."
+  restore-done: "<green>✅ 数据库已从 <white>{file}</white> 恢复。<red>请重启服务器!"
+  restore-error: "<red>❌ 无法从 <white>{file}</white> 恢复。"
+  module-disabled: "<red>'backup' 模块在 config.yml 中已禁用。"
+
+
+# =========================================================================
+#                    统计回滚
+# =========================================================================
+rollback:
+  usage: |-
+    <dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━
+    <gold>🔄 统计回滚:
+    <yellow>/stats rollback <player> <stat> <value> <gray>— 设置值
+    <yellow>/stats rollback <player> --all <value> <gray>— 重置全部
+    <yellow>/stats rollback <player> --from <date> <stat> <gray>— 从日期回滚
+    <dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  done: "<green>✅ <white>{player}</white>: <yellow>{stat}</yellow> = <white>{value}"
+  done-all: "<green>✅ <white>{player}</white>: 所有统计已重置 (<white>{count}</white> 条)"
+  done-from: "<green>✅ <white>{player}</white>: <yellow>{stat}</yellow> 回滚 <white>{delta}</white> → <white>{value}"
+
+  notify: "<red>⚠ 您的统计 <yellow>{stat}</yellow> 已被管理员更改: <white>{value}"
+  notify-all: "<red>⚠ 您的统计已被管理员重置 (值: <white>{value}<red>)"
+
+  never-played: "<red>玩家 <yellow>{player}</yellow> 从未在此服务器上玩过。"
+  invalid-value: "<red>无效值: <white>{value}"
+  invalid-date: "<red>无效日期: <white>{date}"
+  error: "<red>❌ 回滚错误。请检查控制台。"
 
 
 # =========================================================================
@@ -890,3 +1073,7 @@ time:
   seconds: "{seconds}秒"
   minutes: "{minutes}分"
   hours: "{hours}时 {minutes}分"
+  times:
+    one: "次"
+    few: "次"
+    many: "次"

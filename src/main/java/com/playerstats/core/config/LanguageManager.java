@@ -104,6 +104,17 @@ public class LanguageManager {
 
             translations.put(locale, loadFile(file, code));
             availableLocales.add(code);
+
+            // ==================== ВАЛИДАЦИЯ lang.yml ====================
+            YamlConfiguration langYaml = YamlConfiguration.loadConfiguration(file);
+            ConfigValidator.Result result = ConfigValidator.validateLang(langYaml, plugin);
+
+            for (String warn : result.warnings()) {
+                plugin.getLogger().warning("[LANG " + code + "] ⚠ " + warn);
+            }
+            for (String err : result.errors()) {
+                plugin.getLogger().severe("[LANG " + code + "] ✗ " + err);
+            }
         }
 
         loadRainbowSettings();

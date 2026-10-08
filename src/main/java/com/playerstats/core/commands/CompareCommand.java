@@ -139,7 +139,6 @@ public class CompareCommand {
                     "wins1", maxWins,
                     "wins2", minWins);
 
-            // Жирный ник победителя — decorate
             winnerLine = winnerLine.decorate(TextDecoration.BOLD);
             viewer.sendMessage(winnerLine);
         } else {
@@ -170,22 +169,16 @@ public class CompareCommand {
 
         viewer.sendMessage(separator);
 
-        // Кнопки перехода на статистику
-        Component buttons = lang.getComponentFromString(
-                lang.get("compare.buttons",
-                        "player1", name1,
-                        "player2", name2));
-
-        // Hover для каждой кнопки отдельно — соберём вручную
-        Component p1Button = lang.getComponentFromString(
-                        "<aqua>[👤 " + name1 + "]</aqua>")
+        // Кнопки перехода на статистику — из lang.yml
+        Component p1Button = lang.getComponent(viewer, "compare.button",
+                        "player", name1)
                 .clickEvent(ClickEvent.runCommand("/stats " + name1))
                 .hoverEvent(HoverEvent.showText(
                         lang.getComponent(viewer, "compare.button-hover",
                                 "player", name1)));
 
-        Component p2Button = lang.getComponentFromString(
-                        "<aqua>[👤 " + name2 + "]</aqua>")
+        Component p2Button = lang.getComponent(viewer, "compare.button",
+                        "player", name2)
                 .clickEvent(ClickEvent.runCommand("/stats " + name2))
                 .hoverEvent(HoverEvent.showText(
                         lang.getComponent(viewer, "compare.button-hover",
@@ -277,10 +270,19 @@ public class CompareCommand {
     private String formatValue(Player viewer, double value, Format format) {
         return switch (format) {
             case INTEGER -> String.format("%,d", (long) value);
-            case TIME -> TimeUtil.formatTime(lang, viewer, (int) value);  // ← TimeUtil
-            case BALANCE -> String.format("%,.2f₽", value);
+            case TIME -> TimeUtil.formatTime(lang, viewer, (int) value);
+            case BALANCE -> formatBalance(viewer, value);
             case DECIMAL -> String.format("%.2f", value);
         };
+    }
+
+    /**
+     * Баланс — из lang.yml (currency.format).
+     */
+    private String formatBalance(Player viewer, double value) {
+        String fmt = lang.getRaw(viewer, "currency.format");
+        if (fmt.startsWith("<red>Missing key")) fmt = "{value}₽";
+        return fmt.replace("{value}", String.format("%,.2f", value));
     }
 
     private double formatKD(int kills, int deaths) {

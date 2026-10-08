@@ -128,4 +128,64 @@ public class AchievementDAO {
         }
         return result;
     }
+
+    // ==================== RESET (временные достижения) ====================
+
+    /**
+     * Получить timestamp последнего сброса.
+     *
+     * @return -1, если сброса не было
+     */
+    public long getLastReset(int playerId, String achievementId) throws SQLException {
+        String sql = "SELECT reset_at FROM player_achievements_reset "
+                + "WHERE player_id = ? AND achievement_id = ?";
+
+        try (Connection conn = db.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, playerId);
+            stmt.setString(2, achievementId);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) return rs.getLong("reset_at");
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * Записать/обновить timestamp сброса.
+     */
+    public void setLastReset(int playerId, String achievementId, long timestamp)
+            throws SQLException {
+        String query = isMySQL
+                ? "INSERT INTO player_achievements_reset "
+                + "(player_id, achievement_id, reset_at) VALUES (?, ?, ?) "
+                + "ON DUPLICATE KEY UPDATE reset_at = VALUES(reset_at)"
+                : "INSERT INTO player_achievements_reset "
+                + "(player_id, achievement_id, reset_at) VALUES (?, ?, ?) "
+                + "ON CONFLICT(player_id, achievement_id) DO UPDATE SET reset_at = excluded.reset_at";
+
+        try (Connection conn = db.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setInt(1, playerId);
+            stmt.setString(2, achievementId);
+            stmt.setLong(3, timestamp);
+            stmt.executeUpdate();
+        }
+    }
+
+    /**
+     * Удалить флаг unlocked у игрока (используется при сбросе).
+     */
+    public void removeUnlock(int playerId, String achievementId) throws SQLException {
+        String sql = "DELETE FROM player_achievements "
+                + "WHERE player_id = ? AND achievement_id = ?";
+
+        try (Connection conn = db.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, playerId);
+            stmt.setString(2, achievementId);
+            stmt.executeUpdate();
+        }
+    }
 }

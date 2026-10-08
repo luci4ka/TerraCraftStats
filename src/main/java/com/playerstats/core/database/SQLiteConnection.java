@@ -68,122 +68,25 @@ public class SQLiteConnection implements DatabaseConnection {
 
     @Override
     public void initTables() throws SQLException {
+        // PRAGMA на уровне соединения
         try (Connection conn = getConnection();
              Statement stmt = conn.createStatement()) {
-
             stmt.execute("PRAGMA foreign_keys = ON");
             stmt.execute("PRAGMA journal_mode=WAL");
             stmt.execute("PRAGMA busy_timeout = 5000");
             stmt.execute("PRAGMA synchronous = NORMAL");
+        }
 
-            stmt.executeUpdate("""
-                CREATE TABLE IF NOT EXISTS players (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    uuid TEXT UNIQUE,
-                    name TEXT,
-                    first_join DATETIME DEFAULT CURRENT_TIMESTAMP
-                );
-            """);
+        DatabaseMigrator migrator = new DatabaseMigrator(
+                plugin,
+                false,
+                plugin.getDatabaseBackupTask()   // ← ДОБАВИТЬ
+        );
 
-            stmt.executeUpdate("""
-                CREATE TABLE IF NOT EXISTS servers (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT UNIQUE,
-                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-                );
-            """);
-
-            // UNIQUE на name уже создаёт индекс — CREATE INDEX НЕ НУЖЕН!
-            stmt.executeUpdate("""
-                CREATE TABLE IF NOT EXISTS stat_types (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT UNIQUE
-                );
-            """);
-
-            stmt.executeUpdate("""
-                CREATE TABLE IF NOT EXISTS player_stats (
-                    player_id INTEGER NOT NULL,
-                    server_id INTEGER NOT NULL,
-                    stat_type_id INTEGER NOT NULL,
-                    value_int INTEGER DEFAULT 0,
-                    value_double REAL DEFAULT 0,
-                    value_string TEXT,
-                    PRIMARY KEY(player_id, server_id, stat_type_id),
-                    FOREIGN KEY(player_id) REFERENCES players(id) ON DELETE CASCADE,
-                    FOREIGN KEY(server_id) REFERENCES servers(id) ON DELETE CASCADE,
-                    FOREIGN KEY(stat_type_id) REFERENCES stat_types(id) ON DELETE CASCADE
-                );
-            """);
-
-            stmt.executeUpdate("""
-                CREATE TABLE IF NOT EXISTS server_stats (
-                    server_id INTEGER NOT NULL,
-                    stat_type_id INTEGER NOT NULL,
-                    value_int INTEGER DEFAULT 0,
-                    value_double REAL DEFAULT 0,
-                    value_string TEXT,
-                    PRIMARY KEY(server_id, stat_type_id),
-                    FOREIGN KEY(server_id) REFERENCES servers(id) ON DELETE CASCADE,
-                    FOREIGN KEY(stat_type_id) REFERENCES stat_types(id) ON DELETE CASCADE
-                );
-            """);
-
-            stmt.executeUpdate("""
-                CREATE TABLE IF NOT EXISTS leaderboards (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    stat_type_id INTEGER NOT NULL,
-                    server_id INTEGER DEFAULT NULL,
-                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY(stat_type_id) REFERENCES stat_types(id) ON DELETE CASCADE,
-                    FOREIGN KEY(server_id) REFERENCES servers(id) ON DELETE SET NULL
-                );
-            """);
-
-            stmt.executeUpdate("""
-                CREATE TABLE IF NOT EXISTS leaderboard_entries (
-                    leaderboard_id INTEGER NOT NULL,
-                    player_id INTEGER NOT NULL,
-                    rank INTEGER NOT NULL,
-                    value_int INTEGER DEFAULT 0,
-                    value_double REAL DEFAULT 0,
-                    PRIMARY KEY(leaderboard_id, player_id),
-                    FOREIGN KEY(leaderboard_id) REFERENCES leaderboards(id) ON DELETE CASCADE,
-                    FOREIGN KEY(player_id) REFERENCES players(id) ON DELETE CASCADE
-                );
-            """);
-            stmt.executeUpdate("""
-    CREATE TABLE IF NOT EXISTS stat_history (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        player_id INTEGER NOT NULL,
-        stat_type_id INTEGER NOT NULL,
-        server_id INTEGER NOT NULL,
-        value INTEGER NOT NULL,
-        date DATE NOT NULL,
-        UNIQUE(player_id, stat_type_id, server_id, date)
-    );
-""");
-
-            stmt.executeUpdate("""
-    CREATE INDEX IF NOT EXISTS idx_stat_history_player
-    ON stat_history(player_id, stat_type_id, server_id);
-""");
-
-// ← НОВОЕ
-            stmt.executeUpdate("""
-    CREATE TABLE IF NOT EXISTS player_achievements (
-        player_id INTEGER NOT NULL,
-        achievement_id TEXT NOT NULL,
-        unlocked_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        PRIMARY KEY(player_id, achievement_id),
-        FOREIGN KEY(player_id) REFERENCES players(id) ON DELETE CASCADE
-    );
-""");
-
-            stmt.executeUpdate("""
-    CREATE INDEX IF NOT EXISTS idx_achievements_player
-    ON player_achievements(player_id);
-""");
+        try (Connection conn = getConnection()) {
+            if (migrator.hasFailed(conn)) {
+                throw new SQLException("Не удалось применить миграции БД (SQLite).");
+            }
         }
 
         insertDefaultStatTypes();

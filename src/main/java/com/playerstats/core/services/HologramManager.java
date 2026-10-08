@@ -1,276 +1,417 @@
 package com.playerstats.core.services;
 
 import com.playerstats.Main;
+import com.playerstats.core.config.ConfigHandler;
+import com.playerstats.core.config.ModuleConfig;
 import com.playerstats.core.database.dao.LeaderboardDAO.LeaderboardEntry;
+import com.playerstats.core.utils.FormatUtil;
+import com.playerstats.hooks.DecentHologramsHook;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.minimessage.MiniMessage;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.World;
+import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.scheduler.BukkitTask;
 
-import java.sql.SQLException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.logging.Level;
 
 /**
- * Управляет голограммами топов через DecentHolograms.
+ * Логика голограмм: топ-N, форматирование, авто-обновление.
  *
- * <p>⚠ Если DecentHolograms НЕ установлен — все методы становятся no-op.</p>
+ * <p>Все настройки — в {@code holograms.yml} (модуль).</p>
+ * <p>Тексты — в MiniMessage ({@code <gold>}, {@code <gradient:...>}).</p>
+ * <p>API-вызовы делегируются в {@link DecentHologramsHook}.
+ * Если DH не установлен — все методы no-op.</p>
  */
 public class HologramManager {
 
+    private static final MiniMessage MM = MiniMessage.miniMessage();
+    private static final LegacyComponentSerializer LEGACY =
+            LegacyComponentSerializer.legacySection();
+
     private final Main plugin;
-    private final Map<String, Object> holograms = new HashMap<>();  // ← Object, не Hologram
 
-    private static final int TOP_SIZE = 10;
+    /** name (из holograms.yml list.*) → statName (kills, play_time, ...). */
+    private final Map<String, String> holograms = new HashMap<>();
+    /** name → заголовок (MiniMessage). */
+    private final Map<String, String> titles = new HashMap<>();
 
-    /**
-     * Установлен ли DecentHolograms.
-     */
-    private final boolean enabled;
+    /** Размер топа и пустая строка — из конфига. */
+    private int topSize = 10;
+    private String emptyLine = "<dark_gray>— — — — — —";
+
+    private long updateIntervalTicks = 20L * 300; // 5 мин
+    private long initialDelayTicks = 20L * 60;    // 1 мин
+
+    private BukkitTask updateTask;
 
     public HologramManager(Main plugin) {
         this.plugin = plugin;
-
-        // ==================== ПРОВЕРКА ====================
-        if (!Bukkit.getPluginManager().isPluginEnabled("DecentHolograms")) {
-            plugin.getLogger().warning(
-                    "DecentHolograms не установлен — голограммы отключены.");
-            this.enabled = false;
-            return;
-        }
-
-        this.enabled = true;
-        startUpdater();
-        plugin.getLogger().info("HologramManager инициализирован (DecentHolograms найден).");
     }
 
     public boolean isEnabled() {
-        return enabled;
+        ConfigHandler cfg = plugin.getConfigHandler();
+        if (cfg == null || !cfg.isHologramsEnabled()) return false;
+
+        return plugin.getHooksManager() != null
+                && plugin.getHooksManager().getDecentHologramsHook() != null
+                && plugin.getHooksManager().getDecentHologramsHook().isEnabled();
     }
 
-    // ==================== КРОН ====================
+    private DecentHologramsHook dh() {
+        return plugin.getHooksManager().getDecentHologramsHook();
+    }
 
-    private void startUpdater() {
-        if (!plugin.getConfigHandler().isHologramsEnabled()) {
-            plugin.getLogger().info("Holograms отключены в config.yml.");
+    // ==================== ЗАГРУЗКА ИЗ holograms.yml ====================
+
+    /**
+     * Загрузить список голограмм из {@code holograms.yml} (секция {@code list.*}).
+     *
+     * <p>Каждая запись:
+     * <pre>
+     * list:
+     *   top-kills:
+     *     enabled: true
+     *     stat: kills
+     *     title: "&lt;gold&gt;&lt;bold&gt;★ ТОП УБИЙСТВ ★"
+     *     location: { world: world, x: 100.5, y: 65.0, z: 200.5 }
+     * </pre></p>
+     */
+    public void loadFromConfig() {
+        if (!isEnabled()) return;
+
+        ConfigHandler cfg = plugin.getConfigHandler();
+
+        this.updateIntervalTicks = 20L * cfg.getHologramsUpdateIntervalSeconds();
+        this.initialDelayTicks  = 20L * cfg.getHologramsInitialDelaySeconds();
+        this.topSize             = Math.max(1, cfg.getHologramsTopSize());
+        this.emptyLine           = cfg.getHologramsEmptyLine();
+
+        ConfigurationSection list = cfg.getHologramsListSection();
+        if (list == null) {
+            plugin.getLogger().warning("holograms.yml: секция 'list' пуста — голограммы не созданы.");
             return;
         }
 
-        plugin.getThreadManager().runAsyncRepeating(() -> {
-            for (Map.Entry<String, Object> entry : holograms.entrySet()) {
-                try {
-                    updateHologram(entry.getKey(), entry.getValue());
-                } catch (Exception e) {
-                    plugin.getLogger().log(Level.WARNING,
-                            "Ошибка обновления голограммы " + entry.getKey(), e);
-                }
+        for (String name : list.getKeys(false)) {
+            ConfigurationSection h = list.getConfigurationSection(name);
+            if (h == null) continue;
+
+            if (!h.getBoolean("enabled", true)) continue;
+
+            String statName = h.getString("stat");
+            if (statName == null || statName.isEmpty()) {
+                plugin.getLogger().warning("Голограмма '" + name + "': нет stat — пропуск.");
+                continue;
             }
-        }, 10, 60);
+
+            String title = h.getString("title", defaultTitle(statName));
+
+            Location loc = readLocation(h.getConfigurationSection("location"));
+            if (loc == null) {
+                plugin.getLogger().warning("Голограмма '" + name + "': плохая location — пропуск.");
+                continue;
+            }
+
+            createOrUpdate(name, statName, loc, title);
+        }
+
+        plugin.getLogger().info("Голограммы: загружено " + holograms.size() + " шт.");
+    }
+
+    private Location readLocation(ConfigurationSection s) {
+        if (s == null) return null;
+        String worldName = s.getString("world");
+        if (worldName == null) return null;
+        World world = Bukkit.getWorld(worldName);
+        if (world == null) {
+            plugin.getLogger().warning("Мир не найден: " + worldName);
+            return null;
+        }
+        return new Location(world, s.getDouble("x"), s.getDouble("y"), s.getDouble("z"));
     }
 
     // ==================== CRUD ====================
 
     /**
-     * Создать голограмму для статистики.
+     * Создать или обновить голограмму (без сохранения в конфиг).
      */
-    public void createHologram(String statName, Location location) {
-        if (!enabled) return;
+    public void createOrUpdate(String name, String statName, Location location, String title) {
+        if (!isEnabled()) return;
 
+        String holoName = "playerstats_" + name;
+        holograms.put(name, statName);
+        titles.put(name, title);
+
+        if (!dh().exists(holoName)) {
+            List<String> placeholder = new ArrayList<>(topSize + 1);
+            placeholder.add(toLegacy(title));
+            for (int i = 0; i < topSize; i++) placeholder.add(toLegacy(emptyLine));
+            dh().create(holoName, location, placeholder);
+        }
+
+        refresh(name);
+    }
+
+    /**
+     * Удалить голограмму (из DH + памяти, БЕЗ конфига).
+     */
+    public void removeHologram(String name) {
+        if (!isEnabled()) return;
+        holograms.remove(name);
+        titles.remove(name);
+        dh().delete("playerstats_" + name);
+    }
+
+    // ==================== УПРАВЛЕНИЕ ИЗ КОМАНД ====================
+
+    /**
+     * Создать голограмму для статистики + сохранить в {@code holograms.yml}.
+     *
+     * <p>Имя голограммы: {@code top-<statName>}.</p>
+     *
+     * @param statName статистика (например, {@code kills})
+     * @param location где поставить
+     * @return имя созданной голограммы или {@code null}, если disabled
+     */
+    public String createHologram(String statName, Location location) {
+        if (!isEnabled()) return null;
+
+        String name = "top-" + statName;
+        String title = defaultTitle(statName);
+
+        // 1. Создаём/обновляем в DH + памяти
+        createOrUpdate(name, statName, location, title);
+
+        // 2. Сохраняем в holograms.yml
+        saveToConfig(name, statName, location, title);
+
+        return name;
+    }
+
+    /**
+     * Удалить голограмму (по имени) — из DH, памяти и {@code holograms.yml}.
+     */
+    public void removeHologramAndSave(String name) {
+        if (!isEnabled()) return;
+
+        removeHologram(name);
+        removeFromConfig(name);
+    }
+
+    /**
+     * Legacy: удалить по statName (ищет стандартное имя {@code top-<stat>}).
+     */
+    public void removeHologramByStat(String statName) {
+        removeHologramAndSave("top-" + statName);
+    }
+
+    // ==================== СОХРАНЕНИЕ В holograms.yml ====================
+
+    private void saveToConfig(String name, String statName, Location location, String title) {
         try {
-            String holoName = "playerstats_" + statName;
-
-            // Удаляем старую
-            Object existing = getHologramByName(holoName);
-            if (existing != null) {
-                removeHologramByName(holoName);
+            ModuleConfig moduleCfg = plugin.getConfigHandler().getModule("holograms.yml");
+            if (moduleCfg == null) {
+                plugin.getLogger().warning(
+                        "Не удалось сохранить голограмму: модуль 'holograms' не загружен.");
+                return;
             }
 
-            // Создаём новую
-            Object holo = createHologramByName(holoName, location);
-            holograms.put(statName, holo);
-            updateHologram(statName, holo);
+            YamlConfiguration cfg = moduleCfg.get();
+            String path = "list." + name;
 
-            plugin.getLogger().info("Голограмма создана: " + statName);
+            cfg.set(path + ".enabled", true);
+            cfg.set(path + ".stat", statName);
+            cfg.set(path + ".title", title);
+            cfg.set(path + ".location.world", location.getWorld().getName());
+            cfg.set(path + ".location.x", location.getX());
+            cfg.set(path + ".location.y", location.getY());
+            cfg.set(path + ".location.z", location.getZ());
+
+            moduleCfg.save();
+
+            plugin.getLogger().info("Голограмма сохранена в holograms.yml: " + name);
+
         } catch (Exception e) {
-            plugin.getLogger().log(Level.SEVERE,
-                    "Ошибка создания голограммы " + statName, e);
+            plugin.getLogger().log(Level.WARNING,
+                    "Ошибка сохранения голограммы в holograms.yml: " + name, e);
+        }
+    }
+
+    private void removeFromConfig(String name) {
+        try {
+            ModuleConfig moduleCfg = plugin.getConfigHandler().getModule("holograms.yml");
+            if (moduleCfg == null) return;
+
+            YamlConfiguration cfg = moduleCfg.get();
+            String path = "list." + name;
+
+            if (cfg.contains(path)) {
+                cfg.set(path, null);
+                moduleCfg.save();
+                plugin.getLogger().info("Голограмма удалена из holograms.yml: " + name);
+            }
+
+        } catch (Exception e) {
+            plugin.getLogger().log(Level.WARNING,
+                    "Ошибка удаления голограммы из holograms.yml: " + name, e);
+        }
+    }
+
+    // ==================== АВТО-ОБНОВЛЕНИЕ ====================
+
+    public void startAutoUpdate() {
+        if (!isEnabled()) return;
+        if (updateTask != null) return;
+
+        updateTask = Bukkit.getScheduler().runTaskTimerAsynchronously(
+                plugin,
+                this::refreshAll,
+                initialDelayTicks,
+                updateIntervalTicks
+        );
+        plugin.getLogger().info("Голограммы: авто-обновление каждые "
+                + (updateIntervalTicks / 20) + " сек.");
+    }
+
+    private void refreshAll() {
+        if (holograms.isEmpty()) return;
+        for (String name : new ArrayList<>(holograms.keySet())) {
+            try {
+                refresh(name);
+            } catch (Exception e) {
+                plugin.getLogger().log(Level.WARNING,
+                        "Ошибка обновления голограммы '" + name + "'", e);
+            }
         }
     }
 
     /**
-     * Удалить голограмму.
+     * Перестроить строки одной голограммы.
      */
-    public void removeHologram(String statName) {
-        if (!enabled) return;
+    public void refresh(String name) {
+        if (!isEnabled()) return;
 
-        Object holo = holograms.remove(statName);
-        if (holo != null) {
-            removeHologramByName("playerstats_" + statName);
-        }
-    }
+        String statName = holograms.get(name);
+        if (statName == null) return;
 
-    /**
-     * Обновить содержимое голограммы.
-     */
-    private void updateHologram(String statName, Object holo) {
-        if (!enabled) return;
+        String holoName = "playerstats_" + name;
+        String title = titles.getOrDefault(name, defaultTitle(statName));
 
         List<LeaderboardEntry> top;
         try {
             top = plugin.getLeaderboardDAO()
-                    .getTop(statName, plugin.getServerId(), TOP_SIZE);
-        } catch (SQLException e) {
+                    .getTop(statName, plugin.getServerId(), topSize);
+        } catch (Exception e) {
             plugin.getLogger().log(Level.WARNING,
-                    "Ошибка загрузки топа для голограммы " + statName, e);
+                    "Ошибка загрузки топа для '" + name + "' (" + statName + ")", e);
             return;
         }
 
-        List<String> lines = new ArrayList<>();
-        lines.add("§6§l✦ " + formatStatName(statName) + " ✦");
+        List<String> lines = new ArrayList<>(topSize + 2);
+        lines.add(toLegacy(title));
         lines.add("");
 
-        if (top.isEmpty()) {
-            lines.add("§7Нет данных");
-        } else {
-            for (int i = 0; i < top.size(); i++) {
-                LeaderboardEntry e = top.get(i);
-                String color = switch (i) {
-                    case 0 -> "§6";
-                    case 1 -> "§7";
-                    case 2 -> "§c";
-                    default -> "§f";
-                };
-                lines.add(color + "#" + (i + 1) + " §f" + e.playerName()
-                        + " §7— §e" + formatValue(e.value(), statName));
+        for (int rank = 1; rank <= topSize; rank++) {
+            if (top == null || rank > top.size()) {
+                lines.add(toLegacy(emptyLine));
+                continue;
             }
+            LeaderboardEntry e = top.get(rank - 1);
+
+            String color = switch (rank) {
+                case 1 -> "<gold>";
+                case 2 -> "<gray>";
+                case 3 -> "<red>";
+                default -> "<white>";
+            };
+
+            String line = color + "#" + rank + " <white>" + e.playerName()
+                    + " <dark_gray>— <yellow>" + formatValue(e.value(), statName);
+
+            lines.add(toLegacy(line));
         }
 
-        setHologramLines(holo, lines);
-    }
-
-    // ==================== РЕФЛЕКСИЯ (DHAPI) ====================
-
-    /**
-     * Получить голограмму по имени через рефлексию.
-     */
-    private Object getHologramByName(String name) {
-        try {
-            Class<?> dhapiClass = Class.forName("eu.decentsoftware.holograms.api.DHAPI");
-            return dhapiClass.getMethod("getHologram", String.class).invoke(null, name);
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
-    /**
-     * Создать голограмму через рефлексию.
-     */
-    private Object createHologramByName(String name, Location location) {
-        try {
-            Class<?> dhapiClass = Class.forName("eu.decentsoftware.holograms.api.DHAPI");
-            return dhapiClass.getMethod("createHologram",
-                            String.class, Location.class, boolean.class)
-                    .invoke(null, name, location, true);
-        } catch (Exception e) {
-            plugin.getLogger().log(Level.SEVERE, "Ошибка создания голограммы", e);
-            return null;
-        }
-    }
-
-    /**
-     * Удалить голограмму через рефлексию.
-     */
-    private void removeHologramByName(String name) {
-        try {
-            Class<?> dhapiClass = Class.forName("eu.decentsoftware.holograms.api.DHAPI");
-            dhapiClass.getMethod("removeHologram", String.class).invoke(null, name);
-        } catch (Exception e) {
-            plugin.getLogger().log(Level.WARNING, "Ошибка удаления голограммы", e);
-        }
-    }
-
-    /**
-     * Установить строки голограммы через рефлексию.
-     */
-    private void setHologramLines(Object hologram, List<String> lines) {
-        try {
-            Class<?> dhapiClass = Class.forName("eu.decentsoftware.holograms.api.DHAPI");
-            Class<?> hologramClass = Class.forName("eu.decentsoftware.holograms.api.holograms.Hologram");
-
-            dhapiClass.getMethod("setHologramLines", hologramClass, List.class)
-                    .invoke(null, hologram, lines);
-        } catch (Exception e) {
-            plugin.getLogger().log(Level.WARNING, "Ошибка обновления строк голограммы", e);
-        }
-    }
-
-    // ==================== ЗАГРУЗКА / СОХРАНЕНИЕ ====================
-
-    /**
-     * Загрузить голограммы из конфига.
-     */
-    public void loadFromConfig() {
-        if (!enabled) return;
-
-        var section = plugin.getConfigHandler().getConfig()
-                .getConfigurationSection("holograms.positions");
-        if (section == null) return;
-
-        for (String statName : section.getKeys(false)) {
-            try {
-                String world = section.getString(statName + ".world");
-                double x = section.getDouble(statName + ".x");
-                double y = section.getDouble(statName + ".y");
-                double z = section.getDouble(statName + ".z");
-
-                var worldObj = plugin.getServer().getWorld(world);
-                if (worldObj == null) {
-                    plugin.getLogger().warning("Мир не найден для голограммы "
-                            + statName + ": " + world);
-                    continue;
-                }
-
-                Location loc = new Location(worldObj, x, y, z);
-                createHologram(statName, loc);
-            } catch (Exception e) {
-                plugin.getLogger().log(Level.WARNING,
-                        "Ошибка загрузки голограммы " + statName, e);
-            }
-        }
-    }
-
-    /**
-     * Сохранить голограмму в конфиг.
-     */
-    public void saveToConfig(String statName, Location loc) {
-        String path = "holograms.positions." + statName;
-        var config = plugin.getConfigHandler().getConfig();
-        config.set(path + ".world", loc.getWorld().getName());
-        config.set(path + ".x", loc.getX());
-        config.set(path + ".y", loc.getY());
-        config.set(path + ".z", loc.getZ());
-
-        try {
-            plugin.getConfigHandler().save();
-        } catch (Exception e) {
-            plugin.getLogger().log(Level.WARNING, "Ошибка сохранения конфига", e);
-        }
+        dh().setLines(holoName, lines);
     }
 
     // ==================== УТИЛИТЫ ====================
 
-    private String formatValue(double value, String statName) {
-        if (statName.equals("play_time")) {
-            int sec = (int) value;
-            int h = sec / 3600;
-            int m = (sec % 3600) / 60;
-            return h + "ч " + m + "м";
+    /**
+     * MiniMessage → legacy {@code §}-строка (для DecentHolograms).
+     */
+    private String toLegacy(String miniMessage) {
+        if (miniMessage == null || miniMessage.isEmpty()) return "";
+        try {
+            Component comp = MM.deserialize(miniMessage);
+            return LEGACY.serialize(comp);
+        } catch (Exception e) {
+            // fallback — если сломанный MiniMessage, вернуть как есть
+            return miniMessage;
         }
-        if (statName.equals("balance")) {
-            return String.format("%,.2f₽", value);
-        }
-        return String.format("%,d", (long) value);
     }
 
+    /** Имена всех активных голограмм (ID из конфига). */
+    public Set<String> getHologramNames() {
+        return holograms.keySet();
+    }
+
+    /**
+     * Полная очистка: отменяет таск и удаляет все голограммы.
+     */
+    public void clear() {
+        if (updateTask != null) {
+            try {
+                updateTask.cancel();
+            } catch (Exception ignored) {}
+            updateTask = null;
+        }
+
+        if (isEnabled()) {
+            for (String name : new ArrayList<>(holograms.keySet())) {
+                dh().delete("playerstats_" + name);
+            }
+        }
+        holograms.clear();
+        titles.clear();
+    }
+
+    private String formatValue(double value, String statName) {
+        return switch (statName) {
+            case "play_time" -> FormatUtil.formatTimeShort((int) value);
+            case "balance" -> FormatUtil.formatBalancePlain(value);
+            default -> FormatUtil.formatNumber((long) value);
+        };
+    }
+
+    /**
+     * Заголовок по умолчанию (MiniMessage).
+     */
+    private String defaultTitle(String statName) {
+        return "<gold><bold>✦ " + formatStatName(statName) + " ✦";
+    }
+
+    /**
+     * Название статы — из lang.yml ({@code holograms.stats.<stat>}) с fallback.
+     */
     private String formatStatName(String stat) {
+        // 1. Попытка из lang.yml
+        String key = "holograms.stats." + stat;
+        String fromLang = plugin.getLanguageManager().getRaw(key);
+
+        if (fromLang != null && !fromLang.startsWith("<red>Missing key")) {
+            return fromLang;
+        }
+
+        // 2. Fallback — хардкод
         return switch (stat) {
             case "play_time" -> "Время игры";
             case "kills" -> "Убийства";
@@ -283,13 +424,5 @@ public class HologramManager {
             case "killstreak" -> "Серия убийств";
             default -> stat;
         };
-    }
-
-    public Set<String> getHologramNames() {
-        return holograms.keySet();
-    }
-
-    public void clear() {
-        holograms.clear();
     }
 }

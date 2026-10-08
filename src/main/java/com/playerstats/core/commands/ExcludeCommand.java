@@ -101,8 +101,8 @@ public class ExcludeCommand {
                     Component line = getComponent(sender, "exclude.added",
                             "player", name);
 
-                    // Кнопка «Отменить» — на языке отправителя
-                    Component undoButton = getComponentFromString(sender,
+                    // Кнопка «Отменить»
+                    Component undoButton = fromString(
                             getRaw(sender, "exclude.separator-bracket-left") +
                                     "<yellow>" + getRaw(sender, "exclude.button-undo") +
                                     getRaw(sender, "exclude.separator-bracket-right"))
@@ -111,8 +111,8 @@ public class ExcludeCommand {
                                     getComponent(sender, "exclude.button-undo-hover",
                                             "player", name)));
 
-                    // Кнопка «Статистика» — на языке отправителя
-                    Component statsButton = getComponentFromString(sender,
+                    // Кнопка «Статистика»
+                    Component statsButton = fromString(
                             getRaw(sender, "exclude.separator-bracket-left-short") +
                                     "<aqua>" + getRaw(sender, "exclude.button-stats") +
                                     getRaw(sender, "exclude.separator-bracket-right"))
@@ -164,8 +164,8 @@ public class ExcludeCommand {
                     Component line = getComponent(sender, "exclude.removed",
                             "player", name);
 
-                    // Кнопка «Статистика» — на языке отправителя
-                    Component statsButton = getComponentFromString(sender,
+                    // Кнопка «Статистика»
+                    Component statsButton = fromString(
                             getRaw(sender, "exclude.separator-bracket-left") +
                                     "<aqua>" + getRaw(sender, "exclude.button-stats") +
                                     getRaw(sender, "exclude.separator-bracket-right"))
@@ -207,23 +207,8 @@ public class ExcludeCommand {
                             "exclude.list-header", "count", excludedNames.size()));
 
                     for (String name : excludedNames) {
-                        Component line = getComponentFromString(sender,
-                                getRaw(sender, "exclude.bullet") +
-                                        "<red>" + name +
-                                        "  " +
-                                        getRaw(sender, "exclude.separator-bracket-left") +
-                                        "<yellow>" + getRaw(sender, "exclude.button-undo-short") +
-                                        getRaw(sender, "exclude.separator-bracket-right") +
-                                        getRaw(sender, "exclude.separator-bracket-left-short") +
-                                        "<aqua>" + getRaw(sender, "exclude.button-stats-short") +
-                                        getRaw(sender, "exclude.separator-bracket-right"))
-                                .clickEvent(ClickEvent.runCommand("/exclude remove " + name))
-                                .hoverEvent(HoverEvent.showText(
-                                        getComponent(sender, "exclude.button-undo-short-hover",
-                                                "player", name)));
-
-                        // Кнопка «Отменить» и «Статистика» — раздельно
-                        Component undoPart = getComponentFromString(sender,
+                        // Кнопка «Отменить»
+                        Component undoPart = fromString(
                                 getRaw(sender, "exclude.separator-bracket-left") +
                                         "<yellow>" + getRaw(sender, "exclude.button-undo-short") +
                                         getRaw(sender, "exclude.separator-bracket-right"))
@@ -232,7 +217,8 @@ public class ExcludeCommand {
                                         getComponent(sender, "exclude.button-undo-short-hover",
                                                 "player", name)));
 
-                        Component statsPart = getComponentFromString(sender,
+                        // Кнопка «Статистика»
+                        Component statsPart = fromString(
                                 getRaw(sender, "exclude.separator-bracket-left-short") +
                                         "<aqua>" + getRaw(sender, "exclude.button-stats-short") +
                                         getRaw(sender, "exclude.separator-bracket-right"))
@@ -241,7 +227,7 @@ public class ExcludeCommand {
                                         getComponent(sender, "exclude.button-stats-short-hover",
                                                 "player", name)));
 
-                        Component finalLine = getComponentFromString(sender,
+                        Component finalLine = fromString(
                                 getRaw(sender, "exclude.bullet") + "<red>" + name)
                                 .append(undoPart)
                                 .append(statsPart);
@@ -266,8 +252,8 @@ public class ExcludeCommand {
     public void loadExcludedPlayers() {
         try {
             List<String> names = loadExcludedNamesFromDb();
-            plugin.getLogger().info("Загружено " + excludedPlayers.size()
-                    + " исключённых игроков (" + names.size() + " записей).");
+            plugin.getLogger().info("Загружено " + names.size()
+                    + " исключённых игроков.");
         } catch (SQLException e) {
             plugin.getLogger().warning("Не удалось загрузить список исключённых игроков: "
                     + e.getMessage());
@@ -355,7 +341,7 @@ public class ExcludeCommand {
         return lang.getRaw(key);
     }
 
-    private Component getComponentFromString(CommandSender sender, String message, Object... replacements) {
+    private Component fromString(String message, Object... replacements) {
         return lang.getComponentFromString(message, replacements);
     }
 }

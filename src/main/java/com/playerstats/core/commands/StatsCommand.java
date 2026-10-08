@@ -178,7 +178,6 @@ public class StatsCommand {
             group = groupService.getPlayerGroup(target.getUniqueId());
         }
 
-        // ← TimeUtil возвращает String
         String localTime = TimeUtil.formatTime(lang, viewer, playTimeSec);
         String totalTime = TimeUtil.formatTime(lang, viewer,
                 totalStats.getOrDefault("play_time", 0));
@@ -267,18 +266,15 @@ public class StatsCommand {
                 String victimName = resolvePlayerName(victimUuid);
                 int count = entry.getValue();
 
-                Component line = Component.text()
-                        .append(Component.text("  ☠ ", NamedTextColor.RED))
-                        .append(Component.text(victimName, NamedTextColor.YELLOW))
-                        .append(Component.text(" — ", NamedTextColor.GRAY))
-                        .append(Component.text(count + " "
-                                        + pluralize(viewer, count, "раз", "раза", "раз"),
-                                NamedTextColor.WHITE))
-                        .hoverEvent(HoverEvent.showText(Component.text(
-                                "§7Нажмите, чтобы посмотреть статистику " + victimName
-                                        + "\n§7UUID: §8" + victimUuid)))
-                        .clickEvent(ClickEvent.runCommand("/stats pvp " + victimName))
-                        .build();
+                Component line = lang.getComponent(viewer, "stats.pvp-entry",
+                                "player", victimName,
+                                "count", count,
+                                "times", pluralize(viewer, count))
+                        .hoverEvent(HoverEvent.showText(
+                                lang.getComponent(viewer, "stats.pvp-entry-hover",
+                                        "player", victimName,
+                                        "uuid", victimUuid)))
+                        .clickEvent(ClickEvent.runCommand("/stats pvp " + victimName));
                 viewer.sendMessage(line);
             }
 
@@ -331,17 +327,17 @@ public class StatsCommand {
             int start = currentPage * PAGE_SIZE_MOB;
             int end = Math.min(start + PAGE_SIZE_MOB, sorted.size());
 
+            String unit = lang.getRaw(viewer, "stats.unit-pieces");
+
             for (int i = start; i < end; i++) {
                 Map.Entry<String, Integer> entry = sorted.get(i);
                 String mobName = entry.getKey().substring("mob_killed_".length());
                 int count = entry.getValue();
 
-                Component line = Component.text()
-                        .append(Component.text("  ☠ ", NamedTextColor.DARK_RED))
-                        .append(Component.text(prettify(mobName), NamedTextColor.YELLOW))
-                        .append(Component.text(" — ", NamedTextColor.GRAY))
-                        .append(Component.text(count + " шт", NamedTextColor.WHITE))
-                        .build();
+                Component line = lang.getComponent(viewer, "stats.mob-entry",
+                        "name", prettify(mobName),
+                        "count", count,
+                        "unit", unit);
                 viewer.sendMessage(line);
             }
 
@@ -385,6 +381,8 @@ public class StatsCommand {
             viewer.sendMessage(title);
             viewer.sendMessage(separator);
 
+            String unit = lang.getRaw(viewer, "stats.unit-pieces");
+
             // Поставленные
             viewer.sendMessage(lang.getComponent(viewer, "stats.block-placed-header",
                     "count", sortedPlaced.size()));
@@ -400,13 +398,10 @@ public class StatsCommand {
                 for (int i = start; i < end; i++) {
                     Map.Entry<String, Integer> entry = sortedPlaced.get(i);
                     String blockName = entry.getKey().substring("block_placed_".length());
-                    Component line = Component.text()
-                            .append(Component.text("  🏗 ", NamedTextColor.GREEN))
-                            .append(Component.text(prettify(blockName), NamedTextColor.YELLOW))
-                            .append(Component.text(" — ", NamedTextColor.GRAY))
-                            .append(Component.text(entry.getValue() + " шт",
-                                    NamedTextColor.WHITE))
-                            .build();
+                    Component line = lang.getComponent(viewer, "stats.block-placed-entry",
+                            "name", prettify(blockName),
+                            "count", entry.getValue(),
+                            "unit", unit);
                     viewer.sendMessage(line);
                 }
 
@@ -429,13 +424,10 @@ public class StatsCommand {
                 for (int i = start; i < end; i++) {
                     Map.Entry<String, Integer> entry = sortedBroken.get(i);
                     String blockName = entry.getKey().substring("block_broken_".length());
-                    Component line = Component.text()
-                            .append(Component.text("  ⛏ ", NamedTextColor.GOLD))
-                            .append(Component.text(prettify(blockName), NamedTextColor.YELLOW))
-                            .append(Component.text(" — ", NamedTextColor.GRAY))
-                            .append(Component.text(entry.getValue() + " шт",
-                                    NamedTextColor.WHITE))
-                            .build();
+                    Component line = lang.getComponent(viewer, "stats.block-broken-entry",
+                            "name", prettify(blockName),
+                            "count", entry.getValue(),
+                            "unit", unit);
                     viewer.sendMessage(line);
                 }
 
@@ -458,8 +450,9 @@ public class StatsCommand {
         if (currentPage > 0) {
             nav.append(Component.text("◀ ", NamedTextColor.GREEN)
                     .clickEvent(ClickEvent.runCommand(baseCommand + " " + (currentPage - 1)))
-                    .hoverEvent(HoverEvent.showText(Component.text(
-                            "§7Страница " + currentPage))));
+                    .hoverEvent(HoverEvent.showText(
+                            lang.getComponent(viewer, "stats.pagination-prev-hover",
+                                    "page", currentPage))));
         } else {
             nav.append(Component.text("◀ ", NamedTextColor.DARK_GRAY));
         }
@@ -472,8 +465,9 @@ public class StatsCommand {
         if (currentPage < totalPages - 1) {
             nav.append(Component.text("▶", NamedTextColor.GREEN)
                     .clickEvent(ClickEvent.runCommand(baseCommand + " " + (currentPage + 1)))
-                    .hoverEvent(HoverEvent.showText(Component.text(
-                            "§7Страница " + (currentPage + 2)))));
+                    .hoverEvent(HoverEvent.showText(
+                            lang.getComponent(viewer, "stats.pagination-next-hover",
+                                    "page", currentPage + 2))));
         } else {
             nav.append(Component.text("▶", NamedTextColor.DARK_GRAY));
         }
@@ -537,7 +531,7 @@ public class StatsCommand {
                 "total-bosses", totalBossesKilled);
         sendSparkline(player, playerId, "mobs_killed");
 
-        // Время — теперь String
+        // Время
         sendStatLine(player, "stats.time", "time",
                 "time", localTime,
                 "total-time", totalTime);
@@ -667,18 +661,29 @@ public class StatsCommand {
         };
     }
 
-
     private String formatKD(int kills, int deaths) {
         if (deaths == 0) return kills > 0 ? "∞" : "0.00";
         return String.format("%.2f", (double) kills / deaths);
     }
 
-    private String pluralize(Player viewer, int count, String one, String few, String many) {
+    /**
+     * Склонение по числу — из lang.yml (time.times.*).
+     * one / few / many — 3 формы для языков со склонениями.
+     * Для en/zh — все три ключа одинаковы.
+     */
+    private String pluralize(Player viewer, int count) {
         int mod10 = count % 10;
         int mod100 = count % 100;
-        if (mod10 == 1 && mod100 != 11) return lang.getRaw(viewer, "time." + one);
-        if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return lang.getRaw(viewer, "time." + few);
-        return lang.getRaw(viewer, "time." + many);
+
+        String key;
+        if (mod10 == 1 && mod100 != 11) {
+            key = "time.times.one";
+        } else if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) {
+            key = "time.times.few";
+        } else {
+            key = "time.times.many";
+        }
+        return lang.getRaw(viewer, key);
     }
 
     private String resolvePlayerName(String uuidStr) {

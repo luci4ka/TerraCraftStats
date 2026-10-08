@@ -30,6 +30,9 @@ commands:
     serverstats: "Сервер статистикасы"
     exclude: "Алып тастауды басқару"
     playerstats: "PlayerStats плагинін басқару"
+    hologram: "Голограммаларды басқару"
+    backup: "Дерекқор сақтық көшірмелерін басқару"
+    rollback: "Статистиканы қайтару"
 
 
 # =========================================================================
@@ -45,10 +48,25 @@ snapshot:
 #                    Holograms
 # =========================================================================
 holograms:
+  # Басқару
   created: "<green>✅ Голограмма жасалды: <white>{stat}"
-  removed: "<green>✅ Голограмма жойылды: <white>{stat}"
+  removed: "<green>✅ Голограмма жойылды: <white>{name}"
   list-empty: "<yellow>Белсенді голограммалар жоқ."
   list-header: "<green>Белсенді голограммалар: <white>{list}"
+  reloaded: "<green>✅ Голограммалар қайта жүктелді."
+  module-disabled: "<red>'holograms' модулі config.yml-де өшірілген."
+
+  # Стат атаулары (defaultTitle үшін)
+  stats:
+    play_time: "Ойын уақыты"
+    kills: "Өлтірулер"
+    mobs_killed: "Мобтар"
+    bosses_killed: "Босстар"
+    blocks_placed: "Қойылған блоктар"
+    blocks_broken: "Сындырылған блоктар"
+    balance: "Баланс"
+    deaths: "Өлімдер"
+    killstreak: "Өлтіру сериясы"
 
 
 # =========================================================================
@@ -202,6 +220,30 @@ achievements:
   status-locked: "<red>✗ Ашылмады"
   date: "<dark_gray>  {date}"
 
+  # ===== Жолдар =====
+  category: "<dark_gray>▸ <gray>Санат: <yellow>{category}"
+  progress: "<dark_gray>▸ <gray>Прогресс: {color}{current}<gray>/<white>{required} <dark_gray>(<yellow>{percent}%<dark_gray>)"
+  progress-bar: "<dark_gray>  {bar}"
+  requires: "<dark_gray>▸ <gray>Қажет: <white>{stat} <dark_gray>(<white>{required}<dark_gray>)"
+
+  # ===== Уақытша жетістіктер =====
+  reset:
+    label: "<dark_gray>▸ <gray>Қайтару: <yellow>{period}"
+    reward-repeatable: "<dark_gray>▸ <gray>Сыйлық: <green>қайталанатын"
+    reward-once: "<dark_gray>▸ <gray>Сыйлық: <red>бір реттік"
+    in: "<dark_gray>▸ <gray>Келесі қайтару: <white>{time} ішінде"
+    ready: "<dark_gray>▸ <gray>Келесі қайтару: <green>дайын"
+    not-started: "<dark_gray>▸ <gray>Келесі қайтару: <dark_gray>басталмаған"
+
+    # Кезең атаулары (кілт = ac.reset())
+    daily: "күнделікті"
+    weekly: "апталық"
+    monthly: "айлық"
+
+  # ===== Батырмалар =====
+  back: "<yellow>◀ Артқа"
+  back-hover: "<gray>Статистикаға оралу"
+
   # ===== Қателер =====
   error-loading: "<red>Жетістіктерді жүктеу қатесі."
 
@@ -211,21 +253,12 @@ achievements:
   # ===== Сипаттама түсі (міндетті емес) =====
   description-color: "<gray>"
 
-  # ===== Жолдар =====
-  category: "<dark_gray>▸ <gray>Санат: <yellow>{category}"
-  progress: "<dark_gray>▸ <gray>Прогресс: {color}{current}<gray>/<white>{required}"
-  progress-bar: "<dark_gray>  {bar}"
-  requires: "<dark_gray>▸ <gray>Қажет: <white>{stat} <dark_gray>(<white>{required}<dark_gray>)"
-
-  # ===== Батырмалар =====
-  back: "<yellow>◀ Артқа"
-  back-hover: "<gray>Статистикаға оралу"
-
   # ===== Хабарламалар =====
   messages:
     unlock-self: "<gold>🏆 <yellow>Жетістік алынды: <white>{name}"
     unlock-description: "<gray>   {description}"
     unlock-broadcast: "<gold>🏆 <yellow>{player} <gray>жетістік алды <white>{name}<gray>!"
+    reset: "<gray>⏳ <white>{name}</white> жетістігі қайтарылды — қайта алуға болады."
 
   # ===== Санаттар =====
   categories:
@@ -573,11 +606,16 @@ stats:
   pvp-header: "<gray>Өлтірілген ойыншылар: <white>{count}"
   pvp-empty: "<gray>PvP туралы деректер жоқ."
 
+  # ===== PvP тізімі =====
+  pvp-entry: "<red>  ☠ <yellow>{player} <gray>— <white>{count} {times}"
+  pvp-entry-hover: "<gray>Статистиканы қарау үшін басыңыз <white>{player}\n<gray>UUID: <dark_gray>{uuid}"
+
   # ===== Қосымша команда: Mob =====
   mob-title-self: "<yellow>☠ <white>Сіздің PvE-статистикаңыз <gray>| <green>Мобтар: <white>{mobs} <gray>| <gold>Босстар: <white>{bosses}"
   mob-title-other: "<yellow>☠ <white><yellow>{player} <white>PvE-статистикасы <gray>| <green>Мобтар: <white>{mobs} <gray>| <gold>Босстар: <white>{bosses}"
   mob-header: "<gray>Өлтірілген моб түрлері: <white>{count}"
   mob-empty: "<gray>Мобтар туралы деректер жоқ."
+  mob-entry: "<dark_red>  ☠ <yellow>{name} <gray>— <white>{count} {unit}"
 
   # ===== Қосымша команда: Block =====
   block-title-self: "<yellow>🧱 <white>Сіздің блок статистикаңыз <gray>| <green>Қойылды: <white>{placed} <gray>| <red>Сындырылды: <white>{broken}"
@@ -585,6 +623,17 @@ stats:
   block-placed-header: "<green>🏗 Қойылды (<white>{count}<green> түр):"
   block-broken-header: "<gold>⛏ Сындырылды (<white>{count}<gold> түр):"
   block-empty: "<gray>Деректер жоқ."
+
+  # ===== Блоктар тізімі =====
+  block-placed-entry: "<green>  🏗 <yellow>{name} <gray>— <white>{count} {unit}"
+  block-broken-entry: "<gold>  ⛏ <yellow>{name} <gray>— <white>{count} {unit}"
+
+  # ===== Өлшем бірлігі =====
+  unit-pieces: "дана"
+
+  # ===== Беттеу =====
+  pagination-prev-hover: "<gray>Бет {page}"
+  pagination-next-hover: "<gray>Бет {page}"
 
   # ===== Ескі кілттер (fallback) =====
   mobs-header: "<gold>▸ Моб өлтірулері:"
@@ -621,6 +670,7 @@ serverstats:
   stat-blocks-placed-hover: "<gray>Жалпы қойылған блоктар"
   stat-blocks-broken-hover: "<gray>Жалпы сындырылған блоктар"
   stat-balance-hover: "<gray>Барлық ойыншылардың жалпы балансы"
+  click-hint: "<dark_gray>Қарау үшін басыңыз /top {stat}"
 
 
 # =========================================================================
@@ -649,6 +699,27 @@ top:
   refresh: "<gray>[Жаңарту]"
   refresh-hover: "<gray>Топты жаңарту үшін басыңыз"
 
+  # ===== Hover жазбасы =====
+  entry-hover: "<gray>Ойыншы: <white>{player}\n<gray>Орын: <yellow>#{rank}\n<gray>Мән: <white>{value}\n<dark_gray>Қарау үшін басыңыз"
+
+  # ===== Префикстер (stat түрі бойынша) =====
+  stat-prefixes:
+    pvp_kill: "Өлтірулер: {name}"
+    mob_killed: "Өлтірулер: {name}"
+    block_placed: "Қойылды: {name}"
+    block_broken: "Сындырылды: {name}"
+
+  # ===== Стат атаулары =====
+  stats:
+    mobs_killed: "Өлтірілген мобтар"
+    bosses_killed: "Өлтірілген босстар"
+    kills: "Ойыншы өлтірулері"
+    deaths: "Өлімдер"
+    play_time: "Ойын уақыты"
+    blocks_placed: "Қойылған блоктар"
+    blocks_broken: "Сындырылған блоктар"
+    balance: "Баланс"
+
 
 # =========================================================================
 #                    /compare — салыстыру
@@ -657,6 +728,10 @@ compare:
   self: "<red>Өзіңізбен статистиканы салыстыруға болмайды."
   header: "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   title: "<gold>📊 Салыстыру: <yellow>{player1}</yellow> <gray>vs</gray> <yellow>{player2}</yellow>"
+
+  # ===== Ойыншы батырмасы =====
+  button: "<aqua>[👤 {player}]</aqua>"
+  button-hover: "<gray>Статистиканы ашу <white>{player}"
 
   # ===== Жеңімпаз =====
   winner: "   <yellow>🏆 Жеңімпаз: <gold>{winner}</gold> <gray>({wins1} : {wins2})"
@@ -675,10 +750,6 @@ compare:
   hover-value-2: "<gray>Мән 2: <white>{value}"
   hover-diff: "<gray>Айырма: <white>{diff}"
 
-  # ===== Батырмалар =====
-  buttons: "   <aqua>[👤 {player1}]</aqua> <aqua>[👤 {player2}]</aqua>"
-  button-hover: "<gray>Статистиканы ашу <white>{player}"
-
 
 # =========================================================================
 #                    /share — бөлісу
@@ -686,14 +757,21 @@ compare:
 share:
   self: "<red>Өзіңізбен статистиканы бөлісуге болмайды. /stats қолданыңыз."
 
+  # ===== Broadcast =====
   broadcast: "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n<gold>📊 <yellow>{chips}{player}</yellow> статистикасымен бөлісті!\n<gray>Сервер: <aqua>{server}</aqua> <gray>| Топ: <light_purple>{group}"
-  broadcast-hover: "<gray>Статистиканы ашу үшін басыңыз"
+  broadcast-hover: "<gray>Статистиканы ашу үшін басыңыз\n<gray>Ойыншы: <white>{player}\n<gray>Сервер: <white>{server}\n<gray>Топ: {group}\n<gray>K/D: <white>{kd}"
 
   stats: "\n<green>⏳ Уақыт: <white>{time} <gray>(барлығы: {total-time})\n<green>☠ PvE: <white>Мобтар {mobs} | Босстар {bosses} <gray>(барлық мобтар: {total-mobs})\n<green>⛏ Блоктар: <white>Қойылды {blocks}\n<green>⚔ PvP: <white>Өлтірулер {kills} | Өлімдер {deaths} <gray>| K/D: {kd}\n<green>💰 Баланс: <gold>{balance}\n<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
+  # ===== Private =====
   private-sender: "<green>Сіз статистикаңызды <yellow>{target}</yellow> ойыншысымен бөлістіңіз"
   private-target: "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n<gold>📊 <yellow>{chips}{player}</yellow> сізбен статистикасымен бөлісті:\n<gray>Сервер: <aqua>{server}</aqua> <gray>| Топ: <light_purple>{group}\n<green>⏳ Уақыт: <white>{time} <gray>(барлығы: {total-time})\n<green>☠ PvE: <white>Мобтар {mobs} | Босстар {bosses}\n<green>⚔ PvP: <white>Өлтірулер {kills} | Өлімдер {deaths} <gray>| K/D: {kd}\n<green>💰 Баланс: <gold>{balance}\n<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-  private-hover: "<gray>Статистиканы ашу үшін басыңыз {player}"
+  private-hover: "<gray>Статистиканы ашу үшін басыңыз\n<gray>Ойыншы: <white>{player}\n<gray>K/D: <white>{kd}"
+
+  # ===== K/D =====
+  kd-infinite: "∞"
+  kd-zero: "0.00"
+  kd-format: "%.2f"
 
 
 # =========================================================================
@@ -766,10 +844,24 @@ reload:
   info-multi: "<gray>   🌍 Көпсерверлік: {status}"
   info-api: "<gray>   📡 HTTP API: {status}"
   info-api-host: " <gray>(<white>{host}<gray>)"
+  info-api-host-hover: "<gray>Хост: <white>{host}\n<dark_gray>Көшіру үшін басыңыз"
 
   # ===== Нәтиже =====
   success: "<green>✅ Қайта жүктеу <white>{time} мс ішінде аяқталды"
   error: "<red>❌ Қайта жүктеу қатесі! Консольді тексеріңіз."
+
+
+# =========================================================================
+#                    /playerstats update
+# =========================================================================
+update:
+  header: "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  available: "<gold>📢 Жаңарту қолжетімді!"
+  current: "<gray>  Ағымдағы: <white>v{current}"
+  latest: "<gray>  Жаңа: <green>v{latest}"
+  download: "<gray>  Жүктеу: <aqua>{url}"
+  up-to-date: "<green>✅ Плагин өзекті (v{version})"
+  not-initialized: "<red>UpdateChecker іске қосылмаған."
 
 
 # =========================================================================
@@ -796,20 +888,41 @@ info:
   # ===== API =====
   api: "<gray>   HTTP API: {status}"
   api-host: " <gray>(<white>{host}<gray>)"
-  hook-enabled-hover: "<green>✓ Интеграция белсенді\n<gray>Плагин: <white>{name}"
-  hook-disabled-hover: "<red>✗ Интеграция қолжетімсіз\n<gray>Плагин: <white>{name}\n<dark_gray>Жұмыс істеу үшін {name} орнатыңыз"
+  api-host-hover: "<gray>Хост: <white>{host}\n<dark_gray>Көшіру үшін басыңыз"
 
   # ===== Интеграциялар =====
   integrations: "<gray>   Интеграциялар:"
   hook-enabled: "<gray>   <green>✅ {name}"
   hook-disabled: "<gray>   <red>❌ {name}"
+  hook-enabled-hover: "<green>✓ Интеграция белсенді\n<gray>Плагин: <white>{name}"
+  hook-disabled-hover: "<red>✗ Интеграция қолжетімсіз\n<gray>Плагин: <white>{name}\n<dark_gray>Жұмыс істеу үшін {name} орнатыңыз"
 
   # ===== Параметрлер =====
   debug: "<gray>   Debug: {level}"
+  debug-off: "<red>Өшірулі"
+  debug-basic: "<yellow>Негізгі"
+  debug-detailed: "<green>Толық"
+  debug-unknown: "<gray>Белгісіз"
   multi: "<gray>   Көпсерверлік: {status}"
   top-chips: "<gray>   Top-chips: {status}"
   sparkline: "<gray>   Sparkline: {status}"
   pvp: "<gray>   PvP статистикасы: {status}"
+
+  # ===== Тақырып hover =====
+  title-hover: "<gray>Автор: <white>{authors}\n<gray>Нұсқа: <white>{version}\n<dark_gray>Paper үшін статистика плагині"
+
+
+# =========================================================================
+#                    /playerstats apikey
+# =========================================================================
+apikey:
+  header: "<dark_gray>━━━━━━━━━━ <gold>🔑 API Key</gold> ━━━━━━━━━━"
+  current: "<gray>Ағымдағы кілт: <white>{key}"
+  hint: "<dark_gray><white>X-API-Key</white> тақырыбында немесе <white>Authorization: Bearer <key> арқылы жіберіңіз"
+  regenerated: "<green>✅ Жаңа API кілті жасалды."
+  warning: "<red>Барлық қолданыстағы клиенттер қатынауды жоғалтады."
+  api-disabled: "<red>API сервері іске қосылмаған."
+  no-key: "<red>API кілті орнатылмаған (auto-generate-key: false)."
 
 
 # =========================================================================
@@ -828,18 +941,31 @@ help:
 
   # ===== Командалар =====
   commands-title: "<gold>Командалар:"
+
+  # Stats
   command-stats: "<yellow>   /stats <gray>— өз статистикаңыз"
   command-stats-other: "<yellow>   /stats <player> <gray>— ойыншы статистикасы"
   command-stats-gui: "<yellow>   /stats gui <gray>— GUI статистика"
   command-stats-pvp: "<yellow>   /stats pvp [player] <gray>— PvP статистикасы"
+  command-stats-rollback: "<yellow>   /stats rollback <player> <stat> <value> <gray>— статты қайтару"
+
+  # Tops
   command-top: "<yellow>   /top <gray>— сервер топтары"
   command-top-stat: "<yellow>   /top <stat> <gray>— статистика бойынша топ"
   command-top-pvp: "<yellow>   /top pvp <ник> <gray>— ойыншыны өлтірушілер тобы"
+
+  # Social
   command-share: "<yellow>   /share [player] <gray>— статистикамен бөлісу"
   command-compare: "<yellow>   /compare <player> <gray>— статистиканы салыстыру"
+
+  # Admin
   command-exclude: "<yellow>   /exclude <player> [remove|list] <gray>— алып тастау"
   command-reload: "<yellow>   /playerstats reload <gray>— қайта жүктеу"
+  command-snapshot: "<yellow>   /playerstats snapshot <gray>— снапшот жасау"
+  command-backup: "<yellow>   /playerstats backup [now|list|restore] <gray>— ДҚ сақтық көшірмелері"
+  command-hologram: "<yellow>   /playerstats hologram <gray>— голограммаларды басқару"
   command-info: "<yellow>   /playerstats info <gray>— плагин туралы ақпарат"
+  command-apikey: "<yellow>   /playerstats apikey [regenerate] <gray>— API кілті"
   command-update: "<yellow>   /playerstats update <gray>— жаңартуларды тексеру"
 
   # ===== Бос шығыс =====
@@ -850,6 +976,7 @@ help:
   hover-stats-gui: "<gray>Статистика GUI ашады\n<dark_gray>Мысал: <white>/stats gui"
   hover-stats-other: "<gray>Басқа ойыншының статистикасы\n<dark_gray>Мысал: <white>/stats Steve"
   hover-stats-pvp: "<gray>Өлтірілген ойыншылар тізімі (PvP)\n<dark_gray>Мысал: <white>/stats pvp Steve"
+  hover-stats-rollback: "<gray>Ойыншы статтын қайтару\n<dark_gray>Мысал: <white>/stats rollback Steve kills 0"
 
   hover-top: "<gray>Санаттар бойынша сервер топтары\n<dark_gray>Мысал: <white>/top"
   hover-top-stat: "<gray>Нақты статистика бойынша топ\n<dark_gray>Мысал: <white>/top kills"
@@ -860,7 +987,11 @@ help:
 
   hover-exclude: "<gray>Статистикадан алып тастауды басқару\n<dark_gray>Мысал: <white>/exclude Steve\n<dark_gray>Мысал: <white>/exclude list"
   hover-reload: "<gray>Конфиг пен кэштерді қайта жүктеу\n<dark_gray>Мысал: <white>/playerstats reload"
+  hover-snapshot: "<gray>Статистика снапшотын жасау\n<dark_gray>Мысал: <white>/playerstats snapshot"
+  hover-backup: "<gray>ДҚ сақтық көшірмелерін басқару\n<dark_gray>Мысал: <white>/playerstats backup now"
+  hover-hologram: "<gray>Голограммаларды басқару\n<dark_gray>Мысал: <white>/playerstats hologram list"
   hover-info: "<gray>Плагин және интеграциялар туралы ақпарат\n<dark_gray>Мысал: <white>/playerstats info"
+  hover-apikey: "<gray>API кілтін көру/қайта жасау\n<dark_gray>Мысал: <white>/playerstats apikey"
   hover-update: "<gray>Плагин жаңартуларын тексеру\n<dark_gray>Мысал: <white>/playerstats update"
 
   footer: "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -873,6 +1004,58 @@ currency:
   # Vault қосылмаған болса, fallback пішімі.
   # {value} — форматталған сан (мысалы, 1500.00)
   format: "{value}₸"
+
+
+# =========================================================================
+#                    Дерекқор сақтық көшірмесі
+# =========================================================================
+backup:
+  starting: "<yellow>📦 ДҚ сақтық көшірмесін жасау..."
+  done: "<green>✅ Сақтық көшірме жасалды."
+  error: "<red>❌ Сақтық көшірме қатесі. Консольді тексеріңіз."
+
+  usage: |-
+    <dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━
+    <gold>📦 Сақтық көшірмелерді басқару:
+    <yellow>/playerstats backup <gray>— қазір жасау
+    <yellow>/playerstats backup list <gray>— тізім
+    <yellow>/playerstats backup restore <file> <gray>— қалпына келтіру
+    <dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  list-empty: "<yellow>Сақталған сақтық көшірмелер жоқ."
+  list-header: "<gold>📦 Сақтық көшірмелер (<white>{count}<gold>):"
+  list-entry: "<gray>  • <white>{file} <dark_gray>({size})"
+
+  restore-usage: "<red>Қолдану: <yellow>/playerstats backup restore <file>"
+  restore-starting: "<yellow>⏳ <white>{file}</white> ішінен қалпына келтіру..."
+  restore-done: "<green>✅ ДҚ <white>{file}</white> ішінен қалпына келтірілді. <red>Серверді қайта іске қосыңыз!"
+  restore-error: "<red>❌ <white>{file}</white> ішінен қалпына келтіру мүмкін болмады."
+  module-disabled: "<red>'backup' модулі config.yml-де өшірілген."
+
+
+# =========================================================================
+#                    Статистиканы қайтару
+# =========================================================================
+rollback:
+  usage: |-
+    <dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━
+    <gold>🔄 Статистиканы қайтару:
+    <yellow>/stats rollback <player> <stat> <value> <gray>— мәнді орнату
+    <yellow>/stats rollback <player> --all <value> <gray>— бәрін нөлдеу
+    <yellow>/stats rollback <player> --from <date> <stat> <gray>— күннен қайтару
+    <dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  done: "<green>✅ <white>{player}</white>: <yellow>{stat}</yellow> = <white>{value}"
+  done-all: "<green>✅ <white>{player}</white>: барлық статтар нөлденді (<white>{count}</white> жазба)"
+  done-from: "<green>✅ <white>{player}</white>: <yellow>{stat}</yellow> <white>{delta}</white> мәніне қайтарылды → <white>{value}"
+
+  notify: "<red>⚠ Сіздің <yellow>{stat}</yellow> статыңыз әкімшімен өзгертілді: <white>{value}"
+  notify-all: "<red>⚠ Сіздің статтарыңыз әкімшімен нөлденді (мән: <white>{value}<red>)"
+
+  never-played: "<red>Ойыншы <yellow>{player}</yellow> серверде ешқашан ойнамаған."
+  invalid-value: "<red>Қате мән: <white>{value}"
+  invalid-date: "<red>Қате күн: <white>{date}"
+  error: "<red>❌ Қайтару қатесі. Консольді тексеріңіз."
 
 
 # =========================================================================
@@ -890,3 +1073,7 @@ time:
   seconds: "{seconds}с"
   minutes: "{minutes}м"
   hours: "{hours}с {minutes}м"
+  times:
+    one: "рет"
+    few: "рет"
+    many: "рет"

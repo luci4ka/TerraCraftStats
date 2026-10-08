@@ -12,6 +12,8 @@ import org.bukkit.entity.Player;
 
 public class InfoCommand {
 
+    private static final int TOTAL_HOOKS = 6;
+
     private final Main plugin;
     private final ConfigHandler config;
     private final LanguageManager lang;
@@ -36,11 +38,10 @@ public class InfoCommand {
 
         String authors = String.join(", ", plugin.getPluginMeta().getAuthors());
 
-        // Hover — на языке отправителя
-        Component hoverText = getComponentFromString(sender,
-                "<gray>Автор: <white>" + authors + "\n" +
-                        "<gray>Версия: <white>" + plugin.getPluginMeta().getVersion() + "\n" +
-                        "<dark_gray>Плагин статистики для Paper");
+        // Hover — из lang.yml
+        Component hoverText = getComponent(sender, "info.title-hover",
+                "authors", authors,
+                "version", plugin.getPluginMeta().getVersion());
 
         title = title.hoverEvent(HoverEvent.showText(hoverText));
         sender.sendMessage(title);
@@ -82,9 +83,9 @@ public class InfoCommand {
         if (apiRunning) {
             String host = config.getApiHost() + ":" + config.getApiPort();
 
-            Component hostHover = getComponentFromString(sender,
-                    "<gray>Хост: <white>" + host + "\n" +
-                            "<dark_gray>Нажмите, чтобы скопировать");
+            // Hover — из lang.yml
+            Component hostHover = getComponent(sender, "info.api-host-hover",
+                    "host", host);
 
             Component hostComponent = getComponent(sender, "info.api-host", "host", host)
                     .clickEvent(ClickEvent.copyToClipboard(host))
@@ -95,12 +96,11 @@ public class InfoCommand {
 
         // ==================== ИНТЕГРАЦИИ ====================
         if (plugin.getHooksManager() != null) {
-            int total = 6;
             int active = countActiveHooks();
 
             sender.sendMessage(getComponent(sender, "info.section-hooks",
                     "active", active,
-                    "total", total));
+                    "total", TOTAL_HOOKS));
 
             logHook(sender, "LuckPerms",
                     plugin.getHooksManager().getLuckPermsHook() != null
@@ -125,13 +125,13 @@ public class InfoCommand {
         // ==================== НАСТРОЙКИ ====================
         sender.sendMessage(getComponent(sender, "info.section-settings"));
 
-        // Debug
+        // Debug — из lang.yml
         int debugLevel = config.getDebugLevel();
         String debugText = switch (debugLevel) {
-            case 0 -> "<red>Выкл";
-            case 1 -> "<yellow>Базовый";
-            case 2 -> "<green>Детальный";
-            default -> "<gray>Неизвестно";
+            case 0 -> getRaw(sender, "info.debug-off");
+            case 1 -> getRaw(sender, "info.debug-basic");
+            case 2 -> getRaw(sender, "info.debug-detailed");
+            default -> getRaw(sender, "info.debug-unknown");
         };
         sender.sendMessage(getComponent(sender, "info.debug",
                 "level", debugText + " <gray>(" + debugLevel + ")"));
@@ -185,13 +185,12 @@ public class InfoCommand {
                 enabled ? "info.hook-enabled" : "info.hook-disabled",
                 "name", name);
 
-        // Hover — на языке отправителя
-        String hoverText = enabled
-                ? getRaw(sender, "info.hook-enabled-hover").replace("{name}", name)
-                : getRaw(sender, "info.hook-disabled-hover").replace("{name}", name);
+        // Hover — из lang.yml
+        Component hoverText = getComponent(sender,
+                enabled ? "info.hook-enabled-hover" : "info.hook-disabled-hover",
+                "name", name);
 
-        line = line.hoverEvent(HoverEvent.showText(
-                getComponentFromString(sender, hoverText)));
+        line = line.hoverEvent(HoverEvent.showText(hoverText));
 
         sender.sendMessage(line);
     }
@@ -210,9 +209,5 @@ public class InfoCommand {
             return lang.getRaw(player, key);
         }
         return lang.getRaw(key);
-    }
-
-    private Component getComponentFromString(CommandSender sender, String message, Object... replacements) {
-        return lang.getComponentFromString(message, replacements);
     }
 }

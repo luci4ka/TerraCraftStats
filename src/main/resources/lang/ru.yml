@@ -30,6 +30,9 @@ commands:
     serverstats: "Статистика сервера"
     exclude: "Управление исключениями"
     playerstats: "Управление плагином PlayerStats"
+    hologram: "Управление голограммами"
+    backup: "Управление бэкапами БД"
+    rollback: "Откат статистики"
 
 
 # =========================================================================
@@ -45,10 +48,25 @@ snapshot:
 #                    Holograms
 # =========================================================================
 holograms:
+  # Управление
   created: "<green>✅ Голограмма создана: <white>{stat}"
-  removed: "<green>✅ Голограмма удалена: <white>{stat}"
+  removed: "<green>✅ Голограмма удалена: <white>{name}"
   list-empty: "<yellow>Нет активных голограмм."
   list-header: "<green>Активные голограммы: <white>{list}"
+  reloaded: "<green>✅ Голограммы перезагружены."
+  module-disabled: "<red>Модуль 'holograms' выключен в config.yml."
+
+  # Названия статов (для defaultTitle)
+  stats:
+    play_time: "Время игры"
+    kills: "Убийства"
+    mobs_killed: "Мобы"
+    bosses_killed: "Боссы"
+    blocks_placed: "Поставлено блоков"
+    blocks_broken: "Сломано блоков"
+    balance: "Баланс"
+    deaths: "Смерти"
+    killstreak: "Серия убийств"
 
 
 # =========================================================================
@@ -202,30 +220,45 @@ achievements:
   status-locked: "<red>✗ Не разблокировано"
   date: "<dark_gray>  {date}"
 
+  # ===== Строки =====
+  category: "<dark_gray>▸ <gray>Категория: <yellow>{category}"
+  progress: "<dark_gray>▸ <gray>Прогресс: {color}{current}<gray>/<white>{required} <dark_gray>(<yellow>{percent}%<dark_gray>)"
+  progress-bar: "<dark_gray>  {bar}"
+  requires: "<dark_gray>▸ <gray>Требуется: <white>{stat} <dark_gray>(<white>{required}<dark_gray>)"
+
+  # ===== Временные достижения =====
+  reset:
+    label: "<dark_gray>▸ <gray>Сброс: <yellow>{period}"
+    reward-repeatable: "<dark_gray>▸ <gray>Награда: <green>повторяемая"
+    reward-once: "<dark_gray>▸ <gray>Награда: <red>одноразовая"
+    in: "<dark_gray>▸ <gray>Следующий сброс: <white>через {time}"
+    ready: "<dark_gray>▸ <gray>Следующий сброс: <green>готово"
+    not-started: "<dark_gray>▸ <gray>Следующий сброс: <dark_gray>ещё не начат"
+
+    # Названия периодов (ключ = ac.reset())
+    daily: "ежедневно"
+    weekly: "еженедельно"
+    monthly: "ежемесячно"
+
+  # ===== Кнопки =====
+  back: "<yellow>◀ Назад"
+  back-hover: "<gray>Вернуться к статистике"
+
   # ===== Ошибки =====
   error-loading: "<red>Ошибка загрузки достижений."
 
   # ===== Формат даты (Java SimpleDateFormat) =====
   date-format: "dd.MM.yyyy HH:mm"
 
-  # ===== Цвет описания (опционально) =====
+  # ===== Цвет описания =====
   description-color: "<gray>"
-
-  # ===== Строки =====
-  category: "<dark_gray>▸ <gray>Категория: <yellow>{category}"
-  progress: "<dark_gray>▸ <gray>Прогресс: {color}{current}<gray>/<white>{required}"
-  progress-bar: "<dark_gray>  {bar}"
-  requires: "<dark_gray>▸ <gray>Требуется: <white>{stat} <dark_gray>(<white>{required}<dark_gray>)"
-
-  # ===== Кнопки =====
-  back: "<yellow>◀ Назад"
-  back-hover: "<gray>Вернуться к статистике"
 
   # ===== Сообщения =====
   messages:
     unlock-self: "<gold>🏆 <yellow>Достижение получено: <white>{name}"
     unlock-description: "<gray>   {description}"
     unlock-broadcast: "<gold>🏆 <yellow>{player} <gray>получил достижение <white>{name}<gray>!"
+    reset: "<gray>⏳ Достижение <white>{name}</white> сброшено — можно получить заново."
 
   # ===== Категории =====
   categories:
@@ -573,11 +606,16 @@ stats:
   pvp-header: "<gray>Убито игроков: <white>{count}"
   pvp-empty: "<gray>Нет данных о PvP."
 
+  # ===== Список PvP =====
+  pvp-entry: "<red>  ☠ <yellow>{player} <gray>— <white>{count} {times}"
+  pvp-entry-hover: "<gray>Нажмите, чтобы посмотреть статистику <white>{player}\n<gray>UUID: <dark_gray>{uuid}"
+
   # ===== Подкоманда: Mob =====
   mob-title-self: "<yellow>☠ <white>Ваша PvE-статистика <gray>| <green>Мобов: <white>{mobs} <gray>| <gold>Боссов: <white>{bosses}"
   mob-title-other: "<yellow>☠ <white>PvE-статистика <yellow>{player} <gray>| <green>Мобов: <white>{mobs} <gray>| <gold>Боссов: <white>{bosses}"
   mob-header: "<gray>Убито типов мобов: <white>{count}"
   mob-empty: "<gray>Нет данных о мобах."
+  mob-entry: "<dark_red>  ☠ <yellow>{name} <gray>— <white>{count} {unit}"
 
   # ===== Подкоманда: Block =====
   block-title-self: "<yellow>🧱 <white>Ваша статистика блоков <gray>| <green>Поставлено: <white>{placed} <gray>| <red>Сломано: <white>{broken}"
@@ -585,6 +623,17 @@ stats:
   block-placed-header: "<green>🏗 Поставлено (<white>{count}<green> типов):"
   block-broken-header: "<gold>⛏ Сломано (<white>{count}<gold> типов):"
   block-empty: "<gray>Нет данных."
+
+  # ===== Список блоков =====
+  block-placed-entry: "<green>  🏗 <yellow>{name} <gray>— <white>{count} {unit}"
+  block-broken-entry: "<gold>  ⛏ <yellow>{name} <gray>— <white>{count} {unit}"
+
+  # ===== Единица измерения =====
+  unit-pieces: "шт"
+
+  # ===== Пагинация =====
+  pagination-prev-hover: "<gray>Страница {page}"
+  pagination-next-hover: "<gray>Страница {page}"
 
   # ===== Старые ключи (fallback) =====
   mobs-header: "<gold>▸ Убийства мобов:"
@@ -621,6 +670,7 @@ serverstats:
   stat-blocks-placed-hover: "<gray>Суммарно поставлено блоков"
   stat-blocks-broken-hover: "<gray>Суммарно сломано блоков"
   stat-balance-hover: "<gray>Суммарный баланс всех игроков"
+  click-hint: "<dark_gray>Нажмите для просмотра /top {stat}"
 
 
 # =========================================================================
@@ -649,6 +699,27 @@ top:
   refresh: "<gray>[Обновить]"
   refresh-hover: "<gray>Нажмите, чтобы обновить топ"
 
+  # ===== Hover записи топа =====
+  entry-hover: "<gray>Игрок: <white>{player}\n<gray>Место: <yellow>#{rank}\n<gray>Значение: <white>{value}\n<dark_gray>Нажмите для просмотра"
+
+  # ===== Префиксы (по типу stat) =====
+  stat-prefixes:
+    pvp_kill: "Убийства: {name}"
+    mob_killed: "Убийства: {name}"
+    block_placed: "Поставлено: {name}"
+    block_broken: "Сломано: {name}"
+
+  # ===== Названия статов =====
+  stats:
+    mobs_killed: "Убито мобов"
+    bosses_killed: "Убито боссов"
+    kills: "Убийства игроков"
+    deaths: "Смерти"
+    play_time: "Время игры"
+    blocks_placed: "Поставлено блоков"
+    blocks_broken: "Сломано блоков"
+    balance: "Баланс"
+
 
 # =========================================================================
 #                    /compare — сравнение
@@ -657,6 +728,10 @@ compare:
   self: "<red>Нельзя сравнить статистику с самим собой."
   header: "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   title: "<gold>📊 Сравнение: <yellow>{player1}</yellow> <gray>vs</gray> <yellow>{player2}</yellow>"
+
+  # ===== Кнопка игрока =====
+  button: "<aqua>[👤 {player}]</aqua>"
+  button-hover: "<gray>Открыть статистику <white>{player}"
 
   # ===== Победитель =====
   winner: "   <yellow>🏆 Победитель: <gold>{winner}</gold> <gray>({wins1} : {wins2})"
@@ -675,10 +750,6 @@ compare:
   hover-value-2: "<gray>Значение 2: <white>{value}"
   hover-diff: "<gray>Разница: <white>{diff}"
 
-  # ===== Кнопки =====
-  buttons: "   <aqua>[👤 {player1}]</aqua> <aqua>[👤 {player2}]</aqua>"
-  button-hover: "<gray>Открыть статистику <white>{player}"
-
 
 # =========================================================================
 #                    /share — поделиться
@@ -686,14 +757,21 @@ compare:
 share:
   self: "<red>Нельзя поделиться статистикой с самим собой. Используйте /stats."
 
+  # ===== Broadcast =====
   broadcast: "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n<gold>📊 <yellow>{chips}{player}</yellow> поделился статистикой!\n<gray>Сервер: <aqua>{server}</aqua> <gray>| Группа: <light_purple>{group}"
-  broadcast-hover: "<gray>Нажмите, чтобы открыть статистику"
+  broadcast-hover: "<gray>Нажмите, чтобы открыть статистику\n<gray>Игрок: <white>{player}\n<gray>Сервер: <white>{server}\n<gray>Группа: {group}\n<gray>K/D: <white>{kd}"
 
   stats: "\n<green>⏳ Время: <white>{time} <gray>(всего: {total-time})\n<green>☠ PvE: <white>Мобы {mobs} | Боссы {bosses} <gray>(всего мобов: {total-mobs})\n<green>⛏ Блоки: <white>Поставлено {blocks}\n<green>⚔ PvP: <white>Убийств {kills} | Смертей {deaths} <gray>| K/D: {kd}\n<green>💰 Баланс: <gold>{balance}\n<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
+  # ===== Private =====
   private-sender: "<green>Вы поделились статистикой с <yellow>{target}</yellow>"
   private-target: "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n<gold>📊 <yellow>{chips}{player}</yellow> поделился с вами статистикой:\n<gray>Сервер: <aqua>{server}</aqua> <gray>| Группа: <light_purple>{group}\n<green>⏳ Время: <white>{time} <gray>(всего: {total-time})\n<green>☠ PvE: <white>Мобы {mobs} | Боссы {bosses}\n<green>⚔ PvP: <white>Убийств {kills} | Смертей {deaths} <gray>| K/D: {kd}\n<green>💰 Баланс: <gold>{balance}\n<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-  private-hover: "<gray>Нажмите, чтобы открыть статистику {player}"
+  private-hover: "<gray>Нажмите, чтобы открыть статистику\n<gray>Игрок: <white>{player}\n<gray>K/D: <white>{kd}"
+
+  # ===== K/D =====
+  kd-infinite: "∞"
+  kd-zero: "0.00"
+  kd-format: "%.2f"
 
 
 # =========================================================================
@@ -766,10 +844,24 @@ reload:
   info-multi: "<gray>   🌍 Мультисерверность: {status}"
   info-api: "<gray>   📡 HTTP API: {status}"
   info-api-host: " <gray>(<white>{host}<gray>)"
+  info-api-host-hover: "<gray>Хост: <white>{host}\n<dark_gray>Нажмите, чтобы скопировать"
 
   # ===== Результат =====
   success: "<green>✅ Перезагрузка завершена за <white>{time} мс"
   error: "<red>❌ Ошибка при перезагрузке! Проверьте консоль."
+
+
+# =========================================================================
+#                    /playerstats update
+# =========================================================================
+update:
+  header: "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  available: "<gold>📢 Доступно обновление!"
+  current: "<gray>  Текущая: <white>v{current}"
+  latest: "<gray>  Новая: <green>v{latest}"
+  download: "<gray>  Скачать: <aqua>{url}"
+  up-to-date: "<green>✅ Плагин актуален (v{version})"
+  not-initialized: "<red>UpdateChecker не инициализирован."
 
 
 # =========================================================================
@@ -796,20 +888,41 @@ info:
   # ===== API =====
   api: "<gray>   HTTP API: {status}"
   api-host: " <gray>(<white>{host}<gray>)"
-  hook-enabled-hover: "<green>✓ Интеграция активна\n<gray>Плагин: <white>{name}"
-  hook-disabled-hover: "<red>✗ Интеграция недоступна\n<gray>Плагин: <white>{name}\n<dark_gray>Установите {name} для работы"
+  api-host-hover: "<gray>Хост: <white>{host}\n<dark_gray>Нажмите, чтобы скопировать"
 
   # ===== Интеграции =====
   integrations: "<gray>   Интеграции:"
   hook-enabled: "<gray>   <green>✅ {name}"
   hook-disabled: "<gray>   <red>❌ {name}"
+  hook-enabled-hover: "<green>✓ Интеграция активна\n<gray>Плагин: <white>{name}"
+  hook-disabled-hover: "<red>✗ Интеграция недоступна\n<gray>Плагин: <white>{name}\n<dark_gray>Установите {name} для работы"
 
   # ===== Настройки =====
   debug: "<gray>   Debug: {level}"
+  debug-off: "<red>Выкл"
+  debug-basic: "<yellow>Базовый"
+  debug-detailed: "<green>Детальный"
+  debug-unknown: "<gray>Неизвестно"
   multi: "<gray>   Мультисерверность: {status}"
   top-chips: "<gray>   Top-chips: {status}"
   sparkline: "<gray>   Sparkline: {status}"
   pvp: "<gray>   PvP-статистика: {status}"
+
+  # ===== Hover заголовка =====
+  title-hover: "<gray>Автор: <white>{authors}\n<gray>Версия: <white>{version}\n<dark_gray>Плагин статистики для Paper"
+
+
+# =========================================================================
+#                    /playerstats apikey
+# =========================================================================
+apikey:
+  header: "<dark_gray>━━━━━━━━━━ <gold>🔑 API Key</gold> ━━━━━━━━━━"
+  current: "<gray>Текущий ключ: <white>{key}"
+  hint: "<dark_gray>Передавайте в заголовке <white>X-API-Key</white> или <white>Authorization: Bearer <key>"
+  regenerated: "<green>✅ Новый API-ключ сгенерирован."
+  warning: "<red>Все существующие клиенты потеряют доступ."
+  api-disabled: "<red>API-сервер не запущен."
+  no-key: "<red>API-ключ не задан (auto-generate-key: false)."
 
 
 # =========================================================================
@@ -828,18 +941,31 @@ help:
 
   # ===== Команды =====
   commands-title: "<gold>Команды:"
+
+  # Stats
   command-stats: "<yellow>   /stats <gray>— своя статистика"
   command-stats-other: "<yellow>   /stats <player> <gray>— статистика игрока"
   command-stats-gui: "<yellow>   /stats gui <gray>— GUI со статистикой"
   command-stats-pvp: "<yellow>   /stats pvp [player] <gray>— PvP-статистика"
+  command-stats-rollback: "<yellow>   /stats rollback <player> <stat> <value> <gray>— откат статы"
+
+  # Tops
   command-top: "<yellow>   /top <gray>— топы сервера"
   command-top-stat: "<yellow>   /top <stat> <gray>— топ по статистике"
   command-top-pvp: "<yellow>   /top pvp <ник> <gray>— топ убийц игрока"
+
+  # Social
   command-share: "<yellow>   /share [player] <gray>— поделиться статистикой"
   command-compare: "<yellow>   /compare <player> <gray>— сравнить статистику"
+
+  # Admin
   command-exclude: "<yellow>   /exclude <player> [remove|list] <gray>— исключения"
   command-reload: "<yellow>   /playerstats reload <gray>— перезагрузка"
+  command-snapshot: "<yellow>   /playerstats snapshot <gray>— создать снапшот"
+  command-backup: "<yellow>   /playerstats backup [now|list|restore] <gray>— бэкапы БД"
+  command-hologram: "<yellow>   /playerstats hologram <gray>— управление голограммами"
   command-info: "<yellow>   /playerstats info <gray>— информация о плагине"
+  command-apikey: "<yellow>   /playerstats apikey [regenerate] <gray>— API-ключ"
   command-update: "<yellow>   /playerstats update <gray>— проверить обновления"
 
   # ===== Пустой вывод =====
@@ -850,6 +976,7 @@ help:
   hover-stats-gui: "<gray>Открывает GUI со статистикой\n<dark_gray>Пример: <white>/stats gui"
   hover-stats-other: "<gray>Статистика другого игрока\n<dark_gray>Пример: <white>/stats Steve"
   hover-stats-pvp: "<gray>Список убитых игроков (PvP)\n<dark_gray>Пример: <white>/stats pvp Steve"
+  hover-stats-rollback: "<gray>Откат статистики игрока\n<dark_gray>Пример: <white>/stats rollback Steve kills 0"
 
   hover-top: "<gray>Топы сервера по категориям\n<dark_gray>Пример: <white>/top"
   hover-top-stat: "<gray>Топ по конкретной статистике\n<dark_gray>Пример: <white>/top kills"
@@ -860,7 +987,11 @@ help:
 
   hover-exclude: "<gray>Управление исключениями из статистики\n<dark_gray>Пример: <white>/exclude Steve\n<dark_gray>Пример: <white>/exclude list"
   hover-reload: "<gray>Перезагрузить конфиг и кэши\n<dark_gray>Пример: <white>/playerstats reload"
+  hover-snapshot: "<gray>Создать снапшот статистики\n<dark_gray>Пример: <white>/playerstats snapshot"
+  hover-backup: "<gray>Управление бэкапами БД\n<dark_gray>Пример: <white>/playerstats backup now"
+  hover-hologram: "<gray>Управление голограммами\n<dark_gray>Пример: <white>/playerstats hologram list"
   hover-info: "<gray>Информация о плагине и интеграциях\n<dark_gray>Пример: <white>/playerstats info"
+  hover-apikey: "<gray>Показать/перегенерировать API-ключ\n<dark_gray>Пример: <white>/playerstats apikey"
   hover-update: "<gray>Проверить обновления плагина\n<dark_gray>Пример: <white>/playerstats update"
 
   footer: "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -873,6 +1004,58 @@ currency:
   # Fallback-формат, если Vault не подключён.
   # {value} — отформатированное число (например, 1500.00)
   format: "{value}₽"
+
+
+# =========================================================================
+#                    Бэкап БД
+# =========================================================================
+backup:
+  starting: "<yellow>📦 Создание бэкапа БД..."
+  done: "<green>✅ Бэкап создан."
+  error: "<red>❌ Ошибка бэкапа. Проверьте консоль."
+
+  usage: |-
+    <dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━
+    <gold>📦 Управление бэкапами:
+    <yellow>/playerstats backup <gray>— создать сейчас
+    <yellow>/playerstats backup list <gray>— список
+    <yellow>/playerstats backup restore <file> <gray>— восстановить
+    <dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  list-empty: "<yellow>Нет сохранённых бэкапов."
+  list-header: "<gold>📦 Бэкапы (<white>{count}<gold>):"
+  list-entry: "<gray>  • <white>{file} <dark_gray>({size})"
+
+  restore-usage: "<red>Использование: <yellow>/playerstats backup restore <file>"
+  restore-starting: "<yellow>⏳ Восстановление из <white>{file}</white>..."
+  restore-done: "<green>✅ БД восстановлена из <white>{file}</white>. <red>Перезапустите сервер!"
+  restore-error: "<red>❌ Не удалось восстановить из <white>{file}</white>."
+  module-disabled: "<red>Модуль 'backup' выключен в config.yml."
+
+
+# =========================================================================
+#                    Rollback статистики
+# =========================================================================
+rollback:
+  usage: |-
+    <dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━
+    <gold>🔄 Откат статистики:
+    <yellow>/stats rollback <player> <stat> <value> <gray>— установить значение
+    <yellow>/stats rollback <player> --all <value> <gray>— обнулить всё
+    <yellow>/stats rollback <player> --from <date> <stat> <gray>— откат с даты
+    <dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  done: "<green>✅ <white>{player}</white>: <yellow>{stat}</yellow> = <white>{value}"
+  done-all: "<green>✅ <white>{player}</white>: все статы обнулены (<white>{count}</white> записей)"
+  done-from: "<green>✅ <white>{player}</white>: <yellow>{stat}</yellow> откат на <white>{delta}</white> → <white>{value}"
+
+  notify: "<red>⚠ Ваша статистика <yellow>{stat}</yellow> была изменена администратором: <white>{value}"
+  notify-all: "<red>⚠ Ваша статистика была сброшена администратором (значение: <white>{value}<red>)"
+
+  never-played: "<red>Игрок <yellow>{player}</yellow> никогда не играл на сервере."
+  invalid-value: "<red>Некорректное значение: <white>{value}"
+  invalid-date: "<red>Некорректная дата: <white>{date}"
+  error: "<red>❌ Ошибка отката. Проверьте консоль."
 
 
 # =========================================================================
@@ -890,3 +1073,7 @@ time:
   seconds: "{seconds}с"
   minutes: "{minutes}м"
   hours: "{hours}ч {minutes}м"
+  times:
+    one: "раз"
+    few: "раза"
+    many: "раз"

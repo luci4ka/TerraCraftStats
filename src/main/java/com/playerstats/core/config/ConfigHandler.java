@@ -18,7 +18,7 @@ import java.util.logging.Level;
 
 public final class ConfigHandler {
 
-    private static final int CURRENT_CONFIG_VERSION = 3;
+    private static final int CURRENT_CONFIG_VERSION = 4;
 
     private static volatile ConfigHandler instance;
 
@@ -78,6 +78,42 @@ public final class ConfigHandler {
             plugin.getLogger().warning("Конфиг пуст или повреждён: " + file.getAbsolutePath());
         }
 
+        // ==================== ВАЛИДАЦИЯ ====================
+        if (loaded instanceof YamlConfiguration yaml) {
+            ConfigValidator.Result result = ConfigValidator.validateConfig(yaml, plugin);
+
+            ConfigValidator.log(result, plugin.getLogger());
+
+            if (!result.isValid()) {
+                plugin.getLogger().severe(
+                        "Конфиг содержит " + result.errors().size()
+                                + " ошибок! Сохраняю как config.broken.yml и загружаю дефолтный.");
+
+                try {
+                    File broken = new File(plugin.getDataFolder(),
+                            "config.broken-" + System.currentTimeMillis() + ".yml");
+                    Files.copy(file.toPath(), broken.toPath(),
+                            StandardCopyOption.REPLACE_EXISTING);
+                    plugin.getLogger().info("Сломанный конфиг сохранён: " + broken.getName());
+                } catch (IOException e) {
+                    plugin.getLogger().log(Level.WARNING,
+                            "Не удалось сохранить config.broken.yml", e);
+                }
+
+                plugin.saveResource("config.yml", true);
+                loaded = YamlConfiguration.loadConfiguration(file);
+
+                if (loaded instanceof YamlConfiguration yaml2) {
+                    ConfigValidator.Result r2 = ConfigValidator.validateConfig(yaml2, plugin);
+                    if (!r2.isValid()) {
+                        plugin.getLogger().severe(
+                                "Дефолтный config.yml ТОЖЕ невалиден! "
+                                        + "Проверьте ресурсы плагина.");
+                    }
+                }
+            }
+        }
+
         this.config = loaded;
 
         // Миграция версий
@@ -87,7 +123,8 @@ public final class ConfigHandler {
         }
 
         this.groupColors = loadGroupColors();
-        this.trackedBlocks = new TrackedBlocks(config.getStringList("tracked-blocks"));
+        // tracking.blocks — новая структура
+        this.trackedBlocks = new TrackedBlocks(config.getStringList("tracking.blocks"));
 
         // ==================== МОДУЛИ ====================
         loadModule("achievements.yml");
@@ -95,6 +132,11 @@ public final class ConfigHandler {
         loadModule("top-chips.yml");
         loadModule("top-notifications.yml");
         loadModule("sparkline.yml");
+        loadModule("holograms.yml");
+        loadModule("backup.yml");
+        loadModule("api.yml");
+        loadModule("discord.yml");
+        loadModule("cosmetics.yml");
         // Добавляйте сюда новые модули
 
         applyDebugLevel();
@@ -104,7 +146,6 @@ public final class ConfigHandler {
      * Загрузить модуль (если он включён).
      */
     private void loadModule(String fileName) {
-        // Имя модуля в config.yml: achievements.yml → "achievements"
         String moduleKey = fileName.replace(".yml", "");
 
         if (!isModuleEnabled(moduleKey)) {
@@ -130,13 +171,32 @@ public final class ConfigHandler {
 
         makeBackup(file, fromVersion);
 
+        if (fromVersion < 4) {
+            plugin.getLogger().warning(
+                    "Секции 'api', 'discord', 'backup', 'rainbow', 'festive' "
+                            + "больше не используются в config.yml.");
+            plugin.getLogger().warning(
+                    "Перенесите настройки в api.yml, discord.yml, backup.yml, cosmetics.yml.");
+            plugin.getLogger().warning(
+                    "После этого удалите старые секции из config.yml.");
+        }
+
         List<String> ignoredSections = List.of(
                 "database",
-                "api",
                 "multi-server",
                 "groups",
                 "server-names",
-                "stats-click-commands"
+                "stats-click-commands",
+                // Устаревшие (перенесены в модули) — игнорируем при обновлении,
+                // чтобы ConfigUpdater не трогал пользовательские данные
+                "api",
+                "discord",
+                "backup",
+                "rainbow",
+                "festive",
+                "tracked-stats",
+                "tracked-blocks",
+                "mob-boss-keywords"
         );
 
         try {
@@ -188,31 +248,19 @@ public final class ConfigHandler {
 
     // ==================== Модули ====================
 
-    /**
-     * Проверить, включён ли модуль.
-     */
     public boolean isModuleEnabled(String module) {
         return config.getBoolean("modules." + module, true);
     }
 
-    /**
-     * Получить ModuleConfig по имени файла.
-     */
     public ModuleConfig getModule(String fileName) {
         return moduleConfigs.get(fileName);
     }
 
-    /**
-     * Получить YAML-конфиг модуля (или пустой, если не загружен).
-     */
     public YamlConfiguration getModuleConfig(String fileName) {
         ModuleConfig mc = moduleConfigs.get(fileName);
         return mc != null ? mc.get() : new YamlConfiguration();
     }
 
-    /**
-     * Сохранить модуль.
-     */
     public void saveModule(String fileName) {
         ModuleConfig mc = moduleConfigs.get(fileName);
         if (mc != null) mc.save();
@@ -220,18 +268,12 @@ public final class ConfigHandler {
 
     // ==================== Achievements ====================
 
-    /**
-     * Получить секцию достижений.
-     */
     public org.bukkit.configuration.ConfigurationSection getAchievementsSection() {
         return getModuleConfig("achievements.yml").getConfigurationSection("achievements");
     }
 
     // ==================== Milestones ====================
 
-    /**
-     * Получить секцию вех.
-     */
     public org.bukkit.configuration.ConfigurationSection getMilestonesSection() {
         return getModuleConfig("milestones.yml").getConfigurationSection("milestones");
     }
@@ -320,13 +362,225 @@ public final class ConfigHandler {
 
     public boolean isHologramsEnabled() {
         return isModuleEnabled("holograms")
-                && config.getBoolean("holograms.enabled", true);
+                && getModuleConfig("holograms.yml").getBoolean("enabled", true);
     }
 
-    // ==================== Tracked Stats ====================
+    public long getHologramsUpdateIntervalSeconds() {
+        return getModuleConfig("holograms.yml").getLong("update-interval-seconds", 300);
+    }
+
+    public long getHologramsInitialDelaySeconds() {
+        return getModuleConfig("holograms.yml").getLong("initial-delay-seconds", 60);
+    }
+
+    public int getHologramsTopSize() {
+        return getModuleConfig("holograms.yml").getInt("top-size", 10);
+    }
+
+    public String getHologramsEmptyLine() {
+        return getModuleConfig("holograms.yml").getString("empty-line", "§8— — — — — —");
+    }
+
+    public org.bukkit.configuration.ConfigurationSection getHologramsListSection() {
+        return getModuleConfig("holograms.yml").getConfigurationSection("list");
+    }
+
+    // ==================== BACKUP (backup.yml) ====================
+
+    public boolean isBackupEnabled() {
+        return isModuleEnabled("backup")
+                && getModuleConfig("backup.yml").getBoolean("enabled", true);
+    }
+
+    public long getBackupIntervalHours() {
+        return getModuleConfig("backup.yml").getLong("interval-hours", 6);
+    }
+
+    public long getBackupInitialDelayMinutes() {
+        return getModuleConfig("backup.yml").getLong("initial-delay-minutes", 1);
+    }
+
+    public int getBackupKeepCount() {
+        return getModuleConfig("backup.yml").getInt("keep-count", 14);
+    }
+
+    public String getBackupFolder() {
+        return getModuleConfig("backup.yml").getString("folder", "backups");
+    }
+
+    public String getBackupFilenameFormat() {
+        return getModuleConfig("backup.yml").getString("filename-format", "yyyy-MM-dd_HH-mm-ss");
+    }
+
+    public String getBackupMysqldumpPath() {
+        return getModuleConfig("backup.yml").getString("mysqldump-path", "");
+    }
+
+    public boolean isBackupLogEach() {
+        return getModuleConfig("backup.yml").getBoolean("log-each-backup", true);
+    }
+
+    public boolean isBackupBeforeMigration() {
+        return getModuleConfig("backup.yml").getBoolean("before-migration", true);
+    }
+
+    public boolean isBackupGzip() {
+        return getModuleConfig("backup.yml").getBoolean("gzip", true);
+    }
+
+    // ==================== API (api.yml) ====================
+
+    public boolean isApiEnabled() {
+        return isModuleEnabled("api")
+                && getModuleConfig("api.yml").getBoolean("enabled", false);
+    }
+
+    public String getApiHost() {
+        return getModuleConfig("api.yml").getString("host", "0.0.0.0");
+    }
+
+    public int getApiPort() {
+        return getModuleConfig("api.yml").getInt("port", 8080);
+    }
+
+    public boolean isApiAutoGenerateKey() {
+        return getModuleConfig("api.yml").getBoolean("auth.auto-generate-key", true);
+    }
+
+    public String getApiKey() {
+        return getModuleConfig("api.yml").getString("auth.api-key", "");
+    }
+
+    public void setApiKey(String key) {
+        ModuleConfig mc = getModule("api.yml");
+        if (mc != null) {
+            mc.get().set("auth.api-key", key);
+            mc.save();
+        }
+    }
+
+    public boolean isApiLogKeyOnStartup() {
+        return getModuleConfig("api.yml").getBoolean("auth.log-key-on-startup", true);
+    }
+
+    public List<String> getApiPublicRoutes() {
+        return getModuleConfig("api.yml").getStringList("auth.public-routes");
+    }
+
+    public String getApiAuthHeader() {
+        return getModuleConfig("api.yml").getString("auth.header", "X-API-Key");
+    }
+
+    public String getApiAuthBearerPrefix() {
+        return getModuleConfig("api.yml").getString("auth.bearer-prefix", "Bearer ");
+    }
+
+    public boolean isApiCorsEnabled() {
+        return getModuleConfig("api.yml").getBoolean("cors.enabled", false);
+    }
+
+    public String getApiCorsAllowOrigin() {
+        return getModuleConfig("api.yml").getString("cors.allow-origin", "*");
+    }
+
+    public String getApiCorsAllowMethods() {
+        return getModuleConfig("api.yml").getString("cors.allow-methods", "GET, OPTIONS");
+    }
+
+    public String getApiCorsAllowHeaders() {
+        return getModuleConfig("api.yml").getString("cors.allow-headers",
+                "Content-Type, X-API-Key, Authorization");
+    }
+
+    public boolean isApiRateLimitEnabled() {
+        return getModuleConfig("api.yml").getBoolean("rate-limit.enabled", true);
+    }
+
+    public int getApiRateLimitPerMinute() {
+        return getModuleConfig("api.yml").getInt("rate-limit.requests-per-minute", 60);
+    }
+
+    // ==================== Discord (discord.yml) ====================
+
+    public boolean isDiscordEnabled() {
+        return isModuleEnabled("discord")
+                && getModuleConfig("discord.yml").getBoolean("enabled", false);
+    }
+
+    public String getDiscordWebhookUrl() {
+        return getModuleConfig("discord.yml").getString("webhook-url", "");
+    }
+
+    public String getDiscordUsername() {
+        return getModuleConfig("discord.yml").getString("username", "PlayerStats");
+    }
+
+    public String getDiscordAvatarUrl() {
+        return getModuleConfig("discord.yml").getString("avatar-url", "");
+    }
+
+    public long getDiscordRateLimitSeconds() {
+        return getModuleConfig("discord.yml").getLong("rate-limit-seconds", 5);
+    }
+
+    public boolean isDiscordEventEnabled(String event) {
+        return getModuleConfig("discord.yml").getBoolean("events." + event, false);
+    }
+
+    public boolean isDiscordUseTimestamp() {
+        return getModuleConfig("discord.yml").getBoolean("use-timestamp", true);
+    }
+
+    public String getDiscordMention() {
+        return getModuleConfig("discord.yml").getString("mention", "none");
+    }
+
+    // ==================== Cosmetics (cosmetics.yml) ====================
+
+    public boolean isRainbowEnabled() {
+        return isModuleEnabled("cosmetics")
+                && getModuleConfig("cosmetics.yml").getBoolean("rainbow.enabled", false);
+    }
+
+    public List<String> getRainbowKeys() {
+        return getModuleConfig("cosmetics.yml").getStringList("rainbow.apply-to");
+    }
+
+    public boolean isFestiveEnabled() {
+        return isModuleEnabled("cosmetics")
+                && getModuleConfig("cosmetics.yml").getBoolean("festive.enabled", false);
+    }
+
+    public List<String> getFestiveKeys() {
+        return getModuleConfig("cosmetics.yml").getStringList("festive.apply-to");
+    }
+
+    // ==================== ROLLBACK (config.yml) ====================
+
+    public int getRollbackLockSeconds() {
+        return config.getInt("rollback.lock-seconds", 60);
+    }
+
+    public boolean isRollbackNotifyPlayer() {
+        return config.getBoolean("rollback.notify-player", true);
+    }
+
+    public boolean isRollbackLogToConsole() {
+        return config.getBoolean("rollback.log-to-console", true);
+    }
+
+    public boolean isRollbackTrackDeltas() {
+        return config.getBoolean("rollback.track-deltas", false);
+    }
+
+    // ==================== Tracked Stats (tracking.*) ====================
 
     public boolean isTracked(String stat) {
-        return config.getBoolean("tracked-stats." + stat, true);
+        return config.getBoolean("tracking.stats." + stat, true);
+    }
+
+    public List<String> getTrackedBlockList() {
+        return config.getStringList("tracking.blocks");
     }
 
     // ==================== Общие геттеры ====================
@@ -349,22 +603,6 @@ public final class ConfigHandler {
 
     public boolean isVerboseDebug() {
         return getDebugLevel() >= 2;
-    }
-
-    public boolean isRainbowEnabled() {
-        return config.getBoolean("rainbow.enabled", false);
-    }
-
-    public List<String> getRainbowKeys() {
-        return config.getStringList("rainbow.apply-to");
-    }
-
-    public boolean isFestiveEnabled() {
-        return config.getBoolean("festive.enabled", false);
-    }
-
-    public List<String> getFestiveKeys() {
-        return config.getStringList("festive.apply-to");
     }
 
     public boolean isPvpPerVictimStats() {
@@ -465,25 +703,11 @@ public final class ConfigHandler {
         return config.getString("stats-click-commands." + statKey, null);
     }
 
-    // ==================== Боссы ====================
+    // ==================== Боссы (tracking.mob-boss-keywords) ====================
 
     public List<String> getBossKeywords() {
-        List<String> keywords = config.getStringList("mob-boss-keywords");
+        List<String> keywords = config.getStringList("tracking.mob-boss-keywords");
         return keywords != null ? keywords : Collections.emptyList();
-    }
-
-    // ==================== HTTP API ====================
-
-    public boolean isApiEnabled() {
-        return isModuleEnabled("api") && config.getBoolean("api.enabled", false);
-    }
-
-    public String getApiHost() {
-        return config.getString("api.host", "0.0.0.0");
-    }
-
-    public int getApiPort() {
-        return config.getInt("api.port", 8080);
     }
 
     // ==================== Язык ====================

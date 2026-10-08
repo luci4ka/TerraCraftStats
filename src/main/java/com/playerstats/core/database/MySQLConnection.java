@@ -62,110 +62,16 @@ public class MySQLConnection implements DatabaseConnection {
 
     @Override
     public void initTables() throws SQLException {
-        try (Connection conn = getConnection();
-             Statement stmt = conn.createStatement()) {
-
-            stmt.executeUpdate("""
-                CREATE TABLE IF NOT EXISTS players (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    uuid VARCHAR(36) UNIQUE,
-                    name VARCHAR(16),
-                    first_join DATETIME DEFAULT CURRENT_TIMESTAMP
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-            """);
-
-            stmt.executeUpdate("""
-                CREATE TABLE IF NOT EXISTS servers (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    name VARCHAR(50) UNIQUE,
-                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-            """);
-
-            stmt.executeUpdate("""
-                CREATE TABLE IF NOT EXISTS stat_types (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    name VARCHAR(50) UNIQUE
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-            """);
-
-            stmt.executeUpdate("""
-                CREATE TABLE IF NOT EXISTS player_stats (
-                    player_id INT NOT NULL,
-                    server_id INT NOT NULL,
-                    stat_type_id INT NOT NULL,
-                    value_int INT DEFAULT 0,
-                    value_double DECIMAL(20, 2) DEFAULT 0,
-                    value_string VARCHAR(255),
-                    PRIMARY KEY(player_id, server_id, stat_type_id),
-                    FOREIGN KEY (player_id) REFERENCES players(id) ON DELETE CASCADE,
-                    FOREIGN KEY (server_id) REFERENCES servers(id) ON DELETE CASCADE,
-                    FOREIGN KEY (stat_type_id) REFERENCES stat_types(id) ON DELETE CASCADE
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-            """);
-
-            stmt.executeUpdate("""
-                CREATE TABLE IF NOT EXISTS server_stats (
-                    server_id INT NOT NULL,
-                    stat_type_id INT NOT NULL,
-                    value_int INT DEFAULT 0,
-                    value_double DECIMAL(20, 2) DEFAULT 0,
-                    value_string VARCHAR(255),
-                    PRIMARY KEY(server_id, stat_type_id),
-                    FOREIGN KEY (server_id) REFERENCES servers(id) ON DELETE CASCADE,
-                    FOREIGN KEY (stat_type_id) REFERENCES stat_types(id) ON DELETE CASCADE
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-            """);
-
-            stmt.executeUpdate("""
-                CREATE TABLE IF NOT EXISTS leaderboards (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    stat_type_id INT NOT NULL,
-                    server_id INT DEFAULT NULL,
-                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (stat_type_id) REFERENCES stat_types(id) ON DELETE CASCADE,
-                    FOREIGN KEY (server_id) REFERENCES servers(id) ON DELETE SET NULL
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-            """);
-
-            stmt.executeUpdate("""
-                CREATE TABLE IF NOT EXISTS leaderboard_entries (
-                    leaderboard_id INT NOT NULL,
-                    player_id INT NOT NULL,
-                    rank INT NOT NULL,
-                    value_int INT DEFAULT 0,
-                    value_double DECIMAL(20, 2) DEFAULT 0,
-                    PRIMARY KEY(leaderboard_id, player_id),
-                    FOREIGN KEY (leaderboard_id) REFERENCES leaderboards(id) ON DELETE CASCADE,
-                    FOREIGN KEY (player_id) REFERENCES players(id) ON DELETE CASCADE
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-            """);
-
-            stmt.executeUpdate("""
-        CREATE TABLE IF NOT EXISTS stat_history (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            player_id INT NOT NULL,
-            stat_type_id INT NOT NULL,
-            server_id INT NOT NULL,
-            value INT NOT NULL,
-            date DATE NOT NULL,
-            UNIQUE KEY unique_snapshot (player_id, stat_type_id, server_id, date),
-            INDEX idx_player_stat (player_id, stat_type_id, server_id)
+        DatabaseMigrator migrator = new DatabaseMigrator(
+                plugin,
+                true,
+                plugin.getDatabaseBackupTask()   // ← ДОБАВИТЬ
         );
-""");
 
-// ← НОВОЕ
-            stmt.executeUpdate("""
-        CREATE TABLE IF NOT EXISTS player_achievements (
-            player_id INT NOT NULL,
-            achievement_id VARCHAR(64) NOT NULL,
-            unlocked_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY(player_id, achievement_id),
-            FOREIGN KEY (player_id) REFERENCES players(id) ON DELETE CASCADE,
-            INDEX idx_player (player_id),
-            INDEX idx_achievement (achievement_id)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-""");
+        try (Connection conn = getConnection()) {
+            if (migrator.hasFailed(conn)) {
+                throw new SQLException("Не удалось применить миграции БД (MySQL).");
+            }
         }
 
         insertDefaultStatTypes();

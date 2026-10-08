@@ -8,7 +8,6 @@ import com.playerstats.core.utils.TimeUtil;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.event.HoverEvent;
-import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
@@ -111,7 +110,7 @@ public class ServerStatsCommand {
 
         Number balance = stats.getOrDefault("balance", 0);
         sendStatLine(sender, "serverstats.line-balance",
-                formatBalance(balance.doubleValue()),
+                formatBalance(sender, balance.doubleValue()),
                 "serverstats.stat-balance-hover",
                 "balance");
 
@@ -124,7 +123,7 @@ public class ServerStatsCommand {
      * Отправить строку статистики с hover и (опционально) кликом.
      *
      * @param hoverLangKey ключ в lang.yml для hover (может быть null)
-     * @param statKey     ключ статистики для /top (может быть null)
+     * @param statKey      ключ статистики для /top (может быть null)
      */
     private void sendStat(CommandSender sender, Map<String, Number> stats,
                           String key, String statKey,
@@ -136,7 +135,7 @@ public class ServerStatsCommand {
         if (key.equals("play_time")) {
             formatted = TimeUtil.formatTime(lang, sender, value.intValue());
         } else if (key.equals("balance")) {
-            formatted = formatBalance(value.doubleValue());
+            formatted = formatBalance(sender, value.doubleValue());
         } else {
             formatted = String.format("%,d", value.longValue());
         }
@@ -162,11 +161,15 @@ public class ServerStatsCommand {
 
         // Hover
         if (hoverLangKey != null) {
-            String hoverText = getRaw(sender, hoverLangKey);
-            Component hoverComponent = getComponentFromString(sender,
-                    hoverText + (statKey != null
-                            ? "\n<dark_gray>Нажмите для просмотра /top " + statKey
-                            : ""));
+            Component hoverComponent = getComponent(sender, hoverLangKey);
+
+            if (statKey != null) {
+                hoverComponent = hoverComponent
+                        .append(Component.newline())
+                        .append(getComponent(sender, "serverstats.click-hint",
+                                "stat", statKey));
+            }
+
             line = line.hoverEvent(HoverEvent.showText(hoverComponent));
         }
 
@@ -180,8 +183,13 @@ public class ServerStatsCommand {
 
     // ==================== FORMAT ====================
 
-    private String formatBalance(double value) {
-        return String.format("%,.2f₽", value);
+    /**
+     * Баланс — из lang.yml (currency.format).
+     */
+    private String formatBalance(CommandSender sender, double value) {
+        String fmt = getRaw(sender, "currency.format");
+        if (fmt.startsWith("<red>Missing key")) fmt = "{value}₽";
+        return fmt.replace("{value}", String.format("%,.2f", value));
     }
 
     // ==================== LANG HELPERS ====================
@@ -204,12 +212,5 @@ public class ServerStatsCommand {
             return lang.getRaw(player, key);
         }
         return lang.getRaw(key);
-    }
-
-    /**
-     * Получить Component из готовой строки для sender.
-     */
-    private Component getComponentFromString(CommandSender sender, String message, Object... replacements) {
-        return lang.getComponentFromString(message, replacements);
     }
 }

@@ -128,10 +128,10 @@ public class HelpCommand {
     /**
      * Отправить строку команды с hover и кликом.
      *
-     * @param sender        получатель
-     * @param langKey       ключ команды в lang.yml
-     * @param command       команда (для click — вставить в чат)
-     * @param hoverLangKey  ключ hover в lang.yml
+     * @param sender       получатель
+     * @param langKey      ключ команды в lang.yml
+     * @param command      команда (для click — вставить в чат)
+     * @param hoverLangKey ключ hover в lang.yml
      */
     private void sendCommand(CommandSender sender, String langKey,
                              String command, String hoverLangKey) {
@@ -149,15 +149,30 @@ public class HelpCommand {
 
     /**
      * Подсчитать количество доступных команд.
+     *
+     * <p>Числа — количество подкоманд у каждой категории:
+     * <ul>
+     *   <li>{@code stats} — /stats, /stats gui, /stats pvp (3)</li>
+     *   <li>{@code stats.others} — /stats <player>, /stats pvp <player> (2)</li>
+     *   <li>{@code top} — /top, /top <stat>, /top pvp (3)</li>
+     *   <li>остальные — по 1</li>
+     * </ul>
      */
     private int countAvailableCommands(CommandSender sender) {
         int count = 0;
 
+        // Статистика
         if (sender.hasPermission("playerstats.stats")) count += 3;
         if (sender.hasPermission("playerstats.stats.others")) count += 2;
+
+        // Топы
         if (sender.hasPermission("playerstats.top")) count += 3;
+
+        // Социальное
         if (sender.hasPermission("playerstats.share")) count += 1;
         if (sender.hasPermission("playerstats.compare")) count += 1;
+
+        // Управление
         if (sender.hasPermission("playerstats.exclude")) count += 1;
         if (sender.hasPermission("playerstats.reload")) count += 1;
         if (sender.hasPermission("playerstats.info")) count += 1;

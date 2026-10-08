@@ -137,7 +137,7 @@ public class TopCommand {
 
                 player.sendMessage(lang.getComponent(player, "top.header"));
                 player.sendMessage(lang.getComponent(player, "top.category-custom",
-                        "stat", formatStatName(stat)));
+                        "stat", formatStatName(player, stat)));
 
                 if (finalEntries.isEmpty()) {
                     player.sendMessage(lang.getComponent(player, "top.no-data"));
@@ -322,12 +322,11 @@ public class TopCommand {
                 .append(Component.text(name).color(color))
                 .append(Component.text(" " + value).color(NamedTextColor.DARK_GRAY));
 
-        // Hover
-        Component hoverText = lang.getComponentFromString(
-                "<gray>Игрок: <white>" + name + "\n" +
-                        "<gray>Место: <yellow>#" + rank + "\n" +
-                        "<gray>Значение: <white>" + value + "\n" +
-                        "<dark_gray>Нажмите для просмотра");
+        // Hover — из lang.yml
+        Component hoverText = lang.getComponent(viewer, "top.entry-hover",
+                "player", name,
+                "rank", rank,
+                "value", value);
         entryComponent = entryComponent.hoverEvent(HoverEvent.showText(hoverText));
 
         // Клик
@@ -375,9 +374,9 @@ public class TopCommand {
 
     private String formatValue(Player viewer, double value, StatFormat format) {
         return switch (format) {
-            case TIME -> TimeUtil.formatTime(lang, viewer, (int) value);  // ← TimeUtil
+            case TIME -> TimeUtil.formatTime(lang, viewer, (int) value);
             case INTEGER -> formatInteger((int) value);
-            case BALANCE -> formatBalance(value);
+            case BALANCE -> formatBalance(viewer, value);
         };
     }
 
@@ -385,38 +384,49 @@ public class TopCommand {
         return String.format("%,d", value);
     }
 
-    private String formatBalance(double value) {
-        return String.format("%,.2f$", value);
+    /**
+     * Баланс — из lang.yml (currency.format).
+     */
+    private String formatBalance(Player viewer, double value) {
+        String fmt = lang.getRaw(viewer, "currency.format");
+        if (fmt.startsWith("<red>Missing key")) {
+            fmt = "{value}₽";
+        }
+        return fmt.replace("{value}", String.format("%,.2f", value));
     }
 
-    private String formatStatName(String stat) {
+    /**
+     * Название стата — из lang.yml (top.stats.* / top.stat-prefixes.*).
+     */
+    private String formatStatName(Player viewer, String stat) {
         if (stat.startsWith("pvp_kill_")) {
             String uuid = stat.substring("pvp_kill_".length());
-            return "Убийства: " + resolvePlayerName(uuid);
+            return lang.get(viewer, "top.stat-prefixes.pvp_kill",
+                    "name", resolvePlayerName(uuid));
         }
         if (stat.startsWith("mob_killed_")) {
             String mob = stat.substring("mob_killed_".length());
-            return "Убийства: " + prettify(mob);
+            return lang.get(viewer, "top.stat-prefixes.mob_killed",
+                    "name", prettify(mob));
         }
         if (stat.startsWith("block_placed_")) {
             String block = stat.substring("block_placed_".length());
-            return "Поставлено: " + prettify(block);
+            return lang.get(viewer, "top.stat-prefixes.block_placed",
+                    "name", prettify(block));
         }
         if (stat.startsWith("block_broken_")) {
             String block = stat.substring("block_broken_".length());
-            return "Сломано: " + prettify(block);
+            return lang.get(viewer, "top.stat-prefixes.block_broken",
+                    "name", prettify(block));
         }
-        return switch (stat) {
-            case "mobs_killed" -> "Убито мобов";
-            case "bosses_killed" -> "Убито боссов";
-            case "kills" -> "Убийства игроков";
-            case "deaths" -> "Смерти";
-            case "play_time" -> "Время игры";
-            case "blocks_placed" -> "Поставлено блоков";
-            case "blocks_broken" -> "Сломано блоков";
-            case "balance" -> "Баланс";
-            default -> prettify(stat);
-        };
+
+        // Прямой ключ top.stats.<stat>
+        String direct = lang.get(viewer, "top.stats." + stat);
+        if (!direct.startsWith("<red>Missing key")) {
+            return direct;
+        }
+
+        return prettify(stat);
     }
 
     private String prettify(String input) {

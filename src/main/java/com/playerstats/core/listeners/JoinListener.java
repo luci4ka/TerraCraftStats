@@ -32,6 +32,7 @@ public class JoinListener implements Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onJoin(PlayerJoinEvent event) {
         UUID uuid = event.getPlayer().getUniqueId();
+        plugin.getMilestoneManager().loadForPlayer(event.getPlayer());
         String name = event.getPlayer().getName();
 
         AtomicBoolean flag = pendingTasks.computeIfAbsent(uuid, k -> new AtomicBoolean(false));

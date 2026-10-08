@@ -30,6 +30,9 @@ commands:
     serverstats: "Server statistikasi"
     exclude: "Chiqarib tashlashni boshqarish"
     playerstats: "PlayerStats plaginini boshqarish"
+    hologram: "Gologrammalarni boshqarish"
+    backup: "Ma'lumotlar bazasi zaxira nusxalarini boshqarish"
+    rollback: "Statistikani qaytarish"
 
 
 # =========================================================================
@@ -45,10 +48,25 @@ snapshot:
 #                    Holograms
 # =========================================================================
 holograms:
+  # Boshqarish
   created: "<green>✅ Gologramma yaratildi: <white>{stat}"
-  removed: "<green>✅ Gologramma o'chirildi: <white>{stat}"
+  removed: "<green>✅ Gologramma o'chirildi: <white>{name}"
   list-empty: "<yellow>Faol gologrammalar yo'q."
   list-header: "<green>Faol gologrammalar: <white>{list}"
+  reloaded: "<green>✅ Gologrammalar qayta yuklandi."
+  module-disabled: "<red>'holograms' moduli config.yml da o'chirilgan."
+
+  # Stat nomlari (defaultTitle uchun)
+  stats:
+    play_time: "O'yin vaqti"
+    kills: "O'ldirishlar"
+    mobs_killed: "Moblar"
+    bosses_killed: "Bosslar"
+    blocks_placed: "Qo'yilgan bloklar"
+    blocks_broken: "Buzilgan bloklar"
+    balance: "Balans"
+    deaths: "O'limlar"
+    killstreak: "O'ldirish seriyasi"
 
 
 # =========================================================================
@@ -202,6 +220,30 @@ achievements:
   status-locked: "<red>✗ Ochilmagan"
   date: "<dark_gray>  {date}"
 
+  # ===== Qatorlar =====
+  category: "<dark_gray>▸ <gray>Kategoriya: <yellow>{category}"
+  progress: "<dark_gray>▸ <gray>Taraqqiyot: {color}{current}<gray>/<white>{required} <dark_gray>(<yellow>{percent}%<dark_gray>)"
+  progress-bar: "<dark_gray>  {bar}"
+  requires: "<dark_gray>▸ <gray>Talab qilinadi: <white>{stat} <dark_gray>(<white>{required}<dark_gray>)"
+
+  # ===== Vaqtinchalik yutuqlar =====
+  reset:
+    label: "<dark_gray>▸ <gray>Qaytarish: <yellow>{period}"
+    reward-repeatable: "<dark_gray>▸ <gray>Mukofot: <green>takrorlanuvchi"
+    reward-once: "<dark_gray>▸ <gray>Mukofot: <red>bir martalik"
+    in: "<dark_gray>▸ <gray>Keyingi qaytarish: <white>{time} dan keyin"
+    ready: "<dark_gray>▸ <gray>Keyingi qaytarish: <green>tayyor"
+    not-started: "<dark_gray>▸ <gray>Keyingi qaytarish: <dark_gray>hali boshlanmagan"
+
+    # Davr nomlari (kalit = ac.reset())
+    daily: "kunlik"
+    weekly: "haftalik"
+    monthly: "oylik"
+
+  # ===== Tugmalar =====
+  back: "<yellow>◀ Orqaga"
+  back-hover: "<gray>Statistikaga qaytish"
+
   # ===== Xatolar =====
   error-loading: "<red>Yutuqlarni yuklashda xatolik."
 
@@ -211,21 +253,12 @@ achievements:
   # ===== Tavsif rangi (ixtiyoriy) =====
   description-color: "<gray>"
 
-  # ===== Qatorlar =====
-  category: "<dark_gray>▸ <gray>Kategoriya: <yellow>{category}"
-  progress: "<dark_gray>▸ <gray>Taraqqiyot: {color}{current}<gray>/<white>{required}"
-  progress-bar: "<dark_gray>  {bar}"
-  requires: "<dark_gray>▸ <gray>Talab qilinadi: <white>{stat} <dark_gray>(<white>{required}<dark_gray>)"
-
-  # ===== Tugmalar =====
-  back: "<yellow>◀ Orqaga"
-  back-hover: "<gray>Statistikaga qaytish"
-
   # ===== Xabarlar =====
   messages:
     unlock-self: "<gold>🏆 <yellow>Yutuq olindi: <white>{name}"
     unlock-description: "<gray>   {description}"
     unlock-broadcast: "<gold>🏆 <yellow>{player} <gray>yutuq oldi <white>{name}<gray>!"
+    reset: "<gray>⏳ <white>{name}</white> yutug'i qaytarildi — qayta olish mumkin."
 
   # ===== Kategoriyalar =====
   categories:
@@ -573,11 +606,16 @@ stats:
   pvp-header: "<gray>O'ldirilgan o'yinchilar: <white>{count}"
   pvp-empty: "<gray>PvP haqida ma'lumot yo'q."
 
+  # ===== PvP ro'yxati =====
+  pvp-entry: "<red>  ☠ <yellow>{player} <gray>— <white>{count} {times}"
+  pvp-entry-hover: "<gray>Statistikani ko'rish uchun bosing <white>{player}\n<gray>UUID: <dark_gray>{uuid}"
+
   # ===== Quyi buyruq: Mob =====
   mob-title-self: "<yellow>☠ <white>Sizning PvE statistikangiz <gray>| <green>Moblar: <white>{mobs} <gray>| <gold>Bosslar: <white>{bosses}"
   mob-title-other: "<yellow>☠ <white><yellow>{player} <white>PvE statistikasi <gray>| <green>Moblar: <white>{mobs} <gray>| <gold>Bosslar: <white>{bosses}"
   mob-header: "<gray>O'ldirilgan mob turlari: <white>{count}"
   mob-empty: "<gray>Moblar haqida ma'lumot yo'q."
+  mob-entry: "<dark_red>  ☠ <yellow>{name} <gray>— <white>{count} {unit}"
 
   # ===== Quyi buyruq: Block =====
   block-title-self: "<yellow>🧱 <white>Sizning blok statistikangiz <gray>| <green>Qo'yilgan: <white>{placed} <gray>| <red>Buzilgan: <white>{broken}"
@@ -585,6 +623,17 @@ stats:
   block-placed-header: "<green>🏗 Qo'yilgan (<white>{count}<green> tur):"
   block-broken-header: "<gold>⛏ Buzilgan (<white>{count}<gold> tur):"
   block-empty: "<gray>Ma'lumot yo'q."
+
+  # ===== Bloklar ro'yxati =====
+  block-placed-entry: "<green>  🏗 <yellow>{name} <gray>— <white>{count} {unit}"
+  block-broken-entry: "<gold>  ⛏ <yellow>{name} <gray>— <white>{count} {unit}"
+
+  # ===== O'lchov birligi =====
+  unit-pieces: "dona"
+
+  # ===== Sahifalash =====
+  pagination-prev-hover: "<gray>Sahifa {page}"
+  pagination-next-hover: "<gray>Sahifa {page}"
 
   # ===== Eski kalitlar (fallback) =====
   mobs-header: "<gold>▸ Mob o'ldirishlar:"
@@ -621,6 +670,7 @@ serverstats:
   stat-blocks-placed-hover: "<gray>Umumiy qo'yilgan bloklar"
   stat-blocks-broken-hover: "<gray>Umumiy buzilgan bloklar"
   stat-balance-hover: "<gray>Barcha o'yinchilarning umumiy balansi"
+  click-hint: "<dark_gray>Ko'rish uchun bosing /top {stat}"
 
 
 # =========================================================================
@@ -649,6 +699,27 @@ top:
   refresh: "<gray>[Yangilash]"
   refresh-hover: "<gray>Topni yangilash uchun bosing"
 
+  # ===== Yozuv hover =====
+  entry-hover: "<gray>O'yinchi: <white>{player}\n<gray>O'rin: <yellow>#{rank}\n<gray>Qiymat: <white>{value}\n<dark_gray>Ko'rish uchun bosing"
+
+  # ===== Prefikslar (stat turi bo'yicha) =====
+  stat-prefixes:
+    pvp_kill: "O'ldirishlar: {name}"
+    mob_killed: "O'ldirishlar: {name}"
+    block_placed: "Qo'yilgan: {name}"
+    block_broken: "Buzilgan: {name}"
+
+  # ===== Stat nomlari =====
+  stats:
+    mobs_killed: "O'ldirilgan moblar"
+    bosses_killed: "O'ldirilgan bosslar"
+    kills: "O'yinchi o'ldirishlari"
+    deaths: "O'limlar"
+    play_time: "O'yin vaqti"
+    blocks_placed: "Qo'yilgan bloklar"
+    blocks_broken: "Buzilgan bloklar"
+    balance: "Balans"
+
 
 # =========================================================================
 #                    /compare — taqqoslash
@@ -657,6 +728,10 @@ compare:
   self: "<red>O'zingiz bilan statistikani taqqoslab bo'lmaydi."
   header: "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   title: "<gold>📊 Taqqoslash: <yellow>{player1}</yellow> <gray>vs</gray> <yellow>{player2}</yellow>"
+
+  # ===== O'yinchi tugmasi =====
+  button: "<aqua>[👤 {player}]</aqua>"
+  button-hover: "<gray>Statistikani ochish <white>{player}"
 
   # ===== G'olib =====
   winner: "   <yellow>🏆 G'olib: <gold>{winner}</gold> <gray>({wins1} : {wins2})"
@@ -675,10 +750,6 @@ compare:
   hover-value-2: "<gray>Qiymat 2: <white>{value}"
   hover-diff: "<gray>Farq: <white>{diff}"
 
-  # ===== Tugmalar =====
-  buttons: "   <aqua>[👤 {player1}]</aqua> <aqua>[👤 {player2}]</aqua>"
-  button-hover: "<gray>Statistikani ochish <white>{player}"
-
 
 # =========================================================================
 #                    /share — bo'lishish
@@ -686,14 +757,21 @@ compare:
 share:
   self: "<red>O'zingiz bilan statistikani bo'lishib bo'lmaydi. /stats dan foydalaning."
 
+  # ===== Broadcast =====
   broadcast: "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n<gold>📊 <yellow>{chips}{player}</yellow> statistikasi bilan bo'lishdi!\n<gray>Server: <aqua>{server}</aqua> <gray>| Guruh: <light_purple>{group}"
-  broadcast-hover: "<gray>Statistikani ochish uchun bosing"
+  broadcast-hover: "<gray>Statistikani ochish uchun bosing\n<gray>O'yinchi: <white>{player}\n<gray>Server: <white>{server}\n<gray>Guruh: {group}\n<gray>K/D: <white>{kd}"
 
   stats: "\n<green>⏳ Vaqt: <white>{time} <gray>(jami: {total-time})\n<green>☠ PvE: <white>Moblar {mobs} | Bosslar {bosses} <gray>(jami moblar: {total-mobs})\n<green>⛏ Bloklar: <white>Qo'yilgan {blocks}\n<green>⚔ PvP: <white>O'ldirishlar {kills} | O'limlar {deaths} <gray>| K/D: {kd}\n<green>💰 Balans: <gold>{balance}\n<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
+  # ===== Private =====
   private-sender: "<green>Siz statistikangizni <yellow>{target}</yellow> bilan bo'lishdingiz"
   private-target: "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n<gold>📊 <yellow>{chips}{player}</yellow> siz bilan statistikasi bilan bo'lishdi:\n<gray>Server: <aqua>{server}</aqua> <gray>| Guruh: <light_purple>{group}\n<green>⏳ Vaqt: <white>{time} <gray>(jami: {total-time})\n<green>☠ PvE: <white>Moblar {mobs} | Bosslar {bosses}\n<green>⚔ PvP: <white>O'ldirishlar {kills} | O'limlar {deaths} <gray>| K/D: {kd}\n<green>💰 Balans: <gold>{balance}\n<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-  private-hover: "<gray>Statistikani ochish uchun bosing {player}"
+  private-hover: "<gray>Statistikani ochish uchun bosing\n<gray>O'yinchi: <white>{player}\n<gray>K/D: <white>{kd}"
+
+  # ===== K/D =====
+  kd-infinite: "∞"
+  kd-zero: "0.00"
+  kd-format: "%.2f"
 
 
 # =========================================================================
@@ -766,10 +844,24 @@ reload:
   info-multi: "<gray>   🌍 Ko'p serverli: {status}"
   info-api: "<gray>   📡 HTTP API: {status}"
   info-api-host: " <gray>(<white>{host}<gray>)"
+  info-api-host-hover: "<gray>Host: <white>{host}\n<dark_gray>Nusxalash uchun bosing"
 
   # ===== Natija =====
   success: "<green>✅ Qayta yuklash <white>{time} ms ichida yakunlandi"
   error: "<red>❌ Qayta yuklashda xatolik! Konsolni tekshiring."
+
+
+# =========================================================================
+#                    /playerstats update
+# =========================================================================
+update:
+  header: "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  available: "<gold>📢 Yangilanish mavjud!"
+  current: "<gray>  Joriy: <white>v{current}"
+  latest: "<gray>  Yangi: <green>v{latest}"
+  download: "<gray>  Yuklab olish: <aqua>{url}"
+  up-to-date: "<green>✅ Plagin yangilangan (v{version})"
+  not-initialized: "<red>UpdateChecker ishga tushirilmagan."
 
 
 # =========================================================================
@@ -796,20 +888,41 @@ info:
   # ===== API =====
   api: "<gray>   HTTP API: {status}"
   api-host: " <gray>(<white>{host}<gray>)"
-  hook-enabled-hover: "<green>✓ Integratsiya faol\n<gray>Plagin: <white>{name}"
-  hook-disabled-hover: "<red>✗ Integratsiya mavjud emas\n<gray>Plagin: <white>{name}\n<dark_gray>Ishlashi uchun {name} o'rnating"
+  api-host-hover: "<gray>Host: <white>{host}\n<dark_gray>Nusxalash uchun bosing"
 
   # ===== Integratsiyalar =====
   integrations: "<gray>   Integratsiyalar:"
   hook-enabled: "<gray>   <green>✅ {name}"
   hook-disabled: "<gray>   <red>❌ {name}"
+  hook-enabled-hover: "<green>✓ Integratsiya faol\n<gray>Plagin: <white>{name}"
+  hook-disabled-hover: "<red>✗ Integratsiya mavjud emas\n<gray>Plagin: <white>{name}\n<dark_gray>Ishlashi uchun {name} o'rnating"
 
   # ===== Sozlamalar =====
   debug: "<gray>   Debug: {level}"
+  debug-off: "<red>O'chirilgan"
+  debug-basic: "<yellow>Asosiy"
+  debug-detailed: "<green>Batafsil"
+  debug-unknown: "<gray>Noma'lum"
   multi: "<gray>   Ko'p serverli: {status}"
   top-chips: "<gray>   Top-chips: {status}"
   sparkline: "<gray>   Sparkline: {status}"
   pvp: "<gray>   PvP statistikasi: {status}"
+
+  # ===== Sarlavha hover =====
+  title-hover: "<gray>Muallif: <white>{authors}\n<gray>Versiya: <white>{version}\n<dark_gray>Paper uchun statistika plagini"
+
+
+# =========================================================================
+#                    /playerstats apikey
+# =========================================================================
+apikey:
+  header: "<dark_gray>━━━━━━━━━━ <gold>🔑 API Key</gold> ━━━━━━━━━━"
+  current: "<gray>Joriy kalit: <white>{key}"
+  hint: "<dark_gray><white>X-API-Key</white> sarlavhasida yoki <white>Authorization: Bearer <key> orqali yuboring"
+  regenerated: "<green>✅ Yangi API kaliti yaratildi."
+  warning: "<red>Barcha mavjud mijozlar kirishni yo'qotadi."
+  api-disabled: "<red>API serveri ishga tushirilmagan."
+  no-key: "<red>API kaliti o'rnatilmagan (auto-generate-key: false)."
 
 
 # =========================================================================
@@ -828,18 +941,31 @@ help:
 
   # ===== Buyruqlar =====
   commands-title: "<gold>Buyruqlar:"
+
+  # Stats
   command-stats: "<yellow>   /stats <gray>— o'z statistikangiz"
   command-stats-other: "<yellow>   /stats <player> <gray>— o'yinchi statistikasi"
   command-stats-gui: "<yellow>   /stats gui <gray>— statistika GUI"
   command-stats-pvp: "<yellow>   /stats pvp [player] <gray>— PvP statistikasi"
+  command-stats-rollback: "<yellow>   /stats rollback <player> <stat> <value> <gray>— statni qaytarish"
+
+  # Tops
   command-top: "<yellow>   /top <gray>— server toplari"
   command-top-stat: "<yellow>   /top <stat> <gray>— statistika bo'yicha top"
   command-top-pvp: "<yellow>   /top pvp <nik> <gray>— o'yinchini o'ldiruvchilar toplari"
+
+  # Social
   command-share: "<yellow>   /share [player] <gray>— statistika bilan bo'lishish"
   command-compare: "<yellow>   /compare <player> <gray>— statistikani taqqoslash"
+
+  # Admin
   command-exclude: "<yellow>   /exclude <player> [remove|list] <gray>— chiqarib tashlash"
   command-reload: "<yellow>   /playerstats reload <gray>— qayta yuklash"
+  command-snapshot: "<yellow>   /playerstats snapshot <gray>— snapshot yaratish"
+  command-backup: "<yellow>   /playerstats backup [now|list|restore] <gray>— MB zaxira nusxalari"
+  command-hologram: "<yellow>   /playerstats hologram <gray>— gologrammalarni boshqarish"
   command-info: "<yellow>   /playerstats info <gray>— plagin haqida ma'lumot"
+  command-apikey: "<yellow>   /playerstats apikey [regenerate] <gray>— API kalit"
   command-update: "<yellow>   /playerstats update <gray>— yangilanishlarni tekshirish"
 
   # ===== Bo'sh chiqish =====
@@ -850,6 +976,7 @@ help:
   hover-stats-gui: "<gray>Statistika GUI ochadi\n<dark_gray>Misol: <white>/stats gui"
   hover-stats-other: "<gray>Boshqa o'yinchi statistikasi\n<dark_gray>Misol: <white>/stats Steve"
   hover-stats-pvp: "<gray>O'ldirilgan o'yinchilar ro'yxati (PvP)\n<dark_gray>Misol: <white>/stats pvp Steve"
+  hover-stats-rollback: "<gray>O'yinchi statistikasini qaytarish\n<dark_gray>Misol: <white>/stats rollback Steve kills 0"
 
   hover-top: "<gray>Kategoriyalar bo'yicha server toplari\n<dark_gray>Misol: <white>/top"
   hover-top-stat: "<gray>Muayyan statistika bo'yicha top\n<dark_gray>Misol: <white>/top kills"
@@ -860,7 +987,11 @@ help:
 
   hover-exclude: "<gray>Statistikadan chiqarib tashlashni boshqarish\n<dark_gray>Misol: <white>/exclude Steve\n<dark_gray>Misol: <white>/exclude list"
   hover-reload: "<gray>Konfig va keshlarni qayta yuklash\n<dark_gray>Misol: <white>/playerstats reload"
+  hover-snapshot: "<gray>Statistika snapshotini yaratish\n<dark_gray>Misol: <white>/playerstats snapshot"
+  hover-backup: "<gray>Ma'lumotlar bazasi zaxira nusxalarini boshqarish\n<dark_gray>Misol: <white>/playerstats backup now"
+  hover-hologram: "<gray>Gologrammalarni boshqarish\n<dark_gray>Misol: <white>/playerstats hologram list"
   hover-info: "<gray>Plagin va integratsiyalar haqida ma'lumot\n<dark_gray>Misol: <white>/playerstats info"
+  hover-apikey: "<gray>API kalitni ko'rish/qayta yaratish\n<dark_gray>Misol: <white>/playerstats apikey"
   hover-update: "<gray>Plagin yangilanishlarini tekshirish\n<dark_gray>Misol: <white>/playerstats update"
 
   footer: "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -873,6 +1004,58 @@ currency:
   # Vault ulanmagan bo'lsa, fallback formati.
   # {value} — formatlangan raqam (masalan, 1500.00)
   format: "{value}so'm"
+
+
+# =========================================================================
+#                    Ma'lumotlar bazasi zaxira nusxasi
+# =========================================================================
+backup:
+  starting: "<yellow>📦 Ma'lumotlar bazasi zaxira nusxasi yaratilmoqda..."
+  done: "<green>✅ Zaxira nusxa yaratildi."
+  error: "<red>❌ Zaxira nusxa xatoligi. Konsolni tekshiring."
+
+  usage: |-
+    <dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━
+    <gold>📦 Zaxira nusxalarni boshqarish:
+    <yellow>/playerstats backup <gray>— hozir yaratish
+    <yellow>/playerstats backup list <gray>— ro'yxat
+    <yellow>/playerstats backup restore <file> <gray>— tiklash
+    <dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  list-empty: "<yellow>Saqlangan zaxira nusxalar yo'q."
+  list-header: "<gold>📦 Zaxira nusxalar (<white>{count}<gold>):"
+  list-entry: "<gray>  • <white>{file} <dark_gray>({size})"
+
+  restore-usage: "<red>Foydalanish: <yellow>/playerstats backup restore <file>"
+  restore-starting: "<yellow>⏳ <white>{file}</white> dan tiklanmoqda..."
+  restore-done: "<green>✅ MB <white>{file}</white> dan tiklandi. <red>Serverni qayta ishga tushiring!"
+  restore-error: "<red>❌ <white>{file}</white> dan tiklab bo'lmadi."
+  module-disabled: "<red>'backup' moduli config.yml da o'chirilgan."
+
+
+# =========================================================================
+#                    Statistikani qaytarish
+# =========================================================================
+rollback:
+  usage: |-
+    <dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━
+    <gold>🔄 Statistikani qaytarish:
+    <yellow>/stats rollback <player> <stat> <value> <gray>— qiymat o'rnatish
+    <yellow>/stats rollback <player> --all <value> <gray>— hammasini nolga tushirish
+    <yellow>/stats rollback <player> --from <date> <stat> <gray>— sanadan qaytarish
+    <dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  done: "<green>✅ <white>{player}</white>: <yellow>{stat}</yellow> = <white>{value}"
+  done-all: "<green>✅ <white>{player}</white>: barcha statlar nolga tushirildi (<white>{count}</white> yozuv)"
+  done-from: "<green>✅ <white>{player}</white>: <yellow>{stat}</yellow> <white>{delta}</white> ga qaytarildi → <white>{value}"
+
+  notify: "<red>⚠ Sizning <yellow>{stat}</yellow> stattingiz administrator tomonidan o'zgartirildi: <white>{value}"
+  notify-all: "<red>⚠ Sizning statlaringiz administrator tomonidan nolga tushirildi (qiymat: <white>{value}<red>)"
+
+  never-played: "<red>O'yinchi <yellow>{player}</yellow> serverda hech qachon o'ynamagan."
+  invalid-value: "<red>Noto'g'ri qiymat: <white>{value}"
+  invalid-date: "<red>Noto'g'ri sana: <white>{date}"
+  error: "<red>❌ Qaytarish xatoligi. Konsolni tekshiring."
 
 
 # =========================================================================
@@ -890,3 +1073,7 @@ time:
   seconds: "{seconds}s"
   minutes: "{minutes}d"
   hours: "{hours}soat {minutes}daq"
+  times:
+    one: "marta"
+    few: "marta"
+    many: "marta"

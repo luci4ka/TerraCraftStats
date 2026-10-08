@@ -817,3 +817,54 @@ achievements:
     broadcast: true
     commands:
       - "give %player% netherite_ingot 1"
+
+  # =====================================================================
+  #                          ВРЕМЕННЫЕ (RESET)
+  # =====================================================================
+  # reset: daily | weekly | monthly
+  # repeat-reward: true — награда выдаётся каждый раз после сброса
+  #                false — только в первый раз
+
+  daily_killer_10:
+    icon: IRON_SWORD
+    stat: kills
+    threshold: 10
+    category: pvp
+    reset: daily
+    repeat-reward: false
+    broadcast: true
+    commands:
+      - "give %player% iron_ingot 5"
+
+  daily_miner_500:
+    icon: STONE_PICKAXE
+    stat: blocks_broken
+    threshold: 500
+    category: blocks
+    reset: daily
+    repeat-reward: false
+    broadcast: true
+    commands:
+      - "give %player% coal 16"
+
+  weekly_builder_5000:
+    icon: BRICKS
+    stat: blocks_placed
+    threshold: 5000
+    category: blocks
+    reset: weekly
+    repeat-reward: true
+    broadcast: true
+    commands:
+      - "give %player% diamond 3"
+
+  monthly_playtime_100h:
+    icon: CLOCK
+    stat: play_time
+    threshold: 360000
+    category: time
+    reset: monthly
+    repeat-reward: false
+    broadcast: true
+    commands:
+      - "give %player% netherite_ingot 1"

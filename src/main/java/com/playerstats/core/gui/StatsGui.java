@@ -7,8 +7,8 @@ import com.playerstats.core.database.dao.PlayerStatsDAO;
 import com.playerstats.core.utils.FormatUtil;
 import com.playerstats.core.utils.TimeUtil;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.minimessage.MiniMessage;
-import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
@@ -31,8 +31,6 @@ public class StatsGui {
     private static final int PAGE_SIZE = 45;
 
     private static final MiniMessage MM = MiniMessage.miniMessage();
-    private static final LegacyComponentSerializer LEGACY =
-            LegacyComponentSerializer.legacySection();
 
     private final Main plugin;
     private final LanguageManager lang;
@@ -471,8 +469,9 @@ public class StatsGui {
             ItemStack item = new ItemStack(Material.LIME_DYE);
             ItemMeta meta = item.getItemMeta();
             if (meta != null) {
-                meta.setDisplayName("");
-                meta.setLore(List.of(LEGACY.serialize(line)));
+                meta.displayName(Component.empty());
+                // ✅ line — уже Component, никакой сериализации
+                meta.lore(List.of(line.decoration(TextDecoration.ITALIC, false)));
                 item.setItemMeta(meta);
             }
             inv.setItem(slot, item);
@@ -483,11 +482,11 @@ public class StatsGui {
         String descRaw = lang.get(viewer, descKey);
         List<String> descLore = new ArrayList<>();
         for (String line : descRaw.split("\n")) {
-            descLore.add(toLegacy(line));
+            descLore.add(line);  // ✅ raw MiniMessage
         }
 
         inv.setItem(40, createItem(Material.BOOK,
-                toLegacy(lang.get(viewer, "stats-gui.sub-desc-title")),
+                lang.get(viewer, "stats-gui.sub-desc-title"),
                 descLore));
     }
 
@@ -507,18 +506,32 @@ public class StatsGui {
 
         List<String> lore = new ArrayList<>();
         for (String line : loreRaw.split("\n")) {
-            lore.add(toLegacy(line));
+            lore.add(line);
         }
 
-        return createItem(material, toLegacy(name), lore);
+        return createItem(material, name, lore);
     }
 
     private ItemStack createItem(Material material, String name, List<String> lore) {
         ItemStack item = new ItemStack(material);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.setDisplayName(name);
-            if (lore != null) meta.setLore(lore);
+            meta.displayName(MM.deserialize(name)
+                    .decoration(TextDecoration.ITALIC, false));
+
+            if (lore != null && !lore.isEmpty()) {
+                List<Component> loreComponents = new ArrayList<>();
+                for (String line : lore) {
+                    if (line == null || line.isEmpty()) {
+                        loreComponents.add(Component.empty());
+                    } else {
+                        loreComponents.add(MM.deserialize(line)
+                                .decoration(TextDecoration.ITALIC, false));
+                    }
+                }
+                meta.lore(loreComponents);
+            }
+
             item.setItemMeta(meta);
         }
         return item;
@@ -543,25 +556,24 @@ public class StatsGui {
                         String.valueOf(lorePlaceholders[i + 1]));
             }
 
-            List<String> lore = new ArrayList<>();
-            for (String line : loreRaw.split("\n")) {
-                lore.add(toLegacy(line));
-            }
+            // ✅ Adventure API
+            skullMeta.displayName(MM.deserialize(name)
+                    .decoration(TextDecoration.ITALIC, false));
 
-            skullMeta.setDisplayName(toLegacy(name));
-            skullMeta.setLore(lore);
+            List<Component> loreComponents = new ArrayList<>();
+            for (String line : loreRaw.split("\n")) {
+                if (line.isEmpty()) {
+                    loreComponents.add(Component.empty());
+                } else {
+                    loreComponents.add(MM.deserialize(line)
+                            .decoration(TextDecoration.ITALIC, false));
+                }
+            }
+            skullMeta.lore(loreComponents);
+
             item.setItemMeta(skullMeta);
         }
         return item;
-    }
-
-    private String toLegacy(String miniMessage) {
-        if (miniMessage == null) return "";
-        try {
-            return LEGACY.serialize(MM.deserialize(miniMessage));
-        } catch (Exception e) {
-            return miniMessage.replaceAll("<[^>]+>", "");
-        }
     }
 
     // ==================== UTIL ====================

@@ -193,13 +193,12 @@ public class ShareCommand {
                 "server", serverDisplay,
                 "group", group);
 
-        // Hover — на языке ПОЛУЧАТЕЛЯ
-        Component hoverText = lang.getComponentFromString(
-                "<gray>Нажмите, чтобы открыть статистику\n" +
-                        "<gray>Игрок: <white>" + sender.getName() + "\n" +
-                        "<gray>Сервер: <white>" + serverDisplay + "\n" +
-                        "<gray>Группа: " + group + "\n" +
-                        "<gray>K/D: <white>" + formatKD(kills, deaths));
+        // Hover — на языке ПОЛУЧАТЕЛЯ (из lang.yml)
+        Component hoverText = lang.getComponent(receiver, "share.broadcast-hover",
+                "player", sender.getName(),
+                "server", serverDisplay,
+                "group", group,
+                "kd", formatKD(receiver, kills, deaths));
 
         header = header.clickEvent(ClickEvent.runCommand("/stats " + sender.getName()))
                 .hoverEvent(HoverEvent.showText(hoverText));
@@ -214,7 +213,7 @@ public class ShareCommand {
                 "blocks", blocks,
                 "kills", kills,
                 "deaths", deaths,
-                "kd", formatKD(kills, deaths),
+                "kd", formatKD(receiver, kills, deaths),
                 "balance", FormatUtil.formatBalance(plugin, lang, receiver, balance));
 
         return header.append(stats);
@@ -246,13 +245,13 @@ public class ShareCommand {
                 "bosses", bosses,
                 "kills", kills,
                 "deaths", deaths,
-                "kd", formatKD(kills, deaths),
+                "kd", formatKD(receiver, kills, deaths),
                 "balance", FormatUtil.formatBalance(plugin, lang, receiver, balance));
 
-        Component hoverText = lang.getComponentFromString(
-                "<gray>Нажмите, чтобы открыть статистику\n" +
-                        "<gray>Игрок: <white>" + sender.getName() + "\n" +
-                        "<gray>K/D: <white>" + formatKD(kills, deaths));
+        // Hover — на языке ПОЛУЧАТЕЛЯ (из lang.yml)
+        Component hoverText = lang.getComponent(receiver, "share.private-hover",
+                "player", sender.getName(),
+                "kd", formatKD(receiver, kills, deaths));
 
         return message.clickEvent(ClickEvent.runCommand("/stats " + sender.getName()))
                 .hoverEvent(HoverEvent.showText(hoverText));
@@ -288,9 +287,17 @@ public class ShareCommand {
         };
     }
 
-    private String formatKD(int kills, int deaths) {
-        if (deaths == 0) return kills > 0 ? "∞" : "0.00";
-        return String.format("%.2f", (double) kills / deaths);
+    /**
+     * Формат K/D — из lang.yml (share.kd-*).
+     */
+    private String formatKD(Player viewer, int kills, int deaths) {
+        if (deaths == 0) {
+            return kills > 0
+                    ? lang.getRaw(viewer, "share.kd-infinite")
+                    : lang.getRaw(viewer, "share.kd-zero");
+        }
+        String fmt = lang.getRaw(viewer, "share.kd-format");
+        if (fmt.startsWith("<red>Missing key")) fmt = "%.2f";
+        return String.format(fmt, (double) kills / deaths);
     }
-
 }

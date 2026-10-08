@@ -1,0 +1,57 @@
+# =========================================================================
+#                       PlayerStats — Holograms
+# =========================================================================
+# Требует DecentHolograms. Если не установлен — модуль полностью no-op.
+#
+# Тексты — в MiniMessage (<gold>, <gradient:...>).
+# ⚠ DecentHolograms не понимает MiniMessage — конвертация происходит
+# внутри HologramManager.
+# =========================================================================
+
+enabled: true
+
+update-interval-seconds: 300
+initial-delay-seconds: 60
+top-size: 10
+empty-line: "<dark_gray>— — — — — —"
+
+# =========================================================================
+#                         Список голограмм
+# =========================================================================
+# name — произвольный ID (используется внутри DH как playerstats_<name>)
+# stat — имя статистики в БД (kills, mobs_killed, play_time, balance, ...)
+# title — заголовок (MiniMessage)
+# location — { world, x, y, z }
+# =========================================================================
+
+list:
+
+  top-kills:
+    enabled: true
+    stat: kills
+    title: "<gold><bold>★ ТОП УБИЙСТВ ★"
+    location:
+      world: world
+      x: 100.5
+      y: 65.0
+      z: 200.5
+
+  top-mobs:
+    enabled: true
+    stat: mobs_killed
+    title: "<red><bold>★ ТОП ПО МОБАМ ★"
+    location:
+      world: world
+      x: 105.5
+      y: 65.0
+      z: 200.5
+
+  top-playtime:
+    enabled: false
+    stat: play_time
+    title: "<aqua><bold>★ ТОП ПО ВРЕМЕНИ ★"
+    location:
+      world: world
+      x: 110.5
+      y: 65.0
+      z: 200.5

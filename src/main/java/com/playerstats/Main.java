@@ -1,11 +1,14 @@
 package com.playerstats;
 
-import com.playerstats.api.ApiServer;
+import com.playerstats.api.http.PlayerStatsHttpApi;
+import com.playerstats.api.java.PlayerStatsApi;
+import com.playerstats.api.java.impl.PlayerStatsApiImpl;
 import com.playerstats.core.achievements.AchievementManager;
 import com.playerstats.core.commands.CommandRegistrar;
 import com.playerstats.core.commands.ExcludeCommand;
 import com.playerstats.core.config.ConfigHandler;
 import com.playerstats.core.config.LanguageManager;
+import com.playerstats.core.database.DatabaseBackupTask;
 import com.playerstats.core.database.DatabaseConnection;
 import com.playerstats.core.database.MySQLConnection;
 import com.playerstats.core.database.SQLiteConnection;
@@ -19,10 +22,11 @@ import com.playerstats.core.pvp.PvPTracker;
 import com.playerstats.core.services.*;
 import com.playerstats.hooks.HooksManager;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
 import org.bstats.bukkit.Metrics;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
+import org.bukkit.plugin.ServicePriority;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
@@ -39,18 +43,22 @@ public final class Main extends JavaPlugin {
     private ServerDAO serverDAO;
     private ServerStatsDAO serverStatsDAO;
     private LeaderboardDAO leaderboardDAO;
+    private RollbackLockService rollbackLockService;
     private ThreadManager threadManager;
-    private ApiServer apiServer;
+    private PlayerStatsHttpApi apiServer;
+    private PlayerMilestoneDAO playerMilestoneDAO;
     private TopCache topCache;
     private ConfigHandler config;
     private UpdateChecker updateChecker;
     private LanguageManager languageManager;
     private PvPTracker pvpTracker;
     private HooksManager hooksManager;
+    private long startTime;
     private StatsGui statsGui;
     private HologramManager hologramManager;
     private MilestoneManager milestoneManager;
     private DiscordWebhook discordWebhook;
+    private DatabaseBackupTask databaseBackupTask;
     private TopChangeNotifier topChangeNotifier;
     private StatHistoryDAO statHistoryDAO;
     private StatSnapshotTask statSnapshotTask;
@@ -94,8 +102,16 @@ public final class Main extends JavaPlugin {
                 db = new SQLiteConnection(this, dbFile.getAbsolutePath());
             }
             db.connect();
+
+            // Создаём backup task ДО миграции, чтобы мигратор мог его вызвать
+            this.databaseBackupTask = new DatabaseBackupTask(this, useMySQL);
+
             db.initTables();
+
+            databaseBackupTask.start();
+
             getLogger().info("База данных подключена: " + (useMySQL ? "MySQL" : "SQLite"));
+
         } catch (SQLException e) {
             getLogger().log(Level.SEVERE, "Не удалось подключиться к БД.", e);
             getServer().getPluginManager().disablePlugin(this);
@@ -112,6 +128,7 @@ public final class Main extends JavaPlugin {
             this.leaderboardDAO = new LeaderboardDAO(this, db, statTypeDAO);
             this.statHistoryDAO = new StatHistoryDAO(this, db, useMySQL);
             this.achievementDAO = new AchievementDAO(this, db, useMySQL);
+            this.playerMilestoneDAO = new PlayerMilestoneDAO(this, db, useMySQL);
 
             getLogger().info("DAO инициализированы.");
         } catch (Exception e) {
@@ -119,6 +136,8 @@ public final class Main extends JavaPlugin {
             getServer().getPluginManager().disablePlugin(this);
             return;
         }
+
+        // ⚠️ Java API теперь регистрируется В КОНЦЕ onEnable() — см. шаг 18.
 
         // 4. Серверный ID
         try {
@@ -136,6 +155,10 @@ public final class Main extends JavaPlugin {
         // 5. ThreadManager
         this.threadManager = new ThreadManager(this);
 
+        this.startTime = System.currentTimeMillis();
+
+        this.rollbackLockService = new RollbackLockService(this);
+
         // 6. TopCache
         this.topCache = new TopCache(this, leaderboardDAO, serverId, 5);
 
@@ -145,12 +168,16 @@ public final class Main extends JavaPlugin {
         // 6.6. StatSnapshotTask
         this.statSnapshotTask = new StatSnapshotTask(this);
 
-        // 6.7. HologramManager
-        this.hologramManager = new HologramManager(this);
-
         // 7. Хуки
         this.hooksManager = new HooksManager(this);
         hooksManager.init();
+
+        // 7.5. HologramManager — ПОСЛЕ хуков (P0 #9)
+        this.hologramManager = new HologramManager(this);
+
+        // 7.6. Загрузить голограммы из holograms.yml + старт авто-обновления
+        hologramManager.loadFromConfig();
+        hologramManager.startAutoUpdate();
 
         // 8. PlayerGroupService
         this.groupService = new PlayerGroupService(this, config, statsDAO,
@@ -164,8 +191,9 @@ public final class Main extends JavaPlugin {
         this.pvpTracker = new PvPTracker(this);
 
         // 10. MilestoneManager
-        this.milestoneManager = new MilestoneManager(this);
+        this.milestoneManager = new MilestoneManager(this, playerMilestoneDAO);
 
+        // 10.5. AchievementManager
         this.achievementManager = new AchievementManager(this, achievementDAO);
         getLogger().info("AchievementManager инициализирован.");
 
@@ -180,11 +208,9 @@ public final class Main extends JavaPlugin {
             try {
                 TotalServerDAO totalServerDAO = new TotalServerDAO(this, db, statTypeDAO);
                 ServerStatsService statsService = new ServerStatsService(totalServerDAO, getLogger());
-                this.apiServer = new ApiServer(statsService, playerDAO,
+                this.apiServer = new PlayerStatsHttpApi(this, statsService, playerDAO,
                         config.getApiHost(), config.getApiPort());
                 this.apiServer.start();
-                getLogger().info("HTTP API запущен на "
-                        + config.getApiHost() + ":" + config.getApiPort());
             } catch (Exception e) {
                 getLogger().log(Level.WARNING, "Не удалось запустить HTTP API.", e);
                 this.apiServer = null;
@@ -193,7 +219,7 @@ public final class Main extends JavaPlugin {
             this.apiServer = null;
         }
 
-        // 13. Слушатели — вынесено
+        // 13. Слушатели
         ListenerRegistrar listenerRegistrar = new ListenerRegistrar(this);
         this.statsListener = listenerRegistrar.registerAll();
 
@@ -202,7 +228,7 @@ public final class Main extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(new StatsGuiListener(this), this);
         getLogger().info("StatsGui инициализирован.");
 
-        // 15. Команды — вынесено
+        // 15. Команды
         new CommandRegistrar(this, groupService).register();
 
         // 16. bStats
@@ -220,6 +246,15 @@ public final class Main extends JavaPlugin {
         } catch (Exception e) {
             getLogger().log(Level.WARNING, "Не удалось запустить UpdateChecker", e);
         }
+
+        // 18. Java API — регистрируем в САМОМ КОНЦЕ (P0 #10)
+        getServer().getServicesManager().register(
+                PlayerStatsApi.class,
+                new PlayerStatsApiImpl(this),
+                this,
+                ServicePriority.Normal
+        );
+        getLogger().info("Java API зарегистрирован через ServicesManager.");
 
         logPluginStartInfo(useMySQL);
     }
@@ -247,9 +282,8 @@ public final class Main extends JavaPlugin {
         if (hologramManager != null) hologramManager.clear();
         if (topChangeNotifier != null) topChangeNotifier.clear();
         if (pvpTracker != null) pvpTracker.clear();
-        if (achievementManager != null) {
-            achievementManager.clearCache();
-        }
+        if (achievementManager != null) achievementManager.clearCache();
+        if (rollbackLockService != null) rollbackLockService.clear();
 
         if (threadManager != null) {
             try {
@@ -257,6 +291,9 @@ public final class Main extends JavaPlugin {
             } catch (Exception e) {
                 getLogger().log(Level.WARNING, "Ошибка остановки ThreadManager.", e);
             }
+        }
+        if (databaseBackupTask != null) {
+            databaseBackupTask.stop();
         }
 
         if (hooksManager != null) hooksManager.shutdown();
@@ -284,53 +321,57 @@ public final class Main extends JavaPlugin {
         getLogger().info("Информация о сервере обновлена: " + newServerName + " (ID: " + newServerId + ")");
     }
 
-    /**
-     * Отправить сообщение о статусе обновления.
-     */
     public void sendUpdateMessage(CommandSender sender) {
         if (updateChecker == null) {
-            sender.sendMessage(Component.text("UpdateChecker не инициализирован.")
-                    .color(NamedTextColor.RED));
+            sender.sendMessage(getComponent(sender, "update.not-initialized"));
             return;
         }
 
         if (updateChecker.isUpdateAvailable()) {
-            sender.sendMessage(Component.text("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-                    .color(NamedTextColor.DARK_GRAY));
-            sender.sendMessage(Component.text("📢 Доступно обновление!")
-                    .color(NamedTextColor.GOLD));
-            sender.sendMessage(Component.text("  Текущая: v" + updateChecker.getCurrentVersion())
-                    .color(NamedTextColor.GRAY));
-            sender.sendMessage(Component.text("  Новая: v" + updateChecker.getLatestVersion())
-                    .color(NamedTextColor.GREEN));
-            sender.sendMessage(Component.text("  Скачать: " + updateChecker.getDownloadUrl())
-                    .color(NamedTextColor.AQUA));
-            sender.sendMessage(Component.text("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-                    .color(NamedTextColor.DARK_GRAY));
+            sender.sendMessage(getComponent(sender, "update.header"));
+            sender.sendMessage(getComponent(sender, "update.available"));
+            sender.sendMessage(getComponent(sender, "update.current",
+                    "current", updateChecker.getCurrentVersion()));
+            sender.sendMessage(getComponent(sender, "update.latest",
+                    "latest", updateChecker.getLatestVersion()));
+            sender.sendMessage(getComponent(sender, "update.download",
+                    "url", updateChecker.getDownloadUrl()));
+            sender.sendMessage(getComponent(sender, "update.header"));
         } else {
-            sender.sendMessage(Component.text("✅ Плагин актуален (v"
-                            + updateChecker.getCurrentVersion() + ")")
-                    .color(NamedTextColor.GREEN));
+            sender.sendMessage(getComponent(sender, "update.up-to-date",
+                    "version", updateChecker.getCurrentVersion()));
         }
     }
 
     private void logPluginStartInfo(boolean useMySQL) {
-        String apiStatus = (apiServer != null) ? "§aЗапущен ✅" : "§cОтключен ❌";
+        String apiStatus = (apiServer != null) ? "Запущен" : "Отключен";
 
         Bukkit.getConsoleSender().sendMessage("§8════════════════════════════════════════════");
-        Bukkit.getConsoleSender().sendMessage("§b[PlayerStats] 🌟 Плагин успешно включен!");
+        Bukkit.getConsoleSender().sendMessage("§b[PlayerStats] Плагин успешно включен!");
         Bukkit.getConsoleSender().sendMessage("§6Версия: §a" + getPluginMeta().getVersion() + " §7by §3luci");
-        Bukkit.getConsoleSender().sendMessage("§6База: §3" + (useMySQL ? "MySQL ✅" : "SQLite ✅"));
+        Bukkit.getConsoleSender().sendMessage("§6База: §3" + (useMySQL ? "MySQL" : "SQLite"));
         Bukkit.getConsoleSender().sendMessage("§6Сервер: §3" + serverName + " §7(ID: " + serverId + ")");
-        Bukkit.getConsoleSender().sendMessage("§6API: " + apiStatus);
+        Bukkit.getConsoleSender().sendMessage("§6API: §3" + apiStatus);
+
         if (apiServer != null) {
             Bukkit.getConsoleSender().sendMessage("§6Хост: §3"
                     + config.getApiHost() + " §7| §6Порт: §3" + config.getApiPort());
+            Bukkit.getConsoleSender().sendMessage("§6Auth: §3"
+                    + (apiServer.getKeyManager().hasKey() ? "включён" : "выключен"));
+            Bukkit.getConsoleSender().sendMessage("§6CORS: §3"
+                    + (config.isApiCorsEnabled() ? "включён" : "выключен"));
         }
 
         hooksManager.logStatus();
 
         Bukkit.getConsoleSender().sendMessage("§8════════════════════════════════════════════");
+    }
+
+    private Component getComponent(CommandSender sender, String key, Object... replacements) {
+        if (sender instanceof Player player) {
+            return languageManager.getComponent(player, key, replacements);
+        }
+        return languageManager.getComponent(key, replacements);
     }
 
     // ======= Геттеры =======
@@ -346,7 +387,7 @@ public final class Main extends JavaPlugin {
     public LeaderboardDAO getLeaderboardDAO() { return leaderboardDAO; }
     public int getServerId() { return serverId; }
     public DatabaseConnection getConnection() { return db; }
-    public ApiServer getApiServer() { return apiServer; }
+    public PlayerStatsHttpApi getApiServer() { return apiServer; }
     public ConfigHandler getConfigHandler() { return config; }
     public PlayerGroupService getGroupService() { return groupService; }
     public HooksManager getHooksManager() { return hooksManager; }
@@ -363,4 +404,8 @@ public final class Main extends JavaPlugin {
     public TopChangeNotifier getTopChangeNotifier() { return topChangeNotifier; }
     public HologramManager getHologramManager() { return hologramManager; }
     public ExcludeCommand getExcludeCommand() { return excludeCommand; }
+    public long getStartTime() { return startTime; }
+    public PlayerMilestoneDAO getPlayerMilestoneDAO() { return playerMilestoneDAO; }
+    public DatabaseBackupTask getDatabaseBackupTask() { return databaseBackupTask; }
+    public RollbackLockService getRollbackLockService() { return rollbackLockService; }
 }

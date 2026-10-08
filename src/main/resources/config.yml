@@ -6,16 +6,20 @@
 #
 # НЕ ИЗМЕНЯЙТЕ config-version вручную — это сломает миграцию!
 #
-# Модули (achievements, milestones, top-chips, top-notifications, sparkline)
-# находятся в отдельных файлах:
+# Модули находятся в отдельных файлах:
 #   plugins/PlayerStats/achievements.yml
 #   plugins/PlayerStats/milestones.yml
 #   plugins/PlayerStats/top-chips.yml
 #   plugins/PlayerStats/top-notifications.yml
 #   plugins/PlayerStats/sparkline.yml
+#   plugins/PlayerStats/holograms.yml
+#   plugins/PlayerStats/backup.yml
+#   plugins/PlayerStats/api.yml
+#   plugins/PlayerStats/discord.yml
+#   plugins/PlayerStats/cosmetics.yml
 # =========================================================================
 
-config-version: 3
+config-version: 4
 debug-level: 1
 language: ru
 
@@ -33,7 +37,10 @@ modules:
   holograms: true
   achievements: true
   milestones: true
+  backup: true
   api: false
+  discord: false
+  cosmetics: false
 
 
 # =========================================================================
@@ -105,73 +112,6 @@ stats-click-commands:
 
 
 # =========================================================================
-#                    Ключевые слова для боссов
-# =========================================================================
-
-mob-boss-keywords:
-  - "Босс"
-  - "Boss"
-  - "Elite"
-  - "Элитный"
-  - "World Boss"
-
-
-# =========================================================================
-#                    Отслеживаемые статистики
-# =========================================================================
-
-tracked-stats:
-  distance_walked: true
-  damage_dealt: true
-  damage_taken: true
-  killstreak: true
-  best_killstreak: true
-  items_crafted: true
-  food_consumed: true
-  arrows_shot: true
-  fish_caught: true
-  entities_tamed: true
-  entities_bred: true
-  teleports: true
-  portal_uses: true
-  logins: true
-
-
-# =========================================================================
-#                    Tracked Blocks — ценные блоки
-# =========================================================================
-
-tracked-blocks:
-  - "diamond_ore"
-  - "deepslate_diamond_ore"
-  - "emerald_ore"
-  - "deepslate_emerald_ore"
-  - "gold_ore"
-  - "deepslate_gold_ore"
-  - "nether_gold_ore"
-  - "iron_ore"
-  - "deepslate_iron_ore"
-  - "coal_ore"
-  - "deepslate_coal_ore"
-  - "lapis_ore"
-  - "deepslate_lapis_ore"
-  - "redstone_ore"
-  - "deepslate_redstone_ore"
-  - "copper_ore"
-  - "deepslate_copper_ore"
-  - "ancient_debris"
-  - "netherite_block"
-  - "diamond_block"
-  - "emerald_block"
-  - "gold_block"
-  - "iron_block"
-  - "lapis_block"
-  - "redstone_block"
-  - "coal_block"
-  - "copper_block"
-
-
-# =========================================================================
 #                          PvP
 # =========================================================================
 
@@ -183,63 +123,79 @@ pvp:
 
 
 # =========================================================================
-#                    Holograms — голограммы топов
+#                    Rollback статистики
 # =========================================================================
-# Требует DecentHolograms. Голограммы обновляются раз в минуту.
-# Сохраняются автоматически при /playerstats hologram create.
+# После rollback игрок не может увеличивать стату N секунд
+# (чтобы «откаченное» значение не вернулось при следующем убийстве).
 
-holograms:
-  enabled: true
-
-
-# =========================================================================
-#                    HTTP API
-# =========================================================================
-
-api:
-  enabled: false
-  host: "0.0.0.0"
-  port: 8080
+rollback:
+  lock-seconds: 60
+  notify-player: true
+  log-to-console: true
+  # ⚠ Таблица stat_deltas быстро растёт. Только для отладки.
+  track-deltas: false
 
 
 # =========================================================================
-#                    Discord Webhook
+#                    Отслеживание (tracking)
 # =========================================================================
+# Какие статистики отслеживать, какие блоки — ценные, какие мобы — боссы.
 
-discord:
-  enabled: false
-  webhook-url: "https://discord.com/api/webhooks/..."
-  username: "PlayerStats"
-  avatar-url: ""
+tracking:
+  # Какие статистики вообще собирать
+  stats:
+    distance_walked: true
+    damage_dealt: true
+    damage_taken: true
+    killstreak: true
+    best_killstreak: true
+    items_crafted: true
+    food_consumed: true
+    arrows_shot: true
+    fish_caught: true
+    entities_tamed: true
+    entities_bred: true
+    teleports: true
+    portal_uses: true
+    logins: true
 
-  events:
-    milestone: true
-    level-up: false
-    top-change: false
+  # Ценные блоки (block_placed_<name>, block_broken_<name>)
+  blocks:
+    - "diamond_ore"
+    - "deepslate_diamond_ore"
+    - "emerald_ore"
+    - "deepslate_emerald_ore"
+    - "gold_ore"
+    - "deepslate_gold_ore"
+    - "nether_gold_ore"
+    - "iron_ore"
+    - "deepslate_iron_ore"
+    - "coal_ore"
+    - "deepslate_coal_ore"
+    - "lapis_ore"
+    - "deepslate_lapis_ore"
+    - "redstone_ore"
+    - "deepslate_redstone_ore"
+    - "copper_ore"
+    - "deepslate_copper_ore"
+    - "ancient_debris"
+    - "netherite_block"
+    - "diamond_block"
+    - "emerald_block"
+    - "gold_block"
+    - "iron_block"
+    - "lapis_block"
+    - "redstone_block"
+    - "coal_block"
+    - "copper_block"
 
-
-# =========================================================================
-#                    Rainbow & Festive
-# =========================================================================
-
-rainbow:
-  enabled: false
-  apply-to:
-    - "stats.title-self"
-    - "stats.title-other"
-    - "top.header"
-    - "top.category-time"
-    - "top.category-mobs"
-    - "top.category-blocks"
-    - "top.category-balance"
-    - "compare.title"
-    - "help.title"
-
-festive:
-  enabled: false
-  apply-to:
-    - "stats.title-self"
-    - "stats.title-other"
+  # Ключевые слова для определения боссов
+  mob-boss-keywords:
+    - "Босс"
+    - "Boss"
+    - "Elite"
+    - "Элитный"
+    - "World Boss"
 
 
 # =========================================================================

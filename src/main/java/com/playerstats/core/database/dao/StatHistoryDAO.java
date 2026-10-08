@@ -77,6 +77,38 @@ public class StatHistoryDAO {
         return history;
     }
 
+    public List<Map<String, Object>> getHistoryWithDates(int playerId, int statTypeId,
+                                                         int serverId, int days)
+            throws SQLException {
+        LocalDate from = LocalDate.now().minusDays(days - 1);
+
+        String sql = """
+            SELECT value, date FROM stat_history
+            WHERE player_id = ? AND stat_type_id = ? AND server_id = ?
+              AND date >= ?
+            ORDER BY date ASC
+            """;
+
+        List<Map<String, Object>> history = new ArrayList<>();
+        try (Connection conn = db.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, playerId);
+            stmt.setInt(2, statTypeId);
+            stmt.setInt(3, serverId);
+            stmt.setDate(4, java.sql.Date.valueOf(from));
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    Map<String, Object> point = new LinkedHashMap<>();
+                    point.put("date", rs.getDate("date").toString());
+                    point.put("value", rs.getInt("value"));
+                    history.add(point);
+                }
+            }
+        }
+        return history;
+    }
+
     /**
      * Сделать снапшот для всех игроков по всем категориям.
      */

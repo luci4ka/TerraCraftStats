@@ -91,6 +91,97 @@ public class PlayerStatsDAO {
         return getStat(playerId, serverId, statTypeId);
     }
 
+    // ==================== Rollback ====================
+
+    /**
+     * Обнулить все int-статы игрока на сервере.
+     * НЕ трогает value_double (balance) и value_string (group).
+     *
+     * @return количество обновлённых строк
+     */
+    public int resetAllStats(int playerId, int serverId) throws SQLException {
+        if (isVerboseDebug()) {
+            plugin.getLogger().info("[DEBUG] SQL: resetAllStats(playerId=" + playerId
+                    + ", serverId=" + serverId + ")");
+        }
+
+        String sql = "UPDATE player_stats SET value_int = 0 "
+                + "WHERE player_id = ? AND server_id = ? AND value_int IS NOT NULL";
+
+        try (Connection conn = db.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, playerId);
+            stmt.setInt(2, serverId);
+            return stmt.executeUpdate();
+        }
+    }
+
+    /**
+     * Записать дельту в журнал stat_deltas.
+     * Используется, если {@code rollback.track-deltas: true}.
+     */
+    public void recordDelta(int playerId, String statName, int delta) throws SQLException {
+        int statTypeId = getOrCacheStatTypeId(statName);
+        long now = System.currentTimeMillis();
+
+        if (isVerboseDebug()) {
+            plugin.getLogger().info("[DEBUG] SQL: recordDelta(playerId=" + playerId
+                    + ", statName=" + statName + ", delta=" + delta + ")");
+        }
+
+        String sql = "INSERT INTO stat_deltas "
+                + "(player_id, stat_type_id, delta, timestamp) VALUES (?, ?, ?, ?)";
+
+        try (Connection conn = db.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, playerId);
+            stmt.setInt(2, statTypeId);
+            stmt.setInt(3, delta);
+            stmt.setLong(4, now);
+            stmt.executeUpdate();
+        }
+    }
+
+    /**
+     * Сумма всех дельт с определённого времени.
+     * Для {@code /stats rollback <player> --from <date> <stat>}.
+     *
+     * @return сумма дельт (0, если нет записей)
+     */
+    public int sumDeltasSince(int playerId, String statName, long sinceMillis)
+            throws SQLException {
+        int statTypeId = getOrCacheStatTypeId(statName);
+
+        String sql = "SELECT COALESCE(SUM(delta), 0) FROM stat_deltas "
+                + "WHERE player_id = ? AND stat_type_id = ? AND timestamp >= ?";
+
+        try (Connection conn = db.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, playerId);
+            stmt.setInt(2, statTypeId);
+            stmt.setLong(3, sinceMillis);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) return rs.getInt(1);
+            }
+        }
+        return 0;
+    }
+
+    /**
+     * Удалить дельты старше N миллисекунд (cleanup).
+     */
+    public int cleanupDeltasOlderThan(long millis) throws SQLException {
+        long threshold = System.currentTimeMillis() - millis;
+
+        String sql = "DELETE FROM stat_deltas WHERE timestamp < ?";
+        try (Connection conn = db.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setLong(1, threshold);
+            return stmt.executeUpdate();
+        }
+    }
+
     // ==================== Double ====================
 
     public void setStatDouble(int playerId, int serverId, String statName, double value) throws SQLException {
@@ -193,11 +284,6 @@ public class PlayerStatsDAO {
 
     // ==================== Сводные данные ====================
 
-    /**
-     * Все int-статы игрока на сервере.
-     * Читает value_int; если NULL — value_double.
-     * Приоритет: value_int (для kills, blocks_placed и т.д.).
-     */
     public Map<String, Integer> getAllStatsForPlayer(int playerId, int serverId) throws SQLException {
         if (isVerboseDebug()) {
             plugin.getLogger().info("[DEBUG] SQL: getAllStatsForPlayer(playerId=" + playerId
@@ -234,10 +320,6 @@ public class PlayerStatsDAO {
         return stats;
     }
 
-    /**
-     * Суммарные int-статы игрока по всем серверам.
-     * Приоритет: value_int.
-     */
     public Map<String, Integer> getTotalStatsForPlayer(int playerId) throws SQLException {
         Map<String, Integer> stats = new LinkedHashMap<>();
         String query = """
@@ -264,10 +346,6 @@ public class PlayerStatsDAO {
         return stats;
     }
 
-    /**
-     * Суммарные double-статы игрока по всем серверам.
-     * Приоритет: value_double (для balance).
-     */
     public Map<String, Double> getTotalStatsDoubleForPlayer(int playerId) throws SQLException {
         Map<String, Double> stats = new LinkedHashMap<>();
         String query = """
@@ -330,10 +408,6 @@ public class PlayerStatsDAO {
     }
 
     public record StatValue(int valueInt, double valueDouble, String valueString) {
-        /**
-         * Возвращает значение как Number.
-         * Приоритет: value_double, если != 0; иначе value_int.
-         */
         public Number getNumberValue() {
             if (valueDouble != 0.0) return valueDouble;
             return valueInt;
@@ -461,10 +535,6 @@ public class PlayerStatsDAO {
         }
     }
 
-    /**
-     * Получить все статистики игрока на сервере, начинающиеся с префикса.
-     * Читает value_int.
-     */
     public Map<String, Integer> getStatsByPrefix(int playerId, int serverId, String prefix)
             throws SQLException {
         if (isVerboseDebug()) {
@@ -500,9 +570,6 @@ public class PlayerStatsDAO {
         return stats;
     }
 
-    /**
-     * Проверить, включён ли verbose debug.
-     */
     private boolean isVerboseDebug() {
         try {
             return plugin.getConfigHandler().isVerboseDebug();

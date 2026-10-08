@@ -30,6 +30,9 @@ commands:
     serverstats: "Estadísticas del servidor"
     exclude: "Gestionar exclusiones"
     playerstats: "Gestionar el plugin PlayerStats"
+    hologram: "Gestionar hologramas"
+    backup: "Gestionar copias de seguridad de la BD"
+    rollback: "Revertir estadísticas"
 
 
 # =========================================================================
@@ -45,10 +48,25 @@ snapshot:
 #                    Holograms
 # =========================================================================
 holograms:
+  # Gestión
   created: "<green>✅ Holograma creado: <white>{stat}"
-  removed: "<green>✅ Holograma eliminado: <white>{stat}"
+  removed: "<green>✅ Holograma eliminado: <white>{name}"
   list-empty: "<yellow>No hay hologramas activos."
   list-header: "<green>Hologramas activos: <white>{list}"
+  reloaded: "<green>✅ Hologramas recargados."
+  module-disabled: "<red>El módulo 'holograms' está desactivado en config.yml."
+
+  # Nombres de stats (para defaultTitle)
+  stats:
+    play_time: "Tiempo de juego"
+    kills: "Bajas"
+    mobs_killed: "Mobs"
+    bosses_killed: "Jefes"
+    blocks_placed: "Bloques colocados"
+    blocks_broken: "Bloques rotos"
+    balance: "Balance"
+    deaths: "Muertes"
+    killstreak: "Racha"
 
 
 # =========================================================================
@@ -202,6 +220,30 @@ achievements:
   status-locked: "<red>✗ Bloqueado"
   date: "<dark_gray>  {date}"
 
+  # ===== Líneas =====
+  category: "<dark_gray>▸ <gray>Categoría: <yellow>{category}"
+  progress: "<dark_gray>▸ <gray>Progreso: {color}{current}<gray>/<white>{required} <dark_gray>(<yellow>{percent}%<dark_gray>)"
+  progress-bar: "<dark_gray>  {bar}"
+  requires: "<dark_gray>▸ <gray>Requerido: <white>{stat} <dark_gray>(<white>{required}<dark_gray>)"
+
+  # ===== Logros temporales =====
+  reset:
+    label: "<dark_gray>▸ <gray>Reinicio: <yellow>{period}"
+    reward-repeatable: "<dark_gray>▸ <gray>Recompensa: <green>repetible"
+    reward-once: "<dark_gray>▸ <gray>Recompensa: <red>única"
+    in: "<dark_gray>▸ <gray>Próximo reinicio: <white>en {time}"
+    ready: "<dark_gray>▸ <gray>Próximo reinicio: <green>listo"
+    not-started: "<dark_gray>▸ <gray>Próximo reinicio: <dark_gray>no iniciado"
+
+    # Nombres de períodos (clave = ac.reset())
+    daily: "diario"
+    weekly: "semanal"
+    monthly: "mensual"
+
+  # ===== Botones =====
+  back: "<yellow>◀ Atrás"
+  back-hover: "<gray>Volver a las estadísticas"
+
   # ===== Errores =====
   error-loading: "<red>Error al cargar los logros."
 
@@ -211,21 +253,12 @@ achievements:
   # ===== Color de descripción (opcional) =====
   description-color: "<gray>"
 
-  # ===== Líneas =====
-  category: "<dark_gray>▸ <gray>Categoría: <yellow>{category}"
-  progress: "<dark_gray>▸ <gray>Progreso: {color}{current}<gray>/<white>{required}"
-  progress-bar: "<dark_gray>  {bar}"
-  requires: "<dark_gray>▸ <gray>Requerido: <white>{stat} <dark_gray>(<white>{required}<dark_gray>)"
-
-  # ===== Botones =====
-  back: "<yellow>◀ Atrás"
-  back-hover: "<gray>Volver a las estadísticas"
-
   # ===== Mensajes =====
   messages:
     unlock-self: "<gold>🏆 <yellow>Logro desbloqueado: <white>{name}"
     unlock-description: "<gray>   {description}"
     unlock-broadcast: "<gold>🏆 <yellow>{player} <gray>desbloqueó el logro <white>{name}<gray>!"
+    reset: "<gray>⏳ El logro <white>{name}</white> ha sido reiniciado — puedes conseguirlo de nuevo."
 
   # ===== Categorías =====
   categories:
@@ -573,11 +606,16 @@ stats:
   pvp-header: "<gray>Jugadores asesinados: <white>{count}"
   pvp-empty: "<gray>Sin datos de PvP."
 
+  # ===== Lista PvP =====
+  pvp-entry: "<red>  ☠ <yellow>{player} <gray>— <white>{count} {times}"
+  pvp-entry-hover: "<gray>Clic para ver las estadísticas de <white>{player}\n<gray>UUID: <dark_gray>{uuid}"
+
   # ===== Subcomando: Mob =====
   mob-title-self: "<yellow>☠ <white>Tus estadísticas PvE <gray>| <green>Mobs: <white>{mobs} <gray>| <gold>Jefes: <white>{bosses}"
   mob-title-other: "<yellow>☠ <white>Estadísticas PvE de <yellow>{player} <gray>| <green>Mobs: <white>{mobs} <gray>| <gold>Jefes: <white>{bosses}"
   mob-header: "<gray>Tipos de mobs asesinados: <white>{count}"
   mob-empty: "<gray>Sin datos de mobs."
+  mob-entry: "<dark_red>  ☠ <yellow>{name} <gray>— <white>{count} {unit}"
 
   # ===== Subcomando: Block =====
   block-title-self: "<yellow>🧱 <white>Tus estadísticas de bloques <gray>| <green>Colocados: <white>{placed} <gray>| <red>Rotos: <white>{broken}"
@@ -585,6 +623,17 @@ stats:
   block-placed-header: "<green>🏗 Colocados (<white>{count}<green> tipos):"
   block-broken-header: "<gold>⛏ Rotos (<white>{count}<gold> tipos):"
   block-empty: "<gray>Sin datos."
+
+  # ===== Lista de bloques =====
+  block-placed-entry: "<green>  🏗 <yellow>{name} <gray>— <white>{count} {unit}"
+  block-broken-entry: "<gold>  ⛏ <yellow>{name} <gray>— <white>{count} {unit}"
+
+  # ===== Unidad =====
+  unit-pieces: "uds"
+
+  # ===== Paginación =====
+  pagination-prev-hover: "<gray>Página {page}"
+  pagination-next-hover: "<gray>Página {page}"
 
   # ===== Claves antiguas (fallback) =====
   mobs-header: "<gold>▸ Bajas de mobs:"
@@ -621,6 +670,7 @@ serverstats:
   stat-blocks-placed-hover: "<gray>Bloques colocados en total"
   stat-blocks-broken-hover: "<gray>Bloques rotos en total"
   stat-balance-hover: "<gray>Balance total de todos los jugadores"
+  click-hint: "<dark_gray>Clic para ver /top {stat}"
 
 
 # =========================================================================
@@ -649,6 +699,27 @@ top:
   refresh: "<gray>[Actualizar]"
   refresh-hover: "<gray>Clic para actualizar"
 
+  # ===== Hover de entrada =====
+  entry-hover: "<gray>Jugador: <white>{player}\n<gray>Puesto: <yellow>#{rank}\n<gray>Valor: <white>{value}\n<dark_gray>Clic para ver"
+
+  # ===== Prefijos (por tipo stat) =====
+  stat-prefixes:
+    pvp_kill: "Bajas: {name}"
+    mob_killed: "Bajas: {name}"
+    block_placed: "Colocados: {name}"
+    block_broken: "Rotos: {name}"
+
+  # ===== Nombres de stats =====
+  stats:
+    mobs_killed: "Mobs asesinados"
+    bosses_killed: "Jefes asesinados"
+    kills: "Bajas de jugadores"
+    deaths: "Muertes"
+    play_time: "Tiempo de juego"
+    blocks_placed: "Bloques colocados"
+    blocks_broken: "Bloques rotos"
+    balance: "Balance"
+
 
 # =========================================================================
 #                    /compare — comparación
@@ -657,6 +728,10 @@ compare:
   self: "<red>No puedes comparar estadísticas contigo mismo."
   header: "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   title: "<gold>📊 Comparación: <yellow>{player1}</yellow> <gray>vs</gray> <yellow>{player2}</yellow>"
+
+  # ===== Botón de jugador =====
+  button: "<aqua>[👤 {player}]</aqua>"
+  button-hover: "<gray>Abrir estadísticas de <white>{player}"
 
   # ===== Ganador =====
   winner: "   <yellow>🏆 Ganador: <gold>{winner}</gold> <gray>({wins1} : {wins2})"
@@ -675,10 +750,6 @@ compare:
   hover-value-2: "<gray>Valor 2: <white>{value}"
   hover-diff: "<gray>Diferencia: <white>{diff}"
 
-  # ===== Botones =====
-  buttons: "   <aqua>[👤 {player1}]</aqua> <aqua>[👤 {player2}]</aqua>"
-  button-hover: "<gray>Abrir estadísticas de <white>{player}"
-
 
 # =========================================================================
 #                    /share — compartir
@@ -686,14 +757,21 @@ compare:
 share:
   self: "<red>No puedes compartir estadísticas contigo mismo. Usa /stats."
 
+  # ===== Broadcast =====
   broadcast: "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n<gold>📊 <yellow>{chips}{player}</yellow> ¡compartió sus estadísticas!\n<gray>Servidor: <aqua>{server}</aqua> <gray>| Grupo: <light_purple>{group}"
-  broadcast-hover: "<gray>Clic para ver las estadísticas"
+  broadcast-hover: "<gray>Clic para ver las estadísticas\n<gray>Jugador: <white>{player}\n<gray>Servidor: <white>{server}\n<gray>Grupo: {group}\n<gray>K/D: <white>{kd}"
 
   stats: "\n<green>⏳ Tiempo: <white>{time} <gray>(total: {total-time})\n<green>☠ PvE: <white>Mobs {mobs} | Jefes {bosses} <gray>(total mobs: {total-mobs})\n<green>⛏ Bloques: <white>Colocados {blocks}\n<green>⚔ PvP: <white>Bajas {kills} | Muertes {deaths} <gray>| K/D: {kd}\n<green>💰 Balance: <gold>{balance}\n<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
+  # ===== Private =====
   private-sender: "<green>Compartiste tus estadísticas con <yellow>{target}</yellow>"
   private-target: "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n<gold>📊 <yellow>{chips}{player}</yellow> compartió sus estadísticas contigo:\n<gray>Servidor: <aqua>{server}</aqua> <gray>| Grupo: <light_purple>{group}\n<green>⏳ Tiempo: <white>{time} <gray>(total: {total-time})\n<green>☠ PvE: <white>Mobs {mobs} | Jefes {bosses}\n<green>⚔ PvP: <white>Bajas {kills} | Muertes {deaths} <gray>| K/D: {kd}\n<green>💰 Balance: <gold>{balance}\n<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-  private-hover: "<gray>Clic para ver las estadísticas de {player}"
+  private-hover: "<gray>Clic para ver las estadísticas\n<gray>Jugador: <white>{player}\n<gray>K/D: <white>{kd}"
+
+  # ===== K/D =====
+  kd-infinite: "∞"
+  kd-zero: "0.00"
+  kd-format: "%.2f"
 
 
 # =========================================================================
@@ -766,10 +844,24 @@ reload:
   info-multi: "<gray>   🌍 Multi-servidor: {status}"
   info-api: "<gray>   📡 HTTP API: {status}"
   info-api-host: " <gray>(<white>{host}<gray>)"
+  info-api-host-hover: "<gray>Host: <white>{host}\n<dark_gray>Clic para copiar"
 
   # ===== Resultado =====
   success: "<green>✅ Recarga completada en <white>{time} ms"
   error: "<red>❌ ¡Error de recarga! Revisa la consola."
+
+
+# =========================================================================
+#                    /playerstats update
+# =========================================================================
+update:
+  header: "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  available: "<gold>📢 ¡Actualización disponible!"
+  current: "<gray>  Actual: <white>v{current}"
+  latest: "<gray>  Nueva: <green>v{latest}"
+  download: "<gray>  Descargar: <aqua>{url}"
+  up-to-date: "<green>✅ El plugin está actualizado (v{version})"
+  not-initialized: "<red>UpdateChecker no inicializado."
 
 
 # =========================================================================
@@ -796,20 +888,41 @@ info:
   # ===== API =====
   api: "<gray>   HTTP API: {status}"
   api-host: " <gray>(<white>{host}<gray>)"
-  hook-enabled-hover: "<green>✓ Integración activa\n<gray>Plugin: <white>{name}"
-  hook-disabled-hover: "<red>✗ Integración no disponible\n<gray>Plugin: <white>{name}\n<dark_gray>Instala {name} para habilitar"
+  api-host-hover: "<gray>Host: <white>{host}\n<dark_gray>Clic para copiar"
 
   # ===== Integraciones =====
   integrations: "<gray>   Integraciones:"
   hook-enabled: "<gray>   <green>✅ {name}"
   hook-disabled: "<gray>   <red>❌ {name}"
+  hook-enabled-hover: "<green>✓ Integración activa\n<gray>Plugin: <white>{name}"
+  hook-disabled-hover: "<red>✗ Integración no disponible\n<gray>Plugin: <white>{name}\n<dark_gray>Instala {name} para habilitar"
 
   # ===== Ajustes =====
   debug: "<gray>   Debug: {level}"
+  debug-off: "<red>Off"
+  debug-basic: "<yellow>Básico"
+  debug-detailed: "<green>Detallado"
+  debug-unknown: "<gray>Desconocido"
   multi: "<gray>   Multi-servidor: {status}"
   top-chips: "<gray>   Top-chips: {status}"
   sparkline: "<gray>   Sparkline: {status}"
   pvp: "<gray>   PvP stats: {status}"
+
+  # ===== Hover del título =====
+  title-hover: "<gray>Autor: <white>{authors}\n<gray>Versión: <white>{version}\n<dark_gray>Plugin de estadísticas para Paper"
+
+
+# =========================================================================
+#                    /playerstats apikey
+# =========================================================================
+apikey:
+  header: "<dark_gray>━━━━━━━━━━ <gold>🔑 API Key</gold> ━━━━━━━━━━"
+  current: "<gray>Clave actual: <white>{key}"
+  hint: "<dark_gray>Pásala en la cabecera <white>X-API-Key</white> o <white>Authorization: Bearer <key>"
+  regenerated: "<green>✅ Nueva clave API generada."
+  warning: "<red>Todos los clientes existentes perderán acceso."
+  api-disabled: "<red>El servidor API no está en ejecución."
+  no-key: "<red>La clave API no está establecida (auto-generate-key: false)."
 
 
 # =========================================================================
@@ -828,18 +941,31 @@ help:
 
   # ===== Comandos =====
   commands-title: "<gold>Comandos:"
+
+  # Stats
   command-stats: "<yellow>   /stats <gray>— tus estadísticas"
   command-stats-other: "<yellow>   /stats <player> <gray>— estadísticas del jugador"
   command-stats-gui: "<yellow>   /stats gui <gray>— GUI de estadísticas"
   command-stats-pvp: "<yellow>   /stats pvp [player] <gray>— estadísticas PvP"
+  command-stats-rollback: "<yellow>   /stats rollback <player> <stat> <value> <gray>— revertir una stat"
+
+  # Tops
   command-top: "<yellow>   /top <gray>— tops del servidor"
   command-top-stat: "<yellow>   /top <stat> <gray>— top por estadística"
   command-top-pvp: "<yellow>   /top pvp <jugador> <gray>— bajas de un jugador"
+
+  # Social
   command-share: "<yellow>   /share [player] <gray>— compartir estadísticas"
   command-compare: "<yellow>   /compare <player> <gray>— comparar estadísticas"
+
+  # Admin
   command-exclude: "<yellow>   /exclude <player> [remove|list] <gray>— exclusiones"
   command-reload: "<yellow>   /playerstats reload <gray>— recargar"
+  command-snapshot: "<yellow>   /playerstats snapshot <gray>— crear un snapshot"
+  command-backup: "<yellow>   /playerstats backup [now|list|restore] <gray>— copias de seguridad"
+  command-hologram: "<yellow>   /playerstats hologram <gray>— gestión de hologramas"
   command-info: "<yellow>   /playerstats info <gray>— info del plugin"
+  command-apikey: "<yellow>   /playerstats apikey [regenerate] <gray>— API key"
   command-update: "<yellow>   /playerstats update <gray>— buscar actualizaciones"
 
   # ===== Salida vacía =====
@@ -850,6 +976,7 @@ help:
   hover-stats-gui: "<gray>Abre la GUI de estadísticas\n<dark_gray>Ejemplo: <white>/stats gui"
   hover-stats-other: "<gray>Estadísticas de otro jugador\n<dark_gray>Ejemplo: <white>/stats Steve"
   hover-stats-pvp: "<gray>Lista de jugadores asesinados (PvP)\n<dark_gray>Ejemplo: <white>/stats pvp Steve"
+  hover-stats-rollback: "<gray>Revertir una stat de un jugador\n<dark_gray>Ejemplo: <white>/stats rollback Steve kills 0"
 
   hover-top: "<gray>Clasificaciones del servidor por categoría\n<dark_gray>Ejemplo: <white>/top"
   hover-top-stat: "<gray>Top por una estadística concreta\n<dark_gray>Ejemplo: <white>/top kills"
@@ -860,7 +987,11 @@ help:
 
   hover-exclude: "<gray>Gestiona exclusiones de estadísticas\n<dark_gray>Ejemplo: <white>/exclude Steve\n<dark_gray>Ejemplo: <white>/exclude list"
   hover-reload: "<gray>Recarga config y cachés\n<dark_gray>Ejemplo: <white>/playerstats reload"
+  hover-snapshot: "<gray>Crear un snapshot de estadísticas\n<dark_gray>Ejemplo: <white>/playerstats snapshot"
+  hover-backup: "<gray>Gestionar copias de seguridad de la BD\n<dark_gray>Ejemplo: <white>/playerstats backup now"
+  hover-hologram: "<gray>Gestionar hologramas\n<dark_gray>Ejemplo: <white>/playerstats hologram list"
   hover-info: "<gray>Info del plugin e integraciones\n<dark_gray>Ejemplo: <white>/playerstats info"
+  hover-apikey: "<gray>Ver/regenerar API key\n<dark_gray>Ejemplo: <white>/playerstats apikey"
   hover-update: "<gray>Buscar actualizaciones del plugin\n<dark_gray>Ejemplo: <white>/playerstats update"
 
   footer: "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -873,6 +1004,58 @@ currency:
   # Formato fallback si Vault no está conectado.
   # {value} — número formateado (por ejemplo, 1500.00)
   format: "{value}€"
+
+
+# =========================================================================
+#                    Copia de seguridad de la BD
+# =========================================================================
+backup:
+  starting: "<yellow>📦 Creando copia de seguridad de la BD..."
+  done: "<green>✅ Copia de seguridad creada."
+  error: "<red>❌ Error de copia de seguridad. Revisa la consola."
+
+  usage: |-
+    <dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━
+    <gold>📦 Gestión de copias de seguridad:
+    <yellow>/playerstats backup <gray>— crear ahora
+    <yellow>/playerstats backup list <gray>— listar
+    <yellow>/playerstats backup restore <file> <gray>— restaurar
+    <dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  list-empty: "<yellow>No hay copias de seguridad guardadas."
+  list-header: "<gold>📦 Copias de seguridad (<white>{count}<gold>):"
+  list-entry: "<gray>  • <white>{file} <dark_gray>({size})"
+
+  restore-usage: "<red>Uso: <yellow>/playerstats backup restore <file>"
+  restore-starting: "<yellow>⏳ Restaurando desde <white>{file}</white>..."
+  restore-done: "<green>✅ Base de datos restaurada desde <white>{file}</white>. <red>¡Reinicia el servidor!"
+  restore-error: "<red>❌ No se pudo restaurar desde <white>{file}</white>."
+  module-disabled: "<red>El módulo 'backup' está desactivado en config.yml."
+
+
+# =========================================================================
+#                    Reversión de estadísticas
+# =========================================================================
+rollback:
+  usage: |-
+    <dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━
+    <gold>🔄 Reversión de estadísticas:
+    <yellow>/stats rollback <player> <stat> <value> <gray>— establecer valor
+    <yellow>/stats rollback <player> --all <value> <gray>— restablecer todo
+    <yellow>/stats rollback <player> --from <date> <stat> <gray>— revertir desde fecha
+    <dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  done: "<green>✅ <white>{player}</white>: <yellow>{stat}</yellow> = <white>{value}"
+  done-all: "<green>✅ <white>{player}</white>: todas las stats restablecidas (<white>{count}</white> registros)"
+  done-from: "<green>✅ <white>{player}</white>: <yellow>{stat}</yellow> revertida en <white>{delta}</white> → <white>{value}"
+
+  notify: "<red>⚠ Tu stat <yellow>{stat}</yellow> fue cambiada por un admin: <white>{value}"
+  notify-all: "<red>⚠ Tus stats fueron restablecidas por un admin (valor: <white>{value}<red>)"
+
+  never-played: "<red>El jugador <yellow>{player}</yellow> nunca jugó en este servidor."
+  invalid-value: "<red>Valor inválido: <white>{value}"
+  invalid-date: "<red>Fecha inválida: <white>{date}"
+  error: "<red>❌ Error de reversión. Revisa la consola."
 
 
 # =========================================================================
@@ -890,3 +1073,7 @@ time:
   seconds: "{seconds}s"
   minutes: "{minutes}m"
   hours: "{hours}h {minutes}m"
+  times:
+    one: "vez"
+    few: "veces"
+    many: "veces"

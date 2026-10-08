@@ -140,6 +140,23 @@ public class PlayerDAO {
         return handleExistingPlayer(uuid, name);
     }
 
+
+    public UUID getUuidByName(String name) {
+        String sql = "SELECT uuid FROM players WHERE LOWER(name) = LOWER(?) LIMIT 1";
+        try (Connection conn = plugin.getConnection().getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, name);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return UUID.fromString(rs.getString("uuid"));
+                }
+            }
+        } catch (SQLException e) {
+            plugin.getLogger().warning("getUuidByName error: " + e.getMessage());
+        }
+        return null;
+    }
+
     /**
      * Получить ID существующего игрока и обновить имя.
      */

@@ -4,15 +4,18 @@ import com.playerstats.Main;
 import com.playerstats.core.achievements.Achievement;
 import com.playerstats.core.config.LanguageManager;
 import com.playerstats.core.database.dao.PlayerStatsDAO;
+import com.playerstats.core.utils.FormatUtil;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.minimessage.MiniMessage;
-import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.jetbrains.annotations.NotNull;
 
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
@@ -21,8 +24,6 @@ import java.util.*;
 public class AchievementsGui {
 
     private static final MiniMessage MM = MiniMessage.miniMessage();
-    private static final LegacyComponentSerializer LEGACY =
-            LegacyComponentSerializer.legacySection();
 
     private final Main plugin;
     private final LanguageManager lang;
@@ -58,13 +59,30 @@ public class AchievementsGui {
                     }
                 }
 
+                // ==================== RESET TIMES ====================
+                // Для временных достижений — получить reset_at из БД.
+                Map<String, Long> lastResetMap = new HashMap<>();
+                for (Achievement ac : all) {
+                    if (!ac.isTemporary()) continue;
+                    try {
+                        long resetAt = plugin.getAchievementDAO()
+                                .getLastReset(playerId, ac.id());
+                        lastResetMap.put(ac.id(), resetAt);
+                    } catch (SQLException e) {
+                        lastResetMap.put(ac.id(), -1L);
+                    }
+                }
+
                 plugin.getThreadManager().runSync(() -> {
                     if (!player.isOnline()) return;
 
-                    Inventory inv = Bukkit.createInventory(null, 54,
+                    AchievementsGuiHolder holder = new AchievementsGuiHolder();
+                    Inventory inv = Bukkit.createInventory(holder, 54,
                             lang.getComponent(player, "achievements.title"));
+                    holder.setInventory(inv);
 
-                    ItemStack filler = createItem(Material.GRAY_STAINED_GLASS_PANE, " ", null);
+                    ItemStack filler = createItem(Material.GRAY_STAINED_GLASS_PANE,
+                            " ", null);
                     for (int i = 0; i < 54; i++) inv.setItem(i, filler);
 
                     // ==================== ЗАГОЛОВОК ====================
@@ -80,12 +98,13 @@ public class AchievementsGui {
                             "total", totalCount));
                     headerLore.add(lang.get(player, "achievements.header.percent",
                             "percent", percent));
-                    headerLore.add(lang.get(player, "achievements.header.bar", "bar", bar));
+                    headerLore.add(lang.get(player, "achievements.header.bar",
+                            "bar", bar));
                     headerLore.add("");
-                    headerLore.add(lang.getRaw(player, "achievements.header.hint"));
+                    headerLore.add(lang.get(player, "achievements.header.hint"));
 
                     inv.setItem(4, createItem(Material.NETHER_STAR,
-                            lang.getRaw(player, "achievements.header.name"),
+                            lang.get(player, "achievements.header.name"),
                             headerLore));
 
                     // ==================== СПИСОК ====================
@@ -103,15 +122,16 @@ public class AchievementsGui {
                         }
 
                         int current = currentStats.getOrDefault(ac.stat(), 0);
+                        long lastReset = lastResetMap.getOrDefault(ac.id(), -1L);
 
                         inv.setItem(slot, buildAchievementItem(
-                                player, ac, isUnlocked, date, current, ac.threshold()));
+                                player, ac, isUnlocked, date, current, ac.threshold(), lastReset));
                         slot++;
                     }
 
                     inv.setItem(49, createItem(Material.ARROW,
-                            lang.getRaw(player, "achievements.back"),
-                            List.of(lang.getRaw(player, "achievements.back-hover"))));
+                            lang.get(player, "achievements.back"),
+                            List.of(lang.get(player, "achievements.back-hover"))));
 
                     player.openInventory(inv);
                 });
@@ -132,7 +152,8 @@ public class AchievementsGui {
 
     private ItemStack buildAchievementItem(Player viewer, Achievement ac,
                                            boolean unlocked,
-                                           String unlockDate, int current, int threshold) {
+                                           String unlockDate, int current, int threshold,
+                                           long lastResetAt) {
         Material icon;
         try {
             icon = Material.valueOf(ac.icon().toUpperCase());
@@ -142,13 +163,13 @@ public class AchievementsGui {
 
         // Статус
         String status = unlocked
-                ? lang.getRaw(viewer, "achievements.status-prefix-unlocked")
-                : lang.getRaw(viewer, "achievements.status-prefix-locked");
+                ? lang.get(viewer, "achievements.status-prefix-unlocked")
+                : lang.get(viewer, "achievements.status-prefix-locked");
 
         String rawName = status + ac.name();
 
         // Цвет описания — из lang.yml
-        String descColor = lang.getRaw(viewer, "achievements.description-color");
+        String descColor = lang.get(viewer, "achievements.description-color");
         if (descColor.startsWith("<red>Missing key")) {
             descColor = "<gray>";
         }
@@ -175,7 +196,8 @@ public class AchievementsGui {
         rawLore.add(lang.get(viewer, "achievements.progress",
                 "color", progressColor,
                 "current", current,
-                "required", threshold));
+                "required", threshold,
+                "percent", percent));   // ← добавили {percent}
 
         rawLore.add(lang.get(viewer, "achievements.progress-bar",
                 "bar", buildProgressBar(current, threshold, 20, '▰', '▱', progressColor)));
@@ -188,52 +210,88 @@ public class AchievementsGui {
         rawLore.add("");
 
         if (unlocked) {
-            rawLore.add(lang.getRaw(viewer, "achievements.status-unlocked"));
+            rawLore.add(lang.get(viewer, "achievements.status-unlocked"));
             if (unlockDate != null) {
                 rawLore.add(lang.get(viewer, "achievements.date", "date", unlockDate));
             }
         } else {
-            rawLore.add(lang.getRaw(viewer, "achievements.status-locked"));
+            rawLore.add(lang.get(viewer, "achievements.status-locked"));
         }
 
-        // Парсим MiniMessage → legacy
-        String legacyName = toLegacy(rawName);
-        List<String> legacyLore = new ArrayList<>();
-        for (String line : rawLore) {
-            legacyLore.add(toLegacy(line));
+         // ==================== ВРЕМЕННЫЕ ====================
+        if (ac.isTemporary()) {
+            rawLore.add("");
+
+            // Тип сброса
+            String resetLabel = lang.get(viewer, "achievements.reset." + ac.reset(),
+                    "default", ac.reset());
+            if (resetLabel.startsWith("<red>Missing key")) {
+                resetLabel = ac.reset();
+            }
+
+            rawLore.add(lang.get(viewer, "achievements.reset.label",
+                    "period", resetLabel));
+
+            // Награда — повторяемая?
+            rawLore.add(ac.repeatReward()
+                    ? lang.get(viewer, "achievements.reset.reward-repeatable")
+                    : lang.get(viewer, "achievements.reset.reward-once"));
+
+            // Осталось до сброса
+            if (lastResetAt > 0) {
+                long interval = ac.resetIntervalMs();
+                long elapsed = System.currentTimeMillis() - lastResetAt;
+                long remaining = interval - elapsed;
+
+                if (remaining <= 0) {
+                    rawLore.add(lang.get(viewer, "achievements.reset.ready"));
+                } else {
+                    rawLore.add(lang.get(viewer, "achievements.reset.in",
+                            "time", FormatUtil.formatDurationCompact(remaining)));
+                }
+            } else {
+                // Ещё ни разу не сбрасывалось
+                rawLore.add(lang.get(viewer, "achievements.reset.not-started"));
+            }
         }
 
-        return createItem(icon, legacyName, legacyLore);
+        // ✅ Adventure API — передаём RAW MiniMessage, парсинг в createItem
+        return createItem(icon, rawName, rawLore);
     }
 
+    /**
+     * ✅ Adventure API — правильный способ для Paper.
+     *    meta.displayName(Component) + meta.lore(List<Component>)
+     */
     private ItemStack createItem(Material material, String name, List<String> lore) {
         ItemStack item = new ItemStack(material);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.setDisplayName(name);
-            if (lore != null) meta.setLore(lore);
+            // Имя
+            meta.displayName(MM.deserialize(name)
+                    .decoration(TextDecoration.ITALIC, false));
+
+            // Lore
+            if (lore != null && !lore.isEmpty()) {
+                List<Component> loreComponents = new ArrayList<>();
+                for (String line : lore) {
+                    if (line == null || line.isEmpty()) {
+                        loreComponents.add(Component.empty());
+                    } else {
+                        loreComponents.add(MM.deserialize(line)
+                                .decoration(TextDecoration.ITALIC, false));
+                    }
+                }
+                meta.lore(loreComponents);
+            }
+
             item.setItemMeta(meta);
         }
         return item;
     }
 
-    /**
-     * MiniMessage → legacy (§-код) для Bukkit ItemMeta.
-     */
-    private String toLegacy(String miniMessage) {
-        if (miniMessage == null) return "";
-        try {
-            return LEGACY.serialize(MM.deserialize(miniMessage));
-        } catch (Exception e) {
-            return miniMessage.replaceAll("<[^>]+>", "");
-        }
-    }
-
     // ==================== DATE ====================
 
-    /**
-     * Форматировать дату разблокировки — из lang.yml (date-format).
-     */
     private String formatDate(Player viewer, long timestamp) {
         String pattern = lang.getRaw(viewer, "achievements.date-format");
 
@@ -245,7 +303,6 @@ public class AchievementsGui {
             SimpleDateFormat format = new SimpleDateFormat(pattern);
             return format.format(new Date(timestamp));
         } catch (Exception e) {
-            // Fallback при кривом паттерне
             return new SimpleDateFormat("dd.MM.yyyy HH:mm").format(new Date(timestamp));
         }
     }
@@ -277,7 +334,7 @@ public class AchievementsGui {
     // ==================== TRANSLATE ====================
 
     private String translateStat(Player viewer, String stat) {
-        String direct = lang.getRaw(viewer, "achievements.stats." + stat);
+        String direct = lang.get(viewer, "achievements.stats." + stat);
         if (!direct.startsWith("<red>Missing key")) {
             return direct;
         }
@@ -300,7 +357,7 @@ public class AchievementsGui {
 
     private String translateCategory(Player viewer, String category) {
         String key = "achievements.categories." + category.toLowerCase();
-        String result = lang.getRaw(viewer, key);
+        String result = lang.get(viewer, key);
         if (!result.startsWith("<red>Missing key")) {
             return result;
         }
@@ -323,5 +380,16 @@ public class AchievementsGui {
         }
 
         return sb.toString().trim();
+    }
+
+    // ==================== HOLDER ====================
+
+    public static class AchievementsGuiHolder implements InventoryHolder {
+        private Inventory inventory;
+
+        public void setInventory(Inventory inventory) { this.inventory = inventory; }
+
+        @Override
+        public @NotNull Inventory getInventory() { return inventory; }
     }
 }

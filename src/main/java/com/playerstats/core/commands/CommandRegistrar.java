@@ -18,6 +18,7 @@ import org.bukkit.OfflinePlayer;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
+import java.nio.file.Path;
 import java.sql.SQLException;
 import java.util.List;
 
@@ -25,6 +26,27 @@ import java.util.List;
  * Регистрирует все Brigadier-команды плагина.
  */
 public final class CommandRegistrar {
+
+    /**
+     * Имена stat-ов для /top <stat> — не переводятся.
+     */
+    private static final List<String> SUGGESTED_STATS = List.of(
+            "mobs_killed", "bosses_killed", "kills", "deaths",
+            "play_time", "blocks_placed", "blocks_broken", "balance",
+            "killstreak", "best_killstreak", "distance_walked",
+            "damage_dealt", "damage_taken", "items_crafted",
+            "food_consumed", "arrows_shot", "fish_caught",
+            "entities_tamed", "entities_bred", "teleports",
+            "portal_uses", "logins"
+    );
+
+    /**
+     * Имена stat-ов для /playerstats hologram create — не переводятся.
+     */
+    private static final List<String> SUGGESTED_HOLOGRAM_STATS = List.of(
+            "kills", "mobs_killed", "blocks_placed",
+            "play_time", "balance", "killstreak"
+    );
 
     private final Main plugin;
     private final PlayerGroupService groupService;
@@ -185,6 +207,16 @@ public final class CommandRegistrar {
                             }
                             return Command.SINGLE_SUCCESS;
                         }))
+                .then(Commands.literal("rollback")
+                        .requires(src -> src.getSender().hasPermission("playerstats.rollback"))
+                        .then(Commands.argument("args", StringArgumentType.greedyString())
+                                .executes(ctx -> {
+                                    CommandSender sender = ctx.getSource().getSender();
+                                    String[] args = StringArgumentType.getString(ctx, "args")
+                                            .split("\\s+");
+                                    new RollbackCommand(plugin).execute(sender, args);
+                                    return Command.SINGLE_SUCCESS;
+                                })))
                 .build();
 
         commands.register(statsNode,
@@ -226,28 +258,8 @@ public final class CommandRegistrar {
                 // /top <stat>
                 .then(Commands.argument("stat", StringArgumentType.word())
                         .suggests((ctx, builder) -> {
-                            builder.suggest("mobs_killed");
-                            builder.suggest("bosses_killed");
-                            builder.suggest("kills");
-                            builder.suggest("deaths");
-                            builder.suggest("play_time");
-                            builder.suggest("blocks_placed");
-                            builder.suggest("blocks_broken");
-                            builder.suggest("balance");
-                            builder.suggest("killstreak");
-                            builder.suggest("best_killstreak");
-                            builder.suggest("distance_walked");
-                            builder.suggest("damage_dealt");
-                            builder.suggest("damage_taken");
-                            builder.suggest("items_crafted");
-                            builder.suggest("food_consumed");
-                            builder.suggest("arrows_shot");
-                            builder.suggest("fish_caught");
-                            builder.suggest("entities_tamed");
-                            builder.suggest("entities_bred");
-                            builder.suggest("teleports");
-                            builder.suggest("portal_uses");
-                            builder.suggest("logins");
+                            // Имена stat-ов — не переводятся
+                            SUGGESTED_STATS.forEach(builder::suggest);
 
                             for (org.bukkit.entity.EntityType type : org.bukkit.entity.EntityType.values()) {
                                 if (type.isAlive() && !type.equals(org.bukkit.entity.EntityType.PLAYER)) {
@@ -406,12 +418,8 @@ public final class CommandRegistrar {
                         .then(Commands.literal("create")
                                 .then(Commands.argument("stat", StringArgumentType.word())
                                         .suggests((ctx, builder) -> {
-                                            builder.suggest("kills");
-                                            builder.suggest("mobs_killed");
-                                            builder.suggest("blocks_placed");
-                                            builder.suggest("play_time");
-                                            builder.suggest("balance");
-                                            builder.suggest("killstreak");
+                                            // Имена stat-ов — не переводятся
+                                            SUGGESTED_HOLOGRAM_STATS.forEach(builder::suggest);
                                             return builder.buildFuture();
                                         })
                                         .executes(ctx -> {
@@ -425,7 +433,6 @@ public final class CommandRegistrar {
                                             Location loc = player.getLocation();
 
                                             plugin.getHologramManager().createHologram(stat, loc);
-                                            plugin.getHologramManager().saveToConfig(stat, loc);
 
                                             player.sendMessage(getComponent(player,
                                                     "holograms.created",
@@ -467,12 +474,63 @@ public final class CommandRegistrar {
                             new HelpCommand(plugin).execute(ctx.getSource().getSender());
                             return Command.SINGLE_SUCCESS;
                         }))
+                .then(Commands.literal("apikey")
+                        .requires(source -> source.getSender().hasPermission("playerstats.apikey"))
+                        .executes(ctx -> {
+                            new ApiKeyCommand(plugin).execute(ctx.getSource().getSender());
+                            return Command.SINGLE_SUCCESS;
+                        })
+                        .then(Commands.literal("regenerate")
+                                .executes(ctx -> {
+                                    new ApiKeyCommand(plugin).regenerate(ctx.getSource().getSender());
+                                    return Command.SINGLE_SUCCESS;
+                                }))
+                        .then(Commands.literal("show")
+                                .executes(ctx -> {
+                                    new ApiKeyCommand(plugin).execute(ctx.getSource().getSender());
+                                    return Command.SINGLE_SUCCESS;
+                                })))
                 .then(Commands.literal("update")
                         .requires(source -> source.getSender().hasPermission("playerstats.update"))
                         .executes(ctx -> {
                             plugin.sendUpdateMessage(ctx.getSource().getSender());
                             return Command.SINGLE_SUCCESS;
                         }))
+// /playerstats backup [now|list|restore <file>]
+                .then(Commands.literal("backup")
+                        .requires(source -> source.getSender().hasPermission("playerstats.backup"))
+                        .executes(ctx -> {
+                            // /playerstats backup → now
+                            new BackupCommand(plugin).execute(ctx.getSource().getSender(), new String[0]);
+                            return Command.SINGLE_SUCCESS;
+                        })
+                        .then(Commands.literal("now")
+                                .executes(ctx -> {
+                                    new BackupCommand(plugin).execute(
+                                            ctx.getSource().getSender(), new String[]{"now"});
+                                    return Command.SINGLE_SUCCESS;
+                                }))
+                        .then(Commands.literal("list")
+                                .executes(ctx -> {
+                                    new BackupCommand(plugin).execute(
+                                            ctx.getSource().getSender(), new String[]{"list"});
+                                    return Command.SINGLE_SUCCESS;
+                                }))
+                        .then(Commands.literal("restore")
+                                .then(Commands.argument("file", StringArgumentType.word())
+                                        .suggests((ctx, builder) -> {
+                                            for (Path p : plugin.getDatabaseBackupTask().listBackups()) {
+                                                builder.suggest(p.getFileName().toString());
+                                            }
+                                            return builder.buildFuture();
+                                        })
+                                        .executes(ctx -> {
+                                            String file = StringArgumentType.getString(ctx, "file");
+                                            new BackupCommand(plugin).execute(
+                                                    ctx.getSource().getSender(),
+                                                    new String[]{"restore", file});
+                                            return Command.SINGLE_SUCCESS;
+                                        }))))
                 .build();
 
         commands.register(playerstatsNode,

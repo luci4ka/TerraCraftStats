@@ -1,6 +1,7 @@
 package com.playerstats.core.listeners;
 
 import com.playerstats.Main;
+import com.playerstats.api.java.event.PlayerStatChangeEvent;
 import com.playerstats.core.commands.ExcludeCommand;
 import com.playerstats.core.config.ConfigHandler;
 import com.playerstats.core.config.TrackedBlocks;
@@ -203,6 +204,23 @@ public class StatsListener implements Listener {
         return true;
     }
 
+    /**
+     * Проверка rollback-лока: если стата недавно откачена — не инкрементим.
+     */
+    private boolean isRollbackLocked(Player player, String statKey) {
+        if (plugin.getRollbackLockService() == null) return false;
+
+        boolean locked = plugin.getRollbackLockService()
+                .isLocked(player.getUniqueId(), statKey);
+
+        if (locked && verboseDebug) {
+            plugin.getLogger().info("[DEBUG] Rollback lock: ignoring "
+                    + statKey + " for " + player.getName());
+        }
+
+        return locked;
+    }
+
     // ==================== Сохранение онлайн ====================
 
     public void saveAllOnline() {
@@ -292,7 +310,6 @@ public class StatsListener implements Listener {
         if (killer == null || killer == dead) return;
         if (!shouldCount(killer)) return;
 
-        // Жертва в /exclude → не считаем убийство
         if (plugin.getConfigHandler().isPvpIgnoreExcludedVictims()
                 && excludeCommand != null
                 && excludeCommand.isExcluded(dead.getUniqueId())) {
@@ -335,6 +352,7 @@ public class StatsListener implements Listener {
 
     private void handleKillstreakIncrement(Player killer) {
         if (!plugin.getConfigHandler().isTracked("killstreak")) return;
+        if (isRollbackLocked(killer, "killstreak")) return;
 
         threadManager.runAsync(() -> {
             try {
@@ -429,6 +447,11 @@ public class StatsListener implements Listener {
             return;
         }
 
+        // ==================== ROLLBACK LOCK ====================
+        if (isRollbackLocked(player, statKey)) {
+            return;
+        }
+
         UUID uuid = player.getUniqueId();
         String name = player.getName();
 
@@ -436,33 +459,78 @@ public class StatsListener implements Listener {
             try {
                 int playerId = playerDAO.getOrCreatePlayerId(uuid, name);
 
+                // ==================== ЧИТАЕМ oldValue ДО ИНКРЕМЕНТА ====================
+                int oldValue = statsDAO.getStat(playerId, serverId, statKey);
+
+                // ==================== ИНКРЕМЕНТ ====================
                 statsDAO.incrementStat(playerId, serverId, statKey, amount);
                 serverStatsDAO.incrementStat(serverId, statKey, amount);
 
-                // ← ОДИН final
                 final int finalPlayerId = playerId;
+                final int finalOldValue = oldValue;
+                final int computedNewValue = oldValue + amount;
 
+                // ==================== СОБЫТИЕ (sync, Bukkit API) ====================
                 plugin.getThreadManager().runSync(() -> {
-                    if (player.isOnline() && plugin.getMilestoneManager() != null) {
-                        try {
-                            int newValue = statsDAO.getStat(finalPlayerId, serverId, statKey);
+                    if (!player.isOnline()) return;
 
-                            // Milestones
-                            plugin.getMilestoneManager().check(player, statKey, newValue);
+                    PlayerStatChangeEvent event = new PlayerStatChangeEvent(
+                            uuid, statKey, finalOldValue, computedNewValue);
+                    Bukkit.getPluginManager().callEvent(event);
 
-                            // Achievements ← БЕЗ повторного final
-                            if (plugin.getAchievementManager() != null) {
-                                plugin.getAchievementManager().check(
-                                        player, finalPlayerId, statKey, newValue);
+                    // ===== Отменено — откатываем инкремент =====
+                    if (event.isCancelled()) {
+                        plugin.getThreadManager().runAsync(() -> {
+                            try {
+                                statsDAO.incrementStat(finalPlayerId, serverId,
+                                        statKey, -amount);
+                                serverStatsDAO.incrementStat(serverId,
+                                        statKey, -amount);
+                            } catch (SQLException ex) {
+                                logError("Не удалось откатить отменённый stat '"
+                                        + statKey + "' для " + name, ex);
                             }
+                        });
 
-                        } catch (SQLException ex) {
-                            plugin.getLogger().log(Level.WARNING,
-                                    "Ошибка проверки Milestone/Achievement для " + name, ex);
+                        if (verboseDebug) {
+                            plugin.getLogger().info("[DEBUG] StatChangeEvent отменён: "
+                                    + name + " → " + statKey);
                         }
+                        return;
+                    }
+
+                    // ===== Если newValue изменён в событии — записать =====
+                    int effectiveNewValue = event.getNewValue();
+                    if (effectiveNewValue != computedNewValue) {
+                        plugin.getThreadManager().runAsync(() -> {
+                            try {
+                                statsDAO.setStat(finalPlayerId, serverId,
+                                        statKey, effectiveNewValue);
+                            } catch (SQLException ex) {
+                                logError("Не удалось записать изменённый stat '"
+                                        + statKey + "' для " + name, ex);
+                            }
+                        });
+
+                        if (verboseDebug) {
+                            plugin.getLogger().info("[DEBUG] StatChangeEvent изменил значение: "
+                                    + name + " → " + statKey
+                                    + " (" + computedNewValue + " → " + effectiveNewValue + ")");
+                        }
+                    }
+
+                    // ===== Milestones + Achievements =====
+                    if (plugin.getMilestoneManager() != null) {
+                        plugin.getMilestoneManager().check(player, statKey, effectiveNewValue);
+                    }
+
+                    if (plugin.getAchievementManager() != null) {
+                        plugin.getAchievementManager().check(
+                                player, finalPlayerId, statKey, effectiveNewValue);
                     }
                 });
 
+                // ==================== ИНВАЛИДАЦИЯ КЭШЕЙ ====================
                 if (plugin.getHooksManager() != null
                         && plugin.getHooksManager().getPlaceholderAPIHook() != null) {
                     plugin.getHooksManager().getPlaceholderAPIHook().invalidate(uuid);
@@ -472,7 +540,8 @@ public class StatsListener implements Listener {
                 }
 
             } catch (SQLException e) {
-                logError("Ошибка обновления статистики '" + statKey + "' для " + name, e);
+                logError("Ошибка обновления статистики '" + statKey
+                        + "' для " + name, e);
             }
         });
     }
@@ -494,6 +563,9 @@ public class StatsListener implements Listener {
                 try {
                     Player player = Bukkit.getPlayer(uuid);
                     if (player == null || !player.isOnline()) continue;
+
+                    // ==================== ROLLBACK LOCK ====================
+                    if (isRollbackLocked(player, "distance_walked")) continue;
 
                     int playerId = playerDAO.getOrCreatePlayerId(uuid, player.getName());
                     statsDAO.incrementStat(playerId, serverId, "distance_walked", blocks);
@@ -671,6 +743,9 @@ public class StatsListener implements Listener {
     public void onJoin(PlayerJoinEvent event) {
         if (!plugin.getConfigHandler().isTracked("logins")) return;
         Player player = event.getPlayer();
+
+        // ==================== ROLLBACK LOCK ====================
+        if (isRollbackLocked(player, "logins")) return;
 
         threadManager.runAsync(() -> {
             try {

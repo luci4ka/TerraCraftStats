@@ -42,10 +42,15 @@ public class LeaderboardDAO {
         this.statTypeDAO = statTypeDAO;
     }
 
-    public record LeaderboardEntry(UUID uuid, String playerName, double value) {
+    public record LeaderboardEntry(
+            int rank,
+            UUID uuid,
+            String playerName,
+            double value
+    ) {
         @Override
         public String toString() {
-            return playerName + " — " + String.format("%.2f", value);
+            return "#" + rank + " " + playerName + " — " + String.format("%.2f", value);
         }
     }
 
@@ -113,11 +118,12 @@ public class LeaderboardDAO {
             stmt.setInt(2, limit);
 
             try (ResultSet rs = stmt.executeQuery()) {
+                int rank = 1;
                 while (rs.next()) {
                     UUID uuid = UUID.fromString(rs.getString("uuid"));
                     String name = rs.getString("name");
                     double value = rs.getDouble("total_value");
-                    result.add(new LeaderboardEntry(uuid, name, value));
+                    result.add(new LeaderboardEntry(rank++, uuid, name, value));
                 }
             }
         }
@@ -241,11 +247,12 @@ public class LeaderboardDAO {
             stmt.setInt(3, limit);
 
             try (ResultSet rs = stmt.executeQuery()) {
+                int rank = 1;
                 while (rs.next()) {
                     UUID uuid = UUID.fromString(rs.getString("uuid"));
                     String name = rs.getString("name");
                     double value = rs.getDouble("total_value");
-                    result.add(new LeaderboardEntry(uuid, name, value));
+                    result.add(new LeaderboardEntry(rank++, uuid, name, value));
                 }
             }
         }
