@@ -1,6 +1,6 @@
-name: PlayerStats
+name: TerraCraftStats
 version: '1.0'
-main: com.playerstats.Main
+main: ru.terracraft.playerstats.PlayerStatsPlugin
 api-version: '1.21'
 authors: [luci]
 description: Статистика игрока и сервера
@@ -11,6 +11,14 @@ dependencies:
     PlaceholderAPI:
       load: BEFORE
       required: false
+    CommandAPI:
+      load: BEFORE
+      required: true
+      join-classpath: true
+    MineSQL:
+      load: BEFORE
+      required: true
+      join-classpath: true
     Vault:
       load: BEFORE
       required: false
@@ -26,3 +34,7 @@ dependencies:
     Jobs:
       load: BEFORE
       required: false
+    TerraCraftCore:
+      load: BEFORE
+      required: true
+      join-classpath: true

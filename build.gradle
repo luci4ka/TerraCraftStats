@@ -1,85 +1,77 @@
 plugins {
     id 'java'
-    id "io.papermc.paperweight.userdev" version "2.0.0-beta.23"
     id 'com.gradleup.shadow' version '9.3.2'
 }
 
-group = 'com.playerstats'
-version = '1.0'
+group = 'ru.terracraft'
+version = '1.0.6'
 
 repositories {
     mavenCentral()
 
     maven { url 'https://repo.papermc.io/repository/maven-public/' }
-    maven { url "https://repo.extendedclip.com/content/repositories/placeholderapi/" }
-    maven { url "https://repo.essentialsx.net/releases" }
+    maven { url 'https://repo.extendedclip.com/content/repositories/placeholderapi/' }
+    maven { url 'https://repo.codemc.io/repository/maven-releases/' }
+    maven { url 'https://raw.githubusercontent.com/CarmJos/MineSQL/repo/' }
     maven {
         name = "jitpack"
         url = "https://jitpack.io/"
     }
-
-    maven {
-        name = "luckperms"
-        url = "https://repo.lucko.me/repository/maven-public/"
-    }
+    maven { url 'https://repo.carm.cc/repository/maven-public/' }
 }
 
 dependencies {
-    // Paper API — включает Adventure (Component, MiniMessage, Audience)
-    paperweight.paperDevBundle("1.21.11-R0.1-SNAPSHOT")
+    // ==================== PAPER ====================
+    compileOnly "io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT"
+    compileOnly "net.kyori:adventure-api:4.25.0"
 
-    // Базы данных (внутри JAR)
-    implementation "org.xerial:sqlite-jdbc:3.43.0.0"
-    implementation 'com.mysql:mysql-connector-j:8.4.0'
-    implementation 'com.tchristofferson:ConfigUpdater:2.2-SNAPSHOT'
+    // ==================== COMPILE ONLY ====================
+    compileOnly 'me.clip:placeholderapi:2.12.3'
+    compileOnly "cc.carm.plugin:minesql-api:1.4.2"
+    compileOnly 'cc.carm.lib:easysql-api:0.4.7'
+    compileOnly 'dev.jorel:commandapi-paper-core:12.1.0'
+    compileOnly 'com.github.luci4ka:TerraCraftCore:v1.0.3:api'
+    compileOnly 'com.github.Foulest:Vault:2.5.0'
+    compileOnly 'com.github.decentsoftware-eu:decentholograms:2.10.2'
 
-    // Библиотеки (внутри JAR)
-    implementation 'com.zaxxer:HikariCP:5.1.0'
+
+    // ==================== RUNTIME (BUNDLED) ====================
     implementation("org.bstats:bstats-bukkit:3.2.1")
 
-    compileOnly 'me.clip:placeholderapi:2.12.3'
-    compileOnly "net.luckperms:api:5.5"
-    compileOnly('com.github.decentsoftware-eu:decentholograms:2.10.1')
-    compileOnly 'com.github.Foulest:Vault:2.5.0'
+    implementation("de.exlll:configlib-paper:4.8.1")
+    implementation('com.github.ez-plugins:mc-plugin-update-notifier:1.0.0')
 
-    compileOnly('net.essentialsx:EssentialsX:2.19.0') {
-        exclude group: 'org.spigotmc', module: 'spigot-api'
-    }
-
-    compileOnly('com.github.Zrips:Jobs:5.2.6.3') {
-        transitive = false
-    }
 }
+
+// ============================================================
+//  SHADOW JAR
+// ============================================================
 
 shadowJar {
     archiveClassifier.set('')
 
-    relocate 'com.zaxxer.hikari', 'com.playerstats.libs.hikari'
-    relocate 'com.mysql', 'com.playerstats.libs.mysql'
-    relocate 'org.bstats', 'com.playerstats.libs.bstats'
-    relocate 'com.tchristofferson.configupdater', 'com.playerstats.libs.configupdater'
+    relocate 'org.bstats', 'ru.terracraft.playerstats.libs.bstats'
+    relocate 'de.exlll.configlib', 'ru.terracraft.playerstats.libs.configlib'
+    relocate 'com.github.ezplugins', 'ru.terracraft.playerstats.libs.updater'
 
-    exclude 'org/sqlite/native/Linux-*/**'
-    exclude 'org/sqlite/native/Mac/**'
-    exclude 'org/sqlite/native/FreeBSD/**'
-    exclude 'org/sqlite/native/Linux-Android/**'
-    exclude 'org/sqlite/native/AIX/**'
-    exclude 'org/sqlite/native/SunOS/**'
-    exclude 'org/sqlite/native/Linux-Musl/**'
-    exclude 'org/sqlite/native/Linux/ppc64/**'
-    exclude 'org/sqlite/native/Linux/ppc64le/**'
-    exclude 'org/sqlite/native/Linux/arm/**'
-    exclude 'org/sqlite/native/Linux/armv6/**'
-    exclude 'org/sqlite/native/Linux/arm7/**'
-    exclude 'org/sqlite/native/Linux/aarch64/**'
-    exclude 'org/sqlite/native/Linux/riscv64/**'
-    exclude 'org/sqlite/native/Linux/s390x/**'
-    exclude 'org/sqlite/native/Linux/loongarch64/**'
-    exclude 'org/sqlite/native/Windows/x86/**'
-    exclude 'org/sqlite/native/Windows/arm/**'
-    exclude 'org/sqlite/native/Windows/armv6/**'
-    exclude 'org/sqlite/native/Windows/aarch64/**'
+    exclude 'META-INF/maven/**'
+    exclude 'META-INF/LICENSE*'
+    exclude 'META-INF/NOTICE*'
+    exclude 'module-info.class'
+    exclude 'META-INF/versions/**/module-info.class'
+
+    mergeServiceFiles()
 }
+
+tasks.named('jar') {
+    enabled = false
+}
+
+build.dependsOn shadowJar
+
+// ============================================================
+//  JAVA
+// ============================================================
 
 def targetJavaVersion = 25
 java {
