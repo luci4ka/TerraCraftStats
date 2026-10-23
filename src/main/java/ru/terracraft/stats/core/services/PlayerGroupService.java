@@ -20,11 +20,9 @@ import java.util.logging.Level;
 /**
  * Сервис для определения группы игрока с кэшированием.
  *
- * <p>Порядок: кэш → PlaceholderAPI ({@code %luckperms_primary_group_name%}) → БД → дефолт из конфига.</p>
- *
- * <p><b>Внимание:</b> через PAPI группа обновляется только при перезаходе игрока
- * (или ручном {@link #invalidateCache(UUID)}). Если нужен live-апдейт — вернуть
- * подписку на LuckPerms API.</p>
+ * <p><b>MiniMessage-безопасно:</b> все значения возвращаются в MiniMessage
+ * (не legacy {@code §}). Если в конфиге указана legacy-строка — она
+ * конвертируется.</p>
  */
 public final class PlayerGroupService implements Listener {
 
@@ -39,7 +37,6 @@ public final class PlayerGroupService implements Listener {
         this.plugin = plugin;
         this.config = config;
         this.statsDAO = statsDAO;
-
         Bukkit.getPluginManager().registerEvents(this, plugin);
     }
 
@@ -54,6 +51,7 @@ public final class PlayerGroupService implements Listener {
         if (group == null) group = resolveFromDatabase(playerId);
         if (group == null) group = getDefaultGroupFormat();
 
+        group = sanitize(group);
         groupCache.put(uuid, group);
         return group;
     }
@@ -66,11 +64,12 @@ public final class PlayerGroupService implements Listener {
         if (online != null) {
             String group = resolveFromPlaceholder(online);
             if (group != null) {
+                group = sanitize(group);
                 groupCache.put(uuid, group);
                 return group;
             }
         }
-        return getDefaultGroupFormat();
+        return sanitize(getDefaultGroupFormat());
     }
 
     public void invalidateCache(UUID uuid) { groupCache.remove(uuid); }
@@ -82,15 +81,31 @@ public final class PlayerGroupService implements Listener {
 
     private String getDefaultGroupFormat() {
         Map<String, String> groups = config.main().groups();
-        return groups.getOrDefault("default", "§rИгрок");
+        return groups.getOrDefault("default", "<gray>Игрок");
+    }
+
+    /** Конвертирует legacy {@code §}-коды в MiniMessage-эквивалент. */
+    private String sanitize(String raw) {
+        if (raw == null) return "";
+        if (raw.indexOf('§') < 0) return raw;
+        // legacy → MiniMessage (простая замена кодов на теги)
+        return raw
+                .replace("§0", "<black>").replace("§1", "<dark_blue>")
+                .replace("§2", "<dark_green>").replace("§3", "<dark_aqua>")
+                .replace("§4", "<dark_red>").replace("§5", "<dark_purple>")
+                .replace("§6", "<gold>").replace("§7", "<gray>")
+                .replace("§8", "<dark_gray>").replace("§9", "<blue>")
+                .replace("§a", "<green>").replace("§b", "<aqua>")
+                .replace("§c", "<red>").replace("§d", "<light_purple>")
+                .replace("§e", "<yellow>").replace("§f", "<white>")
+                .replace("§r", "<reset>")
+                .replace("§l", "<bold>").replace("§o", "<italic>")
+                .replace("§n", "<underlined>").replace("§m", "<strikethrough>")
+                .replace("§k", "<obfuscated>");
     }
 
     // ==================== Разрешение ====================
 
-    /**
-     * Группа через PlaceholderAPI ({@code %luckperms_primary_group_name%}).
-     * Возвращает {@code null}, если PAPI или expansion LuckPerms не установлены.
-     */
     private String resolveFromPlaceholder(Player player) {
         if (plugin.getHooksManager() == null
                 || plugin.getHooksManager().getPlaceholderAPIHook() == null
@@ -104,7 +119,7 @@ public final class PlayerGroupService implements Listener {
                 return null;
             }
             return config.main().groups()
-                    .getOrDefault(group.toLowerCase(), "§r" + group);
+                    .getOrDefault(group.toLowerCase(), "<gray>" + group);
         } catch (Throwable t) {
             return null;
         }
@@ -116,7 +131,7 @@ public final class PlayerGroupService implements Listener {
             String groupFromDB = statsDAO.getStatString(playerId, serverId, "group");
             if (groupFromDB != null && !groupFromDB.isEmpty()) {
                 return config.main().groups()
-                        .getOrDefault(groupFromDB.toLowerCase(), "§r" + groupFromDB);
+                        .getOrDefault(groupFromDB.toLowerCase(), "<gray>" + groupFromDB);
             }
         } catch (SQLException e) {
             plugin.getLogger().log(Level.WARNING,
@@ -124,8 +139,6 @@ public final class PlayerGroupService implements Listener {
         }
         return null;
     }
-
-    // ==================== Слушатели ====================
 
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
@@ -146,8 +159,6 @@ public final class PlayerGroupService implements Listener {
     public void onPlayerQuit(PlayerQuitEvent event) {
         groupCache.remove(event.getPlayer().getUniqueId());
     }
-
-    // ==================== Служебные ====================
 
     public void clearCache() { groupCache.clear(); }
     public int getCacheSize() { return groupCache.size(); }

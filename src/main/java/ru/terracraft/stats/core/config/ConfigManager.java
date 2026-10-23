@@ -13,7 +13,7 @@ public class ConfigManager {
     private static volatile ConfigManager instance;
 
     private static final String HEADER =
-            "PlayerStats configuration\n" +
+            "# # TerraCraftStats configuration\n" +
                     "Документация по ключам — в комментариях к полям классов";
 
     private final JavaPlugin plugin;

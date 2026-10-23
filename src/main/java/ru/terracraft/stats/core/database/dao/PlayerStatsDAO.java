@@ -345,17 +345,19 @@ public class PlayerStatsDAO {
      */
     public Map<String, Integer> getStatsByPrefix(int playerId, int serverId, String prefix) throws SQLException {
         Map<String, Integer> stats = new LinkedHashMap<>();
+        // MariaDB: ESCAPE должен быть ОДНИМ символом. '\\' ломает парсер.
+        // Используем '!' как escape-символ.
         String escaped = prefix
-                .replace("\\", "\\\\")
-                .replace("_", "\\_")
-                .replace("%", "\\%");
+                .replace("!", "!!")
+                .replace("_", "!_")
+                .replace("%", "!%");
 
         String query = """
-            SELECT st.name, COALESCE(ps.value_int, 0) AS value_int
-            FROM player_stats ps
-            JOIN stat_types st ON ps.stat_type_id = st.id
-            WHERE ps.player_id = ? AND ps.server_id = ? AND st.name LIKE ? ESCAPE '\\'
-            """;
+        SELECT st.name, COALESCE(ps.value_int, 0) AS value_int
+        FROM player_stats ps
+        JOIN stat_types st ON ps.stat_type_id = st.id
+        WHERE ps.player_id = ? AND ps.server_id = ? AND st.name LIKE ? ESCAPE '!'
+        """;
         try (Connection conn = plugin.getSqlManager().getConnection();
              PreparedStatement stmt = conn.prepareStatement(query)) {
             stmt.setInt(1, playerId);

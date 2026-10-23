@@ -20,7 +20,7 @@ import java.util.logging.Level;
 public class UpdateChecker {
 
     /** GitHub owner/org. */
-    private static final String GITHUB_OWNER = "luci";
+    private static final String GITHUB_OWNER = "luci4ka";
     /** GitHub repo. */
     private static final String GITHUB_REPO = "TerraCraftStats";
 
