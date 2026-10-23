@@ -21,6 +21,7 @@ public class ConfigManager {
     private final YamlConfigurationProperties props;
 
     private volatile MainConfig main;
+    private volatile AchievementsConfig achievements;
     private volatile TopChipsConfig topChips;
     private volatile TopNotificationsConfig topNotifications;
     private volatile SparklineConfig sparkline;
@@ -53,6 +54,7 @@ public class ConfigManager {
                 ? YamlConfigurations.update(folder.resolve("discord.yml"), DiscordConfig.class, props) : null;
         cosmetics = main.modules().cosmetics()
                 ? YamlConfigurations.update(folder.resolve("cosmetics.yml"), CosmeticsConfig.class, props) : null;
+        achievements = loadAchievements();
 
         applyDebugLevel();
         plugin.getLogger().info("Конфиги загружены (ConfigLib).");
@@ -71,9 +73,33 @@ public class ConfigManager {
                 ? YamlConfigurations.update(folder.resolve("discord.yml"), DiscordConfig.class, props) : null;
         cosmetics = main.modules().cosmetics()
                 ? YamlConfigurations.update(folder.resolve("cosmetics.yml"), CosmeticsConfig.class, props) : null;
+        achievements = loadAchievements();
 
         applyDebugLevel();
         plugin.getLogger().info("Конфиги перезагружены (ConfigLib).");
+    }
+
+    /** Точечная перезагрузка только achievements.yml (для /aach reload). */
+    public void reloadAchievements() {
+        this.achievements = loadAchievements();
+        plugin.getLogger().info("achievements.yml перезагружен.");
+    }
+
+    private AchievementsConfig loadAchievements() {
+        if (main == null || !main.modules().achievements()) return null;
+        if (!folder.resolve("achievements.yml").toFile().exists()) {
+            try {
+                plugin.saveResource("achievements.yml", false);
+            } catch (Exception e) {
+                plugin.getLogger().warning("Ресурс achievements.yml не найден, создайте вручную.");
+                return null;
+            }
+        }
+        return YamlConfigurations.update(
+                folder.resolve("achievements.yml"),
+                AchievementsConfig.class,
+                props
+        );
     }
 
     private void applyDebugLevel() {
@@ -89,6 +115,6 @@ public class ConfigManager {
     public SparklineConfig sparkline() { return sparkline; }
     public DiscordConfig discord() { return discord; }
     public CosmeticsConfig cosmetics() { return cosmetics; }
-
+    public AchievementsConfig achievements() { return achievements; }
     public Path path() { return folder; }
 }

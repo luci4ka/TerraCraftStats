@@ -33,9 +33,9 @@ public record MainConfig(
         if (pvp == null) pvp = new Pvp(true, 300L, true, 0);
         if (rollback == null) rollback = new Rollback(60, true, true, false);
         if (tracking == null) tracking = new Tracking(new Tracking.Stats(), List.of(),
-                List.of("boss", "wither", "dragon", "elder"));
+                List.of("wither", "dragon", "elder", "warden"));
         if (statsClickCommands == null) statsClickCommands = new StatsClickCommands("", "", "", "", "", "");
-        if (modules == null) modules = new Modules(true, true, true, true, true);
+        if (modules == null) modules = new Modules(true, true, true, true, true, true);
     }
 
     public record Lang(@Comment("auto | minimessage | legacy | json") String format) {}
@@ -53,22 +53,18 @@ public record MainConfig(
 
     public record Tracking(Stats stats, List<String> blocks, List<String> mobBossKeywords) {
         public record Stats(
-                // === Существующие ===
                 boolean playTime, boolean kills, boolean deaths, boolean mobsKilled,
                 boolean blocksPlaced, boolean blocksBroken, boolean distanceWalked,
-                boolean damageDealt, boolean damageTaken, boolean itemsCrafted,
-                boolean foodConsumed, boolean arrowsShot, boolean fishCaught,
+                boolean damageDealt, boolean damageTaken, boolean damageBlocked,
+                boolean itemsCrafted, boolean foodConsumed, boolean arrowsShot, boolean fishCaught,
                 boolean entitiesTamed, boolean entitiesBred, boolean teleports,
                 boolean portalUses, boolean logins, boolean killstreak, boolean bestKillstreak,
-
-                // === Новые (лёгкие) ===
                 @Comment("Прыжки") boolean jumps,
                 @Comment("Время в приседе (сек)") boolean sneakTime,
                 @Comment("Время в беге (сек)") boolean sprintTime,
                 @Comment("Дистанция на элитрах (см)") boolean elytraDistance,
                 @Comment("Дистанция в лодке (см)") boolean boatDistance,
                 @Comment("Дистанция в вагонетке (см)") boolean minecartDistance,
-                @Comment("Урон, заблокированный щитом") boolean damageBlocked,
                 @Comment("Зачаровано предметов") boolean itemsEnchanted,
                 @Comment("Сломано инструментов") boolean itemsBroken,
                 @Comment("Пострижено животных") boolean animalsSheared,
@@ -94,18 +90,17 @@ public record MainConfig(
                 @Comment("Дистанция в приседе (см)") boolean sneakDistance,
                 @Comment("Пройдено по лестницам (см)") boolean climbedLadders,
                 @Comment("Ударов в колокол") boolean bellsRung,
-                @Comment("Накормлено дельфинов") boolean dolphinsFed
+                @Comment("Накормлено дельфинов") boolean dolphinsFed,
+                @Comment("Выполнено advancements") boolean advancementsCompleted
         ) {
             public Stats() {
                 this(
-                        // существующие
-                        true, true, true, true, true, true, true, true, true, true,
-                        true, true, true, true, true, true, true, true, true, true,
-                        // новые
                         true, true, true, true, true, true, true, true, true, true,
                         true, true, true, true, true, true, true, true, true, true,
                         true, true, true, true, true, true, true, true, true, true,
-                        true, true, true
+                        true, true, true, true, true, true, true, true, true, true,
+                        true, true, true, true, true, true, true, true, true, true,
+                        true, true, true, true
                 );
             }
         }
@@ -115,5 +110,6 @@ public record MainConfig(
                                      String blocks, String pvp, String balance) {}
 
     public record Modules(boolean topChips, boolean topNotifications,
-                          boolean sparkline, boolean discord, boolean cosmetics) {}
+                          boolean sparkline, boolean discord, boolean cosmetics,
+                          boolean achievements) {}
 }

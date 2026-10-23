@@ -159,7 +159,7 @@ public class StatHistoryDAO {
         return switch (category.toLowerCase()) {
             case "kills" -> "kills";
             case "deaths" -> "deaths";
-            case "mobs" -> "mobs_killed";
+            case "elite" -> "elite_mobs_killed";
             case "blocks" -> "blocks_placed";
             case "playtime" -> "play_time";
             // "balance" -> не снапшотится (value_double, а колонка INT)

@@ -52,20 +52,12 @@ import java.util.logging.Level;
 public class StatsListener implements Listener {
 
     private static final int MAX_CAS_RETRIES = 5;
-    /** Таймаут ожидания PlayerStatChangeEvent: 2 сек (было 5 — слишком долго для пула). */
     private static final long EVENT_WAIT_SECONDS = 2L;
     private static final long FLUSH_PERIOD_SECONDS = 2L;
 
     private static final long DELTAS_CLEANUP_INITIAL_SECONDS = 60L * 60;
     private static final long DELTAS_CLEANUP_PERIOD_SECONDS = 6L * 60 * 60;
     private static final long DELTAS_TTL_MS = 30L * 24 * 60 * 60 * 1000;
-
-    private static final List<EntityType> BOSS_TYPES = List.of(
-            EntityType.WITHER,
-            EntityType.ENDER_DRAGON,
-            EntityType.ELDER_GUARDIAN,
-            EntityType.WARDEN
-    );
 
     private final PlayerStatsPlugin plugin;
     private final PlayerDAO playerDAO;
@@ -86,7 +78,6 @@ public class StatsListener implements Listener {
     private final Map<String, UUID> bufferOwner = new ConcurrentHashMap<>();
     private final Map<UUID, Integer> playerIdCache = new ConcurrentHashMap<>();
 
-    /** Время начала sneak/sprint — для таймеров. */
     private final Map<UUID, Long> sneakStart = new ConcurrentHashMap<>();
     private final Map<UUID, Long> sprintStart = new ConcurrentHashMap<>();
 
@@ -139,8 +130,6 @@ public class StatsListener implements Listener {
             for (Player player : Bukkit.getOnlinePlayers()) {
                 if (!player.isOnline()) continue;
                 if (!shouldCount(player)) continue;
-                // createSnapshot трогает Vault (не thread-safe) — оставляем на main,
-                // но результат-запись уходит в async через updatePlayerStats.
                 PlayerSnapshot snapshot = createSnapshot(player);
                 if (snapshot == null || snapshot.playerId == -1) continue;
                 threadManager.runAsync(() -> updatePlayerStats(snapshot));
@@ -254,7 +243,6 @@ public class StatsListener implements Listener {
         playerIdCache.remove(uuid);
         sneakStart.remove(uuid);
         sprintStart.remove(uuid);
-        // Сбрасываем накопленный хвост дистанции, чтобы не висел в памяти.
         distanceBuffer.remove(uuid);
     }
 
@@ -269,7 +257,6 @@ public class StatsListener implements Listener {
 
         plugin.getLogger().info("Сохранение статистики онлайн-игроков...");
 
-        // Vault + group — только на main. Запись в БД — в async.
         List<PlayerSnapshot> snapshots = new java.util.ArrayList<>();
         for (Player player : Bukkit.getOnlinePlayers()) {
             if (!shouldCount(player)) continue;
@@ -446,13 +433,12 @@ public class StatsListener implements Listener {
         handleStatEvent(killer, "mobs_killed");
 
         EntityType mobType = event.getEntity().getType();
-        // ARMOR_STAND (и подобные) тоже isAlive() == true — исключаем.
         if (mobType.isAlive()
                 && mobType != EntityType.PLAYER
                 && !(event.getEntity() instanceof ArmorStand)) {
             handleStatEvent(killer, "mob_killed_" + mobType.name().toLowerCase());
         }
-        if (isBossMob(event.getEntity())) handleStatEvent(killer, "bosses_killed");
+        // elite_mobs_killed — в VanillaStatsListener
     }
 
     // ==================== handleStatEvent ====================
@@ -670,7 +656,7 @@ public class StatsListener implements Listener {
         incrementBufferDraining.clear();
     }
 
-    // ==================== DISTANCE / SPRINT / SNEAK / CLIMB / ELYTRA / BOAT / MINECART ====================
+    // ==================== DISTANCE ====================
 
     private void startDistanceFlusher() {
         threadManager.runAsyncRepeating(() -> {
@@ -728,36 +714,10 @@ public class StatsListener implements Listener {
         if (stats.distanceWalked()) {
             distanceBuffer.merge(player.getUniqueId(), distance, Double::sum);
         }
-        if (player.isSprinting()) {
-            handleStatEvent(player, "sprint_distance", (int) Math.round(distance * 100));
-        }
-        if (player.isSneaking()) {
-            handleStatEvent(player, "sneak_distance", (int) Math.round(distance * 100));
-        }
-        if (player.isClimbing()) {
-            handleStatEvent(player, "climbed_ladders", (int) Math.round(distance * 100));
-        }
-        if (player.isGliding()) {
-            handleStatEvent(player, "elytra_distance", (int) Math.round(distance * 100));
-        }
-        if (player.getVehicle() instanceof Boat) {
-            handleStatEvent(player, "boat_distance", (int) Math.round(distance * 100));
-        }
-        if (player.getVehicle() instanceof Minecart) {
-            handleStatEvent(player, "minecart_distance", (int) Math.round(distance * 100));
-        }
+        // sprint/sneak/elytra/boat/minecart/climb — в VanillaStatsListener через Statistic
     }
 
-    // ==================== JUMPS ====================
-
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onJump(PlayerJumpEvent event) {
-        Player player = event.getPlayer();
-        if (!shouldCount(player)) return;
-        handleStatEvent(player, "jumps");
-    }
-
-    // ==================== SNEAK / SPRINT TIMERS ====================
+    // ==================== SNEAK / SPRINT TIMERS (только время, не дистанция) ====================
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onSneakToggle(PlayerToggleSneakEvent event) {
@@ -791,23 +751,7 @@ public class StatsListener implements Listener {
         }
     }
 
-    // ==================== DAMAGE ====================
-
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onEntityDamage(EntityDamageByEntityEvent event) {
-        if (cfg().tracking().stats().damageDealt()
-                && event.getDamager() instanceof Player attacker
-                && shouldCount(attacker)) {
-            int damage = (int) Math.round(event.getFinalDamage());
-            if (damage > 0) handleStatEvent(attacker, "damage_dealt", damage);
-        }
-        if (cfg().tracking().stats().damageTaken()
-                && event.getEntity() instanceof Player victim
-                && shouldCount(victim)) {
-            int damage = (int) Math.round(event.getFinalDamage());
-            if (damage > 0) handleStatEvent(victim, "damage_taken", damage);
-        }
-    }
+    // ==================== DAMAGE_BLOCKED ====================
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onDamageBlock(EntityDamageEvent event) {
@@ -957,8 +901,6 @@ public class StatsListener implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBedEnter(PlayerBedEnterEvent event) {
-        // 1.21.11: BedEnterResult.OK — единственный «успешный» исход.
-        // ignoreCancelled + OK-фильтр отсекают «не удалось лечь».
         if (event.getBedEnterResult() != PlayerBedEnterEvent.BedEnterResult.OK) return;
         Player player = event.getPlayer();
         if (!shouldCount(player)) return;
@@ -970,7 +912,6 @@ public class StatsListener implements Listener {
         Player player = event.getPlayer();
         if (!shouldCount(player)) return;
 
-        // Не считаем команды самого плагина (открытие /stats, /top и т.п. раздувает commands_used).
         String message = event.getMessage().toLowerCase(java.util.Locale.ROOT);
         if (message.startsWith("/playerstats")
                 || message.startsWith("/ps ")
@@ -989,8 +930,6 @@ public class StatsListener implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onChat(AsyncChatEvent event) {
-        // 1.21.11: AsyncPlayerChatEvent deprecated, используем Paper AsyncChatEvent.
-        // getPlayer() возвращает Player (Adventure Identity), поток — async.
         Player player = event.getPlayer();
         if (!shouldCount(player)) return;
         handleStatEvent(player, "chat_messages");
@@ -1037,7 +976,7 @@ public class StatsListener implements Listener {
         if (nearest != null) handleStatEvent(nearest, "potions_brewed");
     }
 
-    // ==================== INTERACT (cakes / tnt / bell / dolphin) ====================
+    // ==================== INTERACT ====================
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onInteract(PlayerInteractEvent event) {
@@ -1119,21 +1058,18 @@ public class StatsListener implements Listener {
         }
     }
 
-    private boolean isBossMob(Entity entity) {
-        if (BOSS_TYPES.contains(entity.getType())) return true;
-        String name = entity.getCustomName();
-        if (name == null) return false;
-        for (String keyword : cfg().tracking().mobBossKeywords()) {
-            if (name.toLowerCase().contains(keyword.toLowerCase())) return true;
-        }
-        return false;
-    }
-
     private void logError(String message, Throwable e) {
         if (e == null) {
             plugin.getLogger().severe(message);
         } else {
             plugin.getLogger().log(Level.SEVERE, message, e);
         }
+    }
+
+    /**
+     * Публичный вход для других листенеров (VanillaStatsListener).
+     */
+    public void triggerStatEvent(Player player, String statKey, int amount) {
+        handleStatEvent(player, statKey, amount);
     }
 }

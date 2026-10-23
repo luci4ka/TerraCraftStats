@@ -4,6 +4,7 @@ import cc.carm.lib.easysql.api.SQLManager;
 import cc.carm.plugin.minesql.MineSQL;
 import ru.terracraft.stats.api.PlayerStatsApi;
 import ru.terracraft.stats.api.impl.PlayerStatsApiImpl;
+import ru.terracraft.stats.core.commands.AchievementsCommand;
 import ru.terracraft.stats.core.commands.CommandRegistrar;
 import ru.terracraft.stats.core.commands.ExcludeCommand;
 import ru.terracraft.stats.core.config.ConfigManager;
@@ -11,8 +12,11 @@ import ru.terracraft.stats.core.config.LanguageManager;
 import ru.terracraft.stats.core.config.TrackedBlocks;
 import ru.terracraft.stats.core.database.DatabaseMigrator;
 import ru.terracraft.stats.core.database.dao.*;
+import ru.terracraft.stats.core.gui.AchievementsGui;
+import ru.terracraft.stats.core.gui.AchievementsGuiListener;
 import ru.terracraft.stats.core.gui.StatsGui;
 import ru.terracraft.stats.core.gui.StatsGuiListener;
+import ru.terracraft.stats.core.listeners.AchievementsListener;
 import ru.terracraft.stats.core.listeners.ListenerRegistrar;
 import ru.terracraft.stats.core.listeners.StatsListener;
 import ru.terracraft.stats.core.multithreading.ThreadManager;
@@ -39,12 +43,15 @@ public final class PlayerStatsPlugin extends JavaPlugin {
     // ======= Поля =======
     private ConfigManager configManager;
     private LanguageManager languageManager;
+
     private SQLManager sqlManager;
 
     private PlayerDAO playerDAO;
     private PlayerStatsDAO statsDAO;
     private StatTypeDAO statTypeDAO;
     private ServerDAO serverDAO;
+    private AchievementsDAO achievementsDAO;
+    private AchievementsService achievementsService;
     private ServerStatsDAO serverStatsDAO;
     private LeaderboardDAO leaderboardDAO;
     private StatHistoryDAO statHistoryDAO;
@@ -63,6 +70,7 @@ public final class PlayerStatsPlugin extends JavaPlugin {
     private DiscordWebhook discordWebhook;
     private StatsGui statsGui;
     private StatsListener statsListener;
+    private AchievementsGui achievementsGui;
     private UpdateChecker updateChecker;
     private Metrics metrics;
 
@@ -123,6 +131,8 @@ public final class PlayerStatsPlugin extends JavaPlugin {
             this.leaderboardDAO = new LeaderboardDAO(this, statTypeDAO);
             this.statHistoryDAO = new StatHistoryDAO(this);
             this.totalServerDAO = new TotalServerDAO(this, statTypeDAO);
+            this.achievementsDAO = new AchievementsDAO(this);
+            this.achievementsService = new AchievementsService(this, achievementsDAO);
 
             getLogger().info("DAO инициализированы.");
         } catch (Exception e) {
@@ -180,10 +190,16 @@ public final class PlayerStatsPlugin extends JavaPlugin {
         // 13. Слушатели
         ListenerRegistrar listenerRegistrar = new ListenerRegistrar(this);
         this.statsListener = listenerRegistrar.registerAll();
+        Bukkit.getPluginManager().registerEvents(new AchievementsListener(this), this);
+        new AchievementsCommand(this);
+
 
         // 14. GUI
         this.statsGui = new StatsGui(this);
         Bukkit.getPluginManager().registerEvents(new StatsGuiListener(this), this);
+
+        this.achievementsGui = new AchievementsGui(this);
+        Bukkit.getPluginManager().registerEvents(new AchievementsGuiListener(this), this);
 
         // 15. Команды
         new CommandRegistrar(this, groupService).register();
@@ -228,6 +244,10 @@ public final class PlayerStatsPlugin extends JavaPlugin {
             }
         }
 
+        if (achievementsService != null) {
+            for (var p : Bukkit.getOnlinePlayers()) achievementsService.unload(p.getUniqueId());
+        }
+
         if (groupService != null) groupService.clearCache();
         if (topChangeNotifier != null) topChangeNotifier.clear();
         if (pvpTracker != null) pvpTracker.clear();
@@ -255,7 +275,7 @@ public final class PlayerStatsPlugin extends JavaPlugin {
     private void initDefaultStatTypes() {
         List<String> types = new ArrayList<>(List.of(
                 "excluded", "play_time", "blocks_placed", "blocks_broken",
-                "kills", "deaths", "mobs_killed", "bosses_killed",
+                "kills", "deaths", "mobs_killed", "elite_mobs_killed",
                 "balance", "group", "distance_walked", "damage_dealt", "damage_taken",
                 "items_crafted", "food_consumed", "arrows_shot", "fish_caught",
                 "entities_tamed", "entities_bred", "teleports", "portal_uses", "logins",
@@ -275,7 +295,7 @@ public final class PlayerStatsPlugin extends JavaPlugin {
                 "snow_golems_built", "crops_planted",
                 "diamonds_mined", "netherite_mined",
                 "sprint_distance", "sneak_distance", "climbed_ladders",
-                "bells_rung", "dolphins_fed"
+                "bells_rung", "dolphins_fed", "advancements_completed"
         ));
 
         for (org.bukkit.entity.EntityType type : org.bukkit.entity.EntityType.values()) {
@@ -383,5 +403,8 @@ public final class PlayerStatsPlugin extends JavaPlugin {
     public ExcludeCommand getExcludeCommand() { return excludeCommand; }
     public StatsListener getStatsListener() { return statsListener; }
     public long getStartTime() { return startTime; }
+    public AchievementsDAO getAchievementsDAO() { return achievementsDAO; }
+    public AchievementsService getAchievementsService() { return achievementsService; }
     public RollbackLockService getRollbackLockService() { return rollbackLockService; }
+    public AchievementsGui getAchievementsGui() { return achievementsGui; }
 }

@@ -1,6 +1,5 @@
 package ru.terracraft.stats.core.gui;
 
-import ru.terracraft.stats.PlayerStatsPlugin;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -9,6 +8,7 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
+import ru.terracraft.stats.PlayerStatsPlugin;
 
 public class StatsGuiListener implements Listener {
 
@@ -23,12 +23,9 @@ public class StatsGuiListener implements Listener {
         InventoryHolder holder = event.getInventory().getHolder();
         if (!(holder instanceof StatsGui.StatsGuiHolder guiHolder)) return;
 
-        // Блокируем ЛЮБЫЕ клики, чтобы нельзя было вытащить/положить предметы.
         event.setCancelled(true);
 
         if (!(event.getWhoClicked() instanceof Player player)) return;
-
-        // Клик по своему инвентарю — игнорируем (иначе слот совпадёт с GUI-слотом).
         if (event.getClickedInventory() == null
                 || !event.getClickedInventory().equals(event.getInventory())) {
             return;
@@ -40,7 +37,7 @@ public class StatsGuiListener implements Listener {
         int page = guiHolder.getPage();
         String subPage = guiHolder.getSubPage();
 
-        // Верхние табы
+        // Табы
         switch (slot) {
             case 0 -> {
                 plugin.getStatsGui().openPage(player, 0, null);
@@ -50,12 +47,16 @@ public class StatsGuiListener implements Listener {
                 plugin.getStatsGui().openPage(player, 0, "pvp");
                 return;
             }
+            case 8 -> {
+                // Ссылка на достижения
+                plugin.getAchievementsGui().open(player);
+                return;
+            }
         }
 
         // Главная страница
         if (page == 0 && subPage == null) {
             switch (slot) {
-                // старые
                 case 10 -> plugin.getStatsGui().openPage(player, 0, "blocks_placed");
                 case 12 -> plugin.getStatsGui().openPage(player, 0, "mobs");
                 case 16 -> plugin.getStatsGui().openPage(player, 0, "pvp");
@@ -67,30 +68,27 @@ public class StatsGuiListener implements Listener {
                 case 30 -> plugin.getStatsGui().openPage(player, 0, "animals");
                 case 32 -> plugin.getStatsGui().openPage(player, 0, "movement");
                 case 34 -> plugin.getStatsGui().openPage(player, 0, "economy");
-                // новые
                 case 37 -> plugin.getStatsGui().openPage(player, 0, "actions");
                 case 39 -> plugin.getStatsGui().openPage(player, 0, "combat");
-                case 41 -> plugin.getStatsGui().openPage(player, 0, "block_extra");
+                case 41 -> plugin.getStatsGui().openPage(player, 0, "resources");
                 case 49 -> player.closeInventory();
                 default -> { }
             }
             return;
         }
 
-        // Подстраница: «Назад»
+        // Подстраница
         if (slot == 49) {
             plugin.getStatsGui().openPage(player, 0, null);
             return;
         }
 
-        // Пагинация: назад
         if (slot == 48 && page > 0) {
             ItemStack clicked = event.getCurrentItem();
             if (clicked == null || clicked.getType() != Material.LIME_DYE) return;
             plugin.getStatsGui().openPage(player, page - 1, subPage);
             return;
         }
-        // Пагинация: вперёд
         if (slot == 50) {
             ItemStack clicked = event.getCurrentItem();
             if (clicked == null || clicked.getType() != Material.LIME_DYE) return;

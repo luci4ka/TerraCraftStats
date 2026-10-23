@@ -1,13 +1,5 @@
 package ru.terracraft.stats.core.gui;
 
-import ru.terracraft.stats.PlayerStatsPlugin;
-import ru.terracraft.stats.core.config.LanguageManager;
-import ru.terracraft.stats.core.database.dao.PlayerDAO;
-import ru.terracraft.stats.core.database.dao.PlayerStatsDAO;
-import ru.terracraft.stats.core.database.dao.PlayerStatsDAO.StatValue;
-import ru.terracraft.stats.core.utils.FormatUtil;
-import ru.terracraft.stats.core.utils.Sparkline;
-import ru.terracraft.stats.core.utils.TimeUtil;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -23,6 +15,14 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.SkullMeta;
 import org.jetbrains.annotations.NotNull;
+import ru.terracraft.stats.PlayerStatsPlugin;
+import ru.terracraft.stats.core.config.LanguageManager;
+import ru.terracraft.stats.core.database.dao.PlayerDAO;
+import ru.terracraft.stats.core.database.dao.PlayerStatsDAO;
+import ru.terracraft.stats.core.database.dao.PlayerStatsDAO.StatValue;
+import ru.terracraft.stats.core.utils.FormatUtil;
+import ru.terracraft.stats.core.utils.Sparkline;
+import ru.terracraft.stats.core.utils.TimeUtil;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -34,9 +34,7 @@ import java.util.UUID;
 public class StatsGui {
 
     private static final int PAGE_SIZE = 45;
-
     private static final MiniMessage MM = MiniMessage.miniMessage();
-
     private static final StatValue EMPTY = new StatValue(0, 0.0, null);
 
     private final PlayerStatsPlugin plugin;
@@ -67,7 +65,8 @@ public class StatsGui {
                 int blocksPlaced = intOf(allStats, "blocks_placed");
                 int blocksBroken = intOf(allStats, "blocks_broken");
                 int mobsKilled = intOf(allStats, "mobs_killed");
-                int bossesKilled = intOf(allStats, "bosses_killed");
+                int eliteKilled = intOf(allStats, "elite_mobs_killed");
+                int advancementsCompleted = intOf(allStats, "advancements_completed");
                 int playTimeSec = intOf(allStats, "play_time");
                 int kills = intOf(allStats, "kills");
                 int deaths = intOf(allStats, "deaths");
@@ -134,10 +133,8 @@ public class StatsGui {
                     String uuid = key.substring("pvp_kill_".length());
                     pvpNames.put(uuid, resolvePlayerNameAsync(uuid));
                 }
-
                 final Map<String, String> pvpNamesFinal = pvpNames;
 
-                // === Bar chart: подгружаем историю для нужной подстраницы ===
                 List<Integer> historyForChart = List.of();
                 if (subPage != null) {
                     String statForHistory = switch (subPage) {
@@ -149,7 +146,7 @@ public class StatsGui {
                         case "animals" -> "entities_tamed";
                         case "actions" -> "jumps";
                         case "combat" -> "totems_used";
-                        case "block_extra" -> "diamonds_mined";
+                        case "resources" -> "diamonds_mined";
                         case "distance" -> "distance_walked";
                         default -> null;
                     };
@@ -163,13 +160,13 @@ public class StatsGui {
                     if (!player.isOnline()) return;
 
                     StatsGuiHolder holder = new StatsGuiHolder(page, subPage);
-
                     Inventory inv = Bukkit.createInventory(holder, 54,
                             lang.getComponent(player, "stats-gui.title"));
                     holder.setInventory(inv);
 
                     fillBorder(inv);
 
+                    // ===== Табы =====
                     ItemStack mainTab = createItem(player, Material.NETHER_STAR,
                             "stats-gui.tab-main", "stats-gui.tab-main-hover");
                     if (subPage == null) addGlow(mainTab);
@@ -180,10 +177,15 @@ public class StatsGui {
                     if ("pvp".equals(subPage)) addGlow(pvpTab);
                     inv.setItem(1, pvpTab);
 
+                    // Таб достижений — открывает /aach gui
+                    ItemStack aachTab = createItem(player, Material.NETHER_STAR,
+                            "stats-gui.tab-achievements", "stats-gui.tab-achievements-hover");
+                    inv.setItem(8, aachTab);
+
                     if (page == 0 && subPage == null) {
                         openMainPage(player, inv,
                                 blocksPlaced, blocksBroken,
-                                mobsKilled, bossesKilled,
+                                mobsKilled, eliteKilled, advancementsCompleted,
                                 playTimeSec, kills, deaths, balance, group,
                                 killstreak, bestKillstreak, distanceWalked,
                                 damageDealt, damageTaken,
@@ -221,10 +223,8 @@ public class StatsGui {
                                 "stats-gui.sub-killstreak-title",
                                 Material.BLAZE_POWDER,
                                 List.of(
-                                        lang.getComponent(player, "stats-gui.sub-stat-current",
-                                                "value", killstreak),
-                                        lang.getComponent(player, "stats-gui.sub-stat-best",
-                                                "value", bestKillstreak)
+                                        lang.getComponent(player, "stats-gui.sub-stat-current", "value", killstreak),
+                                        lang.getComponent(player, "stats-gui.sub-stat-best", "value", bestKillstreak)
                                 ),
                                 "stats-gui.sub-killstreak-desc",
                                 historyFinal);
@@ -233,20 +233,13 @@ public class StatsGui {
                                 "stats-gui.sub-distance-title",
                                 Material.LEATHER_BOOTS,
                                 List.of(
-                                        lang.getComponent(player, "stats-gui.sub-stat-current",
-                                                "value", FormatUtil.formatNumber(distanceWalked)),
-                                        lang.getComponent(player, "stats-gui.sub-stat-sprint-distance",
-                                                "value", formatCm(sprintDistance)),
-                                        lang.getComponent(player, "stats-gui.sub-stat-sneak-distance",
-                                                "value", formatCm(sneakDistance)),
-                                        lang.getComponent(player, "stats-gui.sub-stat-climbed",
-                                                "value", formatCm(climbedLadders)),
-                                        lang.getComponent(player, "stats-gui.sub-stat-elytra",
-                                                "value", formatCm(elytraDistance)),
-                                        lang.getComponent(player, "stats-gui.sub-stat-boat",
-                                                "value", formatCm(boatDistance)),
-                                        lang.getComponent(player, "stats-gui.sub-stat-minecart",
-                                                "value", formatCm(minecartDistance))
+                                        lang.getComponent(player, "stats-gui.sub-stat-current", "value", FormatUtil.formatNumber(distanceWalked)),
+                                        lang.getComponent(player, "stats-gui.sub-stat-sprint-distance", "value", formatCm(sprintDistance)),
+                                        lang.getComponent(player, "stats-gui.sub-stat-sneak-distance", "value", formatCm(sneakDistance)),
+                                        lang.getComponent(player, "stats-gui.sub-stat-climbed", "value", formatCm(climbedLadders)),
+                                        lang.getComponent(player, "stats-gui.sub-stat-elytra", "value", formatCm(elytraDistance)),
+                                        lang.getComponent(player, "stats-gui.sub-stat-boat", "value", formatCm(boatDistance)),
+                                        lang.getComponent(player, "stats-gui.sub-stat-minecart", "value", formatCm(minecartDistance))
                                 ),
                                 "stats-gui.sub-distance-desc",
                                 historyFinal);
@@ -255,14 +248,10 @@ public class StatsGui {
                                 "stats-gui.sub-damage-title",
                                 Material.DIAMOND_SWORD,
                                 List.of(
-                                        lang.getComponent(player, "stats-gui.sub-stat-dealt",
-                                                "value", FormatUtil.formatNumber(damageDealt)),
-                                        lang.getComponent(player, "stats-gui.sub-stat-taken",
-                                                "value", FormatUtil.formatNumber(damageTaken)),
-                                        lang.getComponent(player, "stats-gui.sub-stat-blocked",
-                                                "value", FormatUtil.formatNumber(damageBlocked)),
-                                        lang.getComponent(player, "stats-gui.sub-stat-kd",
-                                                "value", FormatUtil.formatKD(lang, player, kills, deaths))
+                                        lang.getComponent(player, "stats-gui.sub-stat-dealt", "value", FormatUtil.formatNumber(damageDealt)),
+                                        lang.getComponent(player, "stats-gui.sub-stat-taken", "value", FormatUtil.formatNumber(damageTaken)),
+                                        lang.getComponent(player, "stats-gui.sub-stat-blocked", "value", FormatUtil.formatNumber(damageBlocked)),
+                                        lang.getComponent(player, "stats-gui.sub-stat-kd", "value", FormatUtil.formatKD(lang, player, kills, deaths))
                                 ),
                                 "stats-gui.sub-damage-desc",
                                 historyFinal);
@@ -271,20 +260,13 @@ public class StatsGui {
                                 "stats-gui.sub-craft-title",
                                 Material.CRAFTING_TABLE,
                                 List.of(
-                                        lang.getComponent(player, "stats-gui.sub-stat-crafted",
-                                                "value", FormatUtil.formatNumber(itemsCrafted)),
-                                        lang.getComponent(player, "stats-gui.sub-stat-food",
-                                                "value", FormatUtil.formatNumber(foodConsumed)),
-                                        lang.getComponent(player, "stats-gui.sub-stat-enchanted",
-                                                "value", FormatUtil.formatNumber(itemsEnchanted)),
-                                        lang.getComponent(player, "stats-gui.sub-stat-potions-brewed",
-                                                "value", FormatUtil.formatNumber(potionsBrewed)),
-                                        lang.getComponent(player, "stats-gui.sub-stat-potions-drunk",
-                                                "value", FormatUtil.formatNumber(potionsDrunk)),
-                                        lang.getComponent(player, "stats-gui.sub-stat-cakes",
-                                                "value", FormatUtil.formatNumber(cakesEaten)),
-                                        lang.getComponent(player, "stats-gui.sub-stat-items-broken",
-                                                "value", FormatUtil.formatNumber(itemsBroken))
+                                        lang.getComponent(player, "stats-gui.sub-stat-crafted", "value", FormatUtil.formatNumber(itemsCrafted)),
+                                        lang.getComponent(player, "stats-gui.sub-stat-food", "value", FormatUtil.formatNumber(foodConsumed)),
+                                        lang.getComponent(player, "stats-gui.sub-stat-enchanted", "value", FormatUtil.formatNumber(itemsEnchanted)),
+                                        lang.getComponent(player, "stats-gui.sub-stat-potions-brewed", "value", FormatUtil.formatNumber(potionsBrewed)),
+                                        lang.getComponent(player, "stats-gui.sub-stat-potions-drunk", "value", FormatUtil.formatNumber(potionsDrunk)),
+                                        lang.getComponent(player, "stats-gui.sub-stat-cakes", "value", FormatUtil.formatNumber(cakesEaten)),
+                                        lang.getComponent(player, "stats-gui.sub-stat-items-broken", "value", FormatUtil.formatNumber(itemsBroken))
                                 ),
                                 "stats-gui.sub-craft-desc",
                                 historyFinal);
@@ -293,10 +275,8 @@ public class StatsGui {
                                 "stats-gui.sub-arrows-title",
                                 Material.BOW,
                                 List.of(
-                                        lang.getComponent(player, "stats-gui.sub-stat-arrows",
-                                                "value", FormatUtil.formatNumber(arrowsShot)),
-                                        lang.getComponent(player, "stats-gui.sub-stat-fish",
-                                                "value", FormatUtil.formatNumber(fishCaught))
+                                        lang.getComponent(player, "stats-gui.sub-stat-arrows", "value", FormatUtil.formatNumber(arrowsShot)),
+                                        lang.getComponent(player, "stats-gui.sub-stat-fish", "value", FormatUtil.formatNumber(fishCaught))
                                 ),
                                 "stats-gui.sub-arrows-desc",
                                 historyFinal);
@@ -305,12 +285,9 @@ public class StatsGui {
                                 "stats-gui.sub-animals-title",
                                 Material.BONE,
                                 List.of(
-                                        lang.getComponent(player, "stats-gui.sub-stat-tamed",
-                                                "value", FormatUtil.formatNumber(entitiesTamed)),
-                                        lang.getComponent(player, "stats-gui.sub-stat-bred",
-                                                "value", FormatUtil.formatNumber(entitiesBred)),
-                                        lang.getComponent(player, "stats-gui.sub-stat-sheared",
-                                                "value", FormatUtil.formatNumber(animalsSheared))
+                                        lang.getComponent(player, "stats-gui.sub-stat-tamed", "value", FormatUtil.formatNumber(entitiesTamed)),
+                                        lang.getComponent(player, "stats-gui.sub-stat-bred", "value", FormatUtil.formatNumber(entitiesBred)),
+                                        lang.getComponent(player, "stats-gui.sub-stat-sheared", "value", FormatUtil.formatNumber(animalsSheared))
                                 ),
                                 "stats-gui.sub-animals-desc",
                                 historyFinal);
@@ -319,10 +296,8 @@ public class StatsGui {
                                 "stats-gui.sub-movement-title",
                                 Material.ENDER_PEARL,
                                 List.of(
-                                        lang.getComponent(player, "stats-gui.sub-stat-teleports",
-                                                "value", FormatUtil.formatNumber(teleports)),
-                                        lang.getComponent(player, "stats-gui.sub-stat-portals",
-                                                "value", FormatUtil.formatNumber(portalUses))
+                                        lang.getComponent(player, "stats-gui.sub-stat-teleports", "value", FormatUtil.formatNumber(teleports)),
+                                        lang.getComponent(player, "stats-gui.sub-stat-portals", "value", FormatUtil.formatNumber(portalUses))
                                 ),
                                 "stats-gui.sub-movement-desc",
                                 historyFinal);
@@ -331,9 +306,7 @@ public class StatsGui {
                                 "stats-gui.sub-economy-title",
                                 Material.GOLD_INGOT,
                                 List.of(
-                                        lang.getComponent(player, "stats-gui.sub-stat-current",
-                                                "value", FormatUtil.formatBalance(plugin, lang,
-                                                        player, balance))
+                                        lang.getComponent(player, "stats-gui.sub-stat-current", "value", FormatUtil.formatBalance(plugin, lang, player, balance))
                                 ),
                                 "stats-gui.sub-economy-desc",
                                 historyFinal);
@@ -342,26 +315,16 @@ public class StatsGui {
                                 "stats-gui.sub-actions-title",
                                 Material.FEATHER,
                                 List.of(
-                                        lang.getComponent(player, "stats-gui.sub-stat-jumps",
-                                                "value", FormatUtil.formatNumber(jumps)),
-                                        lang.getComponent(player, "stats-gui.sub-stat-sneak-time",
-                                                "value", formatDuration(sneakTime)),
-                                        lang.getComponent(player, "stats-gui.sub-stat-sprint-time",
-                                                "value", formatDuration(sprintTime)),
-                                        lang.getComponent(player, "stats-gui.sub-stat-sleeps",
-                                                "value", FormatUtil.formatNumber(sleeps)),
-                                        lang.getComponent(player, "stats-gui.sub-stat-bells",
-                                                "value", FormatUtil.formatNumber(bellsRung)),
-                                        lang.getComponent(player, "stats-gui.sub-stat-commands",
-                                                "value", FormatUtil.formatNumber(commandsUsed)),
-                                        lang.getComponent(player, "stats-gui.sub-stat-chat",
-                                                "value", FormatUtil.formatNumber(chatMessages)),
-                                        lang.getComponent(player, "stats-gui.sub-stat-trades",
-                                                "value", FormatUtil.formatNumber(villagerTrades)),
-                                        lang.getComponent(player, "stats-gui.sub-stat-exp",
-                                                "value", FormatUtil.formatNumber(experienceGained)),
-                                        lang.getComponent(player, "stats-gui.sub-stat-levels",
-                                                "value", FormatUtil.formatNumber(levelsGained))
+                                        lang.getComponent(player, "stats-gui.sub-stat-jumps", "value", FormatUtil.formatNumber(jumps)),
+                                        lang.getComponent(player, "stats-gui.sub-stat-sneak-time", "value", formatDuration(sneakTime)),
+                                        lang.getComponent(player, "stats-gui.sub-stat-sprint-time", "value", formatDuration(sprintTime)),
+                                        lang.getComponent(player, "stats-gui.sub-stat-sleeps", "value", FormatUtil.formatNumber(sleeps)),
+                                        lang.getComponent(player, "stats-gui.sub-stat-bells", "value", FormatUtil.formatNumber(bellsRung)),
+                                        lang.getComponent(player, "stats-gui.sub-stat-commands", "value", FormatUtil.formatNumber(commandsUsed)),
+                                        lang.getComponent(player, "stats-gui.sub-stat-chat", "value", FormatUtil.formatNumber(chatMessages)),
+                                        lang.getComponent(player, "stats-gui.sub-stat-trades", "value", FormatUtil.formatNumber(villagerTrades)),
+                                        lang.getComponent(player, "stats-gui.sub-stat-exp", "value", FormatUtil.formatNumber(experienceGained)),
+                                        lang.getComponent(player, "stats-gui.sub-stat-levels", "value", FormatUtil.formatNumber(levelsGained))
                                 ),
                                 "stats-gui.sub-actions-desc",
                                 historyFinal);
@@ -370,38 +333,27 @@ public class StatsGui {
                                 "stats-gui.sub-combat-title",
                                 Material.SHIELD,
                                 List.of(
-                                        lang.getComponent(player, "stats-gui.sub-stat-blocked",
-                                                "value", FormatUtil.formatNumber(damageBlocked)),
-                                        lang.getComponent(player, "stats-gui.sub-stat-totems",
-                                                "value", FormatUtil.formatNumber(totemsUsed)),
-                                        lang.getComponent(player, "stats-gui.sub-stat-dolphins",
-                                                "value", FormatUtil.formatNumber(dolphinsFed))
+                                        lang.getComponent(player, "stats-gui.sub-stat-blocked", "value", FormatUtil.formatNumber(damageBlocked)),
+                                        lang.getComponent(player, "stats-gui.sub-stat-totems", "value", FormatUtil.formatNumber(totemsUsed)),
+                                        lang.getComponent(player, "stats-gui.sub-stat-dolphins", "value", FormatUtil.formatNumber(dolphinsFed))
                                 ),
                                 "stats-gui.sub-combat-desc",
                                 historyFinal);
-                    } else if ("block_extra".equals(subPage)) {
+                    } else if ("resources".equals(subPage)) {
                         openInfoPage(player, inv,
-                                "stats-gui.sub-block-extra-title",
+                                "stats-gui.sub-resources-title",
                                 Material.DIAMOND_ORE,
                                 List.of(
-                                        lang.getComponent(player, "stats-gui.sub-stat-crops-harvested",
-                                                "value", FormatUtil.formatNumber(cropsHarvested)),
-                                        lang.getComponent(player, "stats-gui.sub-stat-crops-planted",
-                                                "value", FormatUtil.formatNumber(cropsPlanted)),
-                                        lang.getComponent(player, "stats-gui.sub-stat-diamonds",
-                                                "value", FormatUtil.formatNumber(diamondsMined)),
-                                        lang.getComponent(player, "stats-gui.sub-stat-netherite",
-                                                "value", FormatUtil.formatNumber(netheriteMined)),
-                                        lang.getComponent(player, "stats-gui.sub-stat-signs",
-                                                "value", FormatUtil.formatNumber(signsPlaced)),
-                                        lang.getComponent(player, "stats-gui.sub-stat-beds",
-                                                "value", FormatUtil.formatNumber(bedsPlaced)),
-                                        lang.getComponent(player, "stats-gui.sub-stat-tnt",
-                                                "value", FormatUtil.formatNumber(tntIgnited)),
-                                        lang.getComponent(player, "stats-gui.sub-stat-snow-golems",
-                                                "value", FormatUtil.formatNumber(snowGolemsBuilt))
+                                        lang.getComponent(player, "stats-gui.sub-stat-crops-harvested", "value", FormatUtil.formatNumber(cropsHarvested)),
+                                        lang.getComponent(player, "stats-gui.sub-stat-crops-planted", "value", FormatUtil.formatNumber(cropsPlanted)),
+                                        lang.getComponent(player, "stats-gui.sub-stat-diamonds", "value", FormatUtil.formatNumber(diamondsMined)),
+                                        lang.getComponent(player, "stats-gui.sub-stat-netherite", "value", FormatUtil.formatNumber(netheriteMined)),
+                                        lang.getComponent(player, "stats-gui.sub-stat-signs", "value", FormatUtil.formatNumber(signsPlaced)),
+                                        lang.getComponent(player, "stats-gui.sub-stat-beds", "value", FormatUtil.formatNumber(bedsPlaced)),
+                                        lang.getComponent(player, "stats-gui.sub-stat-tnt", "value", FormatUtil.formatNumber(tntIgnited)),
+                                        lang.getComponent(player, "stats-gui.sub-stat-snow-golems", "value", FormatUtil.formatNumber(snowGolemsBuilt))
                                 ),
-                                "stats-gui.sub-block-extra-desc",
+                                "stats-gui.sub-resources-desc",
                                 historyFinal);
                     }
 
@@ -420,8 +372,7 @@ public class StatsGui {
                 plugin.getLogger().severe("Ошибка GUI для " + player.getName() + ": " + e.getMessage());
                 plugin.getThreadManager().runSync(() -> {
                     if (player.isOnline()) {
-                        player.sendMessage(lang.getComponent(player,
-                                "stats-gui.error-loading"));
+                        player.sendMessage(lang.getComponent(player, "stats-gui.error-loading"));
                     }
                 });
             }
@@ -430,7 +381,7 @@ public class StatsGui {
 
     private void openMainPage(Player viewer, Inventory inv,
                               int blocksPlaced, int blocksBroken,
-                              int mobsKilled, int bossesKilled,
+                              int mobsKilled, int eliteKilled, int advancementsCompleted,
                               int playTimeSec, int kills, int deaths,
                               double balance, String group,
                               int killstreak, int bestKillstreak, int distanceWalked,
@@ -452,20 +403,19 @@ public class StatsGui {
                               int sprintDistance, int sneakDistance, int climbedLadders,
                               int bellsRung, int dolphinsFed) {
 
-        // === Заголовок: голова игрока + сводка ===
         inv.setItem(4, createHeader(viewer, kills, deaths, playTimeSec, group,
                 blocksPlaced + blocksBroken));
 
+        // --- Ряд 1: blocks (10), pve (12), time (14), pvp (16) ---
         inv.setItem(10, createItem(viewer, Material.BRICKS,
                 "stats-gui.cat-blocks", "stats-gui.cat-blocks-lore",
-                "placed", blocksPlaced,
-                "broken", blocksBroken,
+                "placed", blocksPlaced, "broken", blocksBroken,
                 "total", blocksPlaced + blocksBroken));
 
         inv.setItem(12, createItem(viewer, Material.ZOMBIE_HEAD,
                 "stats-gui.cat-pve", "stats-gui.cat-pve-lore",
-                "mobs", mobsKilled,
-                "bosses", bossesKilled));
+                "mobs", mobsKilled, "elite", eliteKilled,
+                "advancements", advancementsCompleted));
 
         inv.setItem(14, createItem(viewer, Material.CLOCK,
                 "stats-gui.cat-time", "stats-gui.cat-time-lore",
@@ -476,18 +426,16 @@ public class StatsGui {
         String pvpLoreKey = pvpTotal > 0
                 ? "stats-gui.cat-pvp-lore-with-players"
                 : "stats-gui.cat-pvp-lore";
-
         inv.setItem(16, createItem(viewer, Material.NETHERITE_SWORD,
                 "stats-gui.cat-pvp", pvpLoreKey,
-                "kills", kills,
-                "deaths", deaths,
+                "kills", kills, "deaths", deaths,
                 "kd", FormatUtil.formatKD(lang, viewer, kills, deaths),
                 "unique", pvpStats.size()));
 
+        // --- Ряд 2: killstreak (19), distance (21), damage (23), craft (25) ---
         inv.setItem(19, createItem(viewer, Material.BLAZE_POWDER,
                 "stats-gui.cat-killstreak", "stats-gui.cat-killstreak-lore",
-                "current", killstreak,
-                "best", bestKillstreak));
+                "current", killstreak, "best", bestKillstreak));
 
         inv.setItem(21, createItem(viewer, Material.LEATHER_BOOTS,
                 "stats-gui.cat-distance", "stats-gui.cat-distance-lore",
@@ -506,6 +454,7 @@ public class StatsGui {
                 "enchanted", FormatUtil.formatNumber(itemsEnchanted),
                 "potions", FormatUtil.formatNumber(potionsBrewed)));
 
+        // --- Ряд 3: arrows (28), animals (30), movement (32), economy (34) ---
         inv.setItem(28, createItem(viewer, Material.BOW,
                 "stats-gui.cat-arrows", "stats-gui.cat-arrows-lore",
                 "arrows", FormatUtil.formatNumber(arrowsShot),
@@ -530,6 +479,7 @@ public class StatsGui {
                 "balance", FormatUtil.formatBalance(plugin, lang, viewer, balance),
                 "group", group));
 
+        // --- Ряд 4: actions (37), combat (39), resources (41) ---
         inv.setItem(37, createItem(viewer, Material.FEATHER,
                 "stats-gui.cat-actions", "stats-gui.cat-actions-lore",
                 "jumps", FormatUtil.formatNumber(jumps),
@@ -544,7 +494,7 @@ public class StatsGui {
                 "dolphins", FormatUtil.formatNumber(dolphinsFed)));
 
         inv.setItem(41, createItem(viewer, Material.DIAMOND_ORE,
-                "stats-gui.cat-block-extra", "stats-gui.cat-block-extra-lore",
+                "stats-gui.cat-resources", "stats-gui.cat-resources-lore",
                 "diamonds", FormatUtil.formatNumber(diamondsMined),
                 "netherite", FormatUtil.formatNumber(netheriteMined),
                 "crops", FormatUtil.formatNumber(cropsHarvested),
@@ -572,19 +522,16 @@ public class StatsGui {
 
             if (isPlayerHead) {
                 String victimName = namesByUuid.getOrDefault(rawKey, rawKey);
-                inv.setItem(slot, createPlayerHead(viewer,
-                        rawKey,
+                inv.setItem(slot, createPlayerHead(viewer, rawKey,
                         lang.get(viewer, "stats-gui.sub-player-prefix") + victimName,
                         "stats-gui.sub-player-head-lore",
-                        "count", entry.getValue(),
-                        "uuid", rawKey));
+                        "count", entry.getValue(), "uuid", rawKey));
             } else {
                 String displayName = prettify(rawKey);
                 inv.setItem(slot, createItem(viewer, icon,
                         lang.get(viewer, "stats-gui.sub-item-prefix") + displayName,
                         "stats-gui.sub-item-lore",
-                        "value", entry.getValue(),
-                        "key", entry.getKey()));
+                        "value", entry.getValue(), "key", entry.getKey()));
             }
             slot++;
         }
@@ -594,15 +541,13 @@ public class StatsGui {
         if (page > 0) {
             inv.setItem(48, createItem(viewer, Material.LIME_DYE,
                     "stats-gui.page-prev", "stats-gui.page-prev-hover",
-                    "page", page,
-                    "total", totalPages));
+                    "page", page, "total", totalPages));
         }
 
         if (page < totalPages - 1) {
             inv.setItem(50, createItem(viewer, Material.LIME_DYE,
                     "stats-gui.page-next", "stats-gui.page-next-hover",
-                    "page", page + 2,
-                    "total", totalPages));
+                    "page", page + 2, "total", totalPages));
         }
     }
 
@@ -617,7 +562,6 @@ public class StatsGui {
         inv.setItem(13, createItem(viewer, icon,
                 titleKey, "stats-gui.sub-empty-lore"));
 
-        // Строки: слоты 19, 21, 23, 25, 27, 29, 31, 33, 35, 37 — до 10 строк.
         int slot = 19;
         for (Component line : statLines) {
             if (slot > 37) break;
@@ -642,7 +586,6 @@ public class StatsGui {
                 lang.get(viewer, "stats-gui.sub-desc-title"),
                 descLore));
 
-        // === Bar chart + sparkline ===
         if (history != null && history.size() >= 2) {
             String sparkline = Sparkline.generatePretty(history);
             List<String> chartLore = new ArrayList<>();
@@ -650,7 +593,6 @@ public class StatsGui {
             chartLore.add("");
             chartLore.addAll(barChartLines(history));
 
-            // Собираем Component-строки
             List<Component> chartComponents = new ArrayList<>();
             for (String s : chartLore) {
                 if (s.isEmpty()) {
@@ -675,15 +617,11 @@ public class StatsGui {
 
     // ==================== UTIL ====================
 
-    /** Заполняет рамку (края) чёрным стеклом, оставляя центр пустым. */
     private void fillBorder(Inventory inv) {
         ItemStack border = createItem(Material.BLACK_STAINED_GLASS_PANE, " ", null);
         int[] borderSlots = {
-                0,1,2,3,4,5,6,7,8,
-                9,17,
-                18,26,
-                27,35,
-                36,44,
+                2,3,4,5,6,7,
+                9,17,18,26,27,35,36,44,
                 45,46,47,48,49,50,51,52,53
         };
         for (int s : borderSlots) {
@@ -697,7 +635,6 @@ public class StatsGui {
         ItemMeta meta = head.getItemMeta();
         if (meta instanceof SkullMeta skull) {
             skull.setOwningPlayer(viewer);
-
             skull.displayName(lang.getComponent(viewer, "stats-gui.header-name",
                             "player", viewer.getName())
                     .decoration(TextDecoration.ITALIC, false));
@@ -715,7 +652,6 @@ public class StatsGui {
             lore.add(lang.getComponent(viewer, "stats-gui.header-group",
                             "value", group)
                     .decoration(TextDecoration.ITALIC, false));
-
             skull.lore(lore);
             head.setItemMeta(skull);
         }
@@ -784,7 +720,6 @@ public class StatsGui {
                 }
                 meta.lore(loreComponents);
             }
-
             item.setItemMeta(meta);
         }
         return item;
@@ -822,7 +757,6 @@ public class StatsGui {
                 }
             }
             skullMeta.lore(loreComponents);
-
             item.setItemMeta(skullMeta);
         }
         return item;
@@ -870,14 +804,10 @@ public class StatsGui {
         return sb.toString().trim();
     }
 
-    // ==================== SPARKLINE / BAR CHART ====================
-
-    /** Загрузить историю для bar chart (список значений, N дней). */
     private List<Integer> loadHistory(int playerId, String statName) {
         try {
             var cm = plugin.getConfigManager();
             if (!cm.main().modules().sparkline() || cm.sparkline() == null) return List.of();
-
             int statTypeId = plugin.getStatTypeDAO().createOrGetStatType(statName);
             return plugin.getStatHistoryDAO().getHistory(
                     playerId, statTypeId, plugin.getServerId(),
@@ -888,13 +818,10 @@ public class StatsGui {
         }
     }
 
-    /** ASCII bar chart по истории: N строк с "████░░░░ N". */
     private List<String> barChartLines(List<Integer> history) {
         if (history == null || history.isEmpty()) return List.of();
-
         int max = history.stream().mapToInt(Integer::intValue).max().orElse(1);
         if (max <= 0) max = 1;
-
         List<String> lines = new ArrayList<>();
         for (int value : history) {
             int filled = (int) Math.round((double) value / max * 8);

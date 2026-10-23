@@ -7,23 +7,19 @@ group = 'ru.terracraft'
 version = '1.1.6'
 
 repositories {
-    mavenCentral()
 
-    maven { url 'https://repo.papermc.io/repository/maven-public/' }
-    maven { url 'https://repo.extendedclip.com/content/repositories/placeholderapi/' }
-    maven { url 'https://repo.codemc.io/repository/maven-releases/' }
-    maven { url 'https://raw.githubusercontent.com/CarmJos/MineSQL/repo/' }
-    maven {
-        name = "jitpack"
-        url = "https://jitpack.io/"
-    }
-    maven { url 'https://repo.carm.cc/repository/maven-public/' }
+    mavenCentral()
+    maven { url = 'https://repo.papermc.io/repository/maven-public/' }
+    maven { url = 'https://repo.extendedclip.com/content/repositories/placeholderapi/' }
+    maven { url = 'https://jitpack.io' }
+    maven { url = 'https://raw.githubusercontent.com/CarmJos/MineSQL/repo/' }
+    maven { url = 'https://repo.carm.cc/repository/maven-public/' }
+    maven { url = 'https://repo.codemc.org/repository/maven-public/' }
 }
 
 dependencies {
     // ==================== PAPER ====================
-    compileOnly "io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT"
-    compileOnly "net.kyori:adventure-api:4.25.0"
+    compileOnly 'io.papermc.paper:paper-api:26.2.build.+'
 
     // ==================== COMPILE ONLY ====================
     compileOnly 'me.clip:placeholderapi:2.12.3'

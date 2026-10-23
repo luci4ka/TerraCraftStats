@@ -36,6 +36,10 @@ public final class ListenerRegistrar {
         statsListener.setPvpTracker(plugin.getPvpTracker());
         Bukkit.getPluginManager().registerEvents(statsListener, plugin);
 
+        // Ванильные статы (через Statistic)
+        VanillaStatsListener vanillaListener = new VanillaStatsListener(plugin);
+        Bukkit.getPluginManager().registerEvents(vanillaListener, plugin);
+
         plugin.getLogger().info("Слушатели зарегистрированы.");
         return statsListener;
     }

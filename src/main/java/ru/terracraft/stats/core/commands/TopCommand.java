@@ -30,7 +30,7 @@ public class TopCommand {
     private static final int DEFAULT_TOP_LIMIT = 10;
 
     private static final List<String> SUGGESTED_STATS = List.of(
-            "mobs_killed", "bosses_killed", "kills", "deaths",
+            "mobs_killed", "elite_mobs_killed", "kills", "deaths",
             "play_time", "blocks_placed", "blocks_broken", "balance",
             "killstreak", "best_killstreak", "distance_walked",
             "damage_dealt", "damage_taken", "items_crafted",

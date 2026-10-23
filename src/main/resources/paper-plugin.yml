@@ -1,10 +1,11 @@
 name: TerraCraftStats
 version: '1.0'
 main: ru.terracraft.stats.PlayerStatsPlugin
-api-version: '1.21'
-authors: [luci]
+api-version: '26.1'
+java-version: '25'
+authors: [ luci ]
 description: Статистика игрока и сервера
-website: terracraft.net.ru
+website: terra-craft.ru
 
 dependencies:
   server:

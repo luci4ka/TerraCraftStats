@@ -117,4 +117,9 @@ public class VaultHook implements Hook {
             return String.format("%.2f", amount);
         }
     }
+
+    public void deposit(Player player, double amount) {
+        if (economy == null) return;
+        economy.depositPlayer(player, amount);
+    }
 }

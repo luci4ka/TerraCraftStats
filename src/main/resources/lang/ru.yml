@@ -100,7 +100,7 @@ stats:
   title-other: "<gold>{chips}Статистика игрока <yellow>{player}</yellow> на сервере <aqua>{server}</aqua>"
 
   blocks: "<green>Блоки  <white>Поставлено: {placed} | Сломано: {broken}"
-  pve: "<green>PvE  <white>Мобы: {mobs} | Боссы: {bosses}"
+  pve: "<green>PvE  <white>Мобы: {mobs} | Элитные: {bosses}"
   time: "<green>Время  <white>{time}"
   pvp: "<green>PvP  <white>Убийств: {kills} | Смертей: {deaths} | <gold>K/D: {kd}"
   balance: "<green>Баланс  <white>{value}"
@@ -123,8 +123,8 @@ stats:
   pvp-entry: "<red>  <yellow>{player} <gray>— <white>{count} {times}"
   pvp-entry-hover: "<gray>Нажмите, чтобы посмотреть статистику <white>{player}\n<gray>UUID: <dark_gray>{uuid}"
 
-  mob-title-self: "<yellow><white>Ваша PvE-статистика <gray>| <green>Мобов: <white>{mobs} <gray>| <gold>Боссов: <white>{bosses}"
-  mob-title-other: "<yellow><white>PvE-статистика <yellow>{player} <gray>| <green>Мобов: <white>{mobs} <gray>| <gold>Боссов: <white>{bosses}"
+  mob-title-self: "<yellow><white>Ваша PvE-статистика <gray>| <green>Мобов: <white>{mobs} <gray>| <gold>Элитных: <white>{bosses}"
+  mob-title-other: "<yellow><white>PvE-статистика <yellow>{player} <gray>| <green>Мобов: <white>{mobs} <gray>| <gold>Элитных: <white>{bosses}"
   mob-header: "<gray>Убито типов мобов: <white>{count}"
   mob-empty: "<gray>Нет данных о мобах."
   mob-entry: "<dark_red>  <yellow>{name} <gray>— <white>{count} {unit}"
@@ -167,6 +167,8 @@ stats:
   climbed_ladders: "<green>По лестницам  <white>{value}"
   bells_rung: "<green>Звонов  <white>{value}"
   dolphins_fed: "<green>Накормлено дельфинов  <white>{value}"
+  advancements_completed: "<green>Advancements  <white>{value}"
+  elite_mobs_killed: "<green>Элитных мобов  <white>{value}"
   block-empty: "<gray>Нет данных."
 
   block-placed-entry: "<green>  <yellow>{name} <gray>— <white>{count} {unit}"
@@ -213,6 +215,21 @@ stats-gui:
   sparkline-title: "<gray>Прогресс"
   sparkline-value: "<white>{value}"
 
+
+  tab-achievements: "<gold>Достижения"
+  tab-achievements-hover: "<gray>Открыть меню достижений"
+
+  # Обновите cat-pve-lore
+  cat-pve-lore: "<gray>Мобы: <white>{mobs}\n<gray>Элитные: <white>{elite}\n<gray>Advancements: <white>{advancements}"
+
+  # Переименуйте cat-block-extra → cat-resources
+  cat-resources: "<yellow>Ресурсы"
+  cat-resources-lore: "<gray>Алмазов: <white>{diamonds}\n<gray>Незерита: <white>{netherite}\n<gray>Урожая: <white>{crops}\n<gray>Снеговиков: <white>{snow_golems}"
+
+  # Переименуйте sub-block-extra-title → sub-resources-title
+  sub-resources-title: "Ресурсы"
+  sub-resources-desc: "<gray>Урожай, алмазы, незерит, таблички, кровати, ТНТ.\n<dark_gray>Дополнительные блочные статы."
+
   # =========================================================================
   #   Главная: Категории (в порядке слотов GUI)
   # =========================================================================
@@ -222,7 +239,6 @@ stats-gui:
   cat-blocks-lore: "<gray>Поставлено: <white>{placed}\n<gray>Сломано: <white>{broken}\n<gray>Всего: <white>{total}"
 
   cat-pve: "<yellow>PvE"
-  cat-pve-lore: "<gray>Мобы: <white>{mobs}\n<gray>Боссы: <white>{bosses}"
 
   cat-time: "<yellow>Время"
   cat-time-lore: "<gray>Играл: <white>{time}\n<gray>Входов: <white>{logins}"
@@ -416,7 +432,8 @@ top:
 
   stats:
     mobs_killed: "Убито мобов"
-    bosses_killed: "Убито боссов"
+    elite_mobs_killed: "Убито элитных мобов"
+    advancements_completed: "Выполнено advancements"
     kills: "Убийства игроков"
     deaths: "Смерти"
     play_time: "Время игры"
@@ -463,10 +480,10 @@ share:
   broadcast: "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n<gold><yellow>{chips}{player}</yellow> поделился статистикой!\n<gray>Сервер: <aqua>{server}</aqua> <gray>| Группа: <light_purple>{group}"
   broadcast-hover: "<gray>Нажмите, чтобы открыть статистику\n<gray>Игрок: <white>{player}\n<gray>Сервер: <white>{server}\n<gray>Группа: {group}\n<gray>K/D: <white>{kd}"
 
-  stats: "\n<green>Время: <white>{time} <gray>(всего: {total-time})\n<green>PvE: <white>Мобы {mobs} | Боссы {bosses} <gray>(всего мобов: {total-mobs})\n<green>Блоки: <white>Поставлено {blocks}\n<green>PvP: <white>Убийств {kills} | Смертей {deaths} <gray>| K/D: {kd}\n<green>Баланс: <gold>{balance}\n<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  stats: "\n<green>Время: <white>{time} <gray>(всего: {total-time})\n<green>PvE: <white>Мобы {mobs} | Элитные {bosses} <gray>(всего мобов: {total-mobs})\n<green>Блоки: <white>Поставлено {blocks}\n<green>PvP: <white>Убийств {kills} | Смертей {deaths} <gray>| K/D: {kd}\n<green>Баланс: <gold>{balance}\n<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
   private-sender: "<green>Вы поделились статистикой с <yellow>{target}</yellow>"
-  private-target: "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n<gold><yellow>{chips}{player}</yellow> поделился с вами статистикой:\n<gray>Сервер: <aqua>{server}</aqua> <gray>| Группа: <light_purple>{group}\n<green>Время: <white>{time} <gray>(всего: {total-time})\n<green>PvE: <white>Мобы {mobs} | Боссы {bosses}\n<green>PvP: <white>Убийств {kills} | Смертей {deaths} <gray>| K/D: {kd}\n<green>Баланс: <gold>{balance}\n<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  private-target: "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n<gold><yellow>{chips}{player}</yellow> поделился с вами статистикой:\n<gray>Сервер: <aqua>{server}</aqua> <gray>| Группа: <light_purple>{group}\n<green>Время: <white>{time} <gray>(всего: {total-time})\n<green>PvE: <white>Мобы {mobs} | Элитные {bosses}\n<green>PvP: <white>Убийств {kills} | Смертей {deaths} <gray>| K/D: {kd}\n<green>Баланс: <gold>{balance}\n<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   private-hover: "<gray>Нажмите, чтобы открыть статистику\n<gray>Игрок: <white>{player}\n<gray>K/D: <white>{kd}"
 
 
@@ -493,7 +510,7 @@ serverstats:
 
   stat-playtime-hover: "<gray>Суммарное время игры всех игроков"
   stat-mobs-hover: "<gray>Суммарное убийство мобов"
-  stat-bosses-hover: "<gray>Суммарное убийство боссов"
+  stat-elite-hover: "<gray>Суммарное убийство элитных мобов"
   stat-kills-hover: "<gray>Суммарные PvP-убийства"
   stat-deaths-hover: "<gray>Суммарные смерти игроков"
   stat-blocks-placed-hover: "<gray>Суммарно поставлено блоков"
@@ -647,6 +664,34 @@ update:
   up-to-date: "<green>Плагин актуален (v{version})"
   not-initialized: "<red>UpdateChecker не инициализирован."
 
+achievements:
+  reload-success: "<green>Конфиг достижений перезагружен."
+  reset-success: "<green>Достижения игрока <yellow>{player}</yellow> сброшены."
+  give-success: "<green>Выдано <yellow>{id}</yellow> игроку <yellow>{player}</yellow>."
+  give-no-reward: "<gray>(без награды и уведомлений — защита от абуза)"
+  give-fail: "<red>Не удалось выдать <yellow>{id}</yellow>. Возможно, достижение не существует или уже получено."
+  help-header: "<dark_gray>─── <gold>Достижения</gold> ───"
+  help-list: "<yellow>/aach list <gray>— список категорий"
+  help-stats: "<yellow>/aach stats <gray>— ваш прогресс"
+  help-reload: "<yellow>/aach reload <gray>— перезагрузить конфиг"
+  help-give: "<yellow>/aach give <player> <id> <gray>— выдать достижение (без награды)"
+  help-reset: "<yellow>/aach reset <player> <gray>— сбросить достижения"
+  list-header: "<dark_gray>─── <gold>Достижения</gold> ───"
+  list-progress: "<gray>Прогресс: <yellow>{received}</yellow>/<yellow>{total}</yellow>"
+  list-category: "<gray>• <white>{category} <gray>({count})"
+  list-empty: "<gray>Достижений пока нет."
+  stats-header: "<dark_gray>─── <gold>Статистика</gold> ───"
+  stats-line: "<gray>Достижений: <yellow>{received}</yellow>/<yellow>{total}</yellow> (<yellow>{percent}%</yellow>)"
+  # ===== GUI достижений =====
+  gui-title: "<dark_gray>Достижения"
+  gui-close: "<red>Закрыть"
+  gui-prev: "<yellow>◀ Назад"
+  gui-prev-hover: "<gray>Страница {page}"
+  gui-next: "<yellow>Вперёд ▶"
+  gui-next-hover: "<gray>Страница {page}"
+  gui-unlocked: "<green>{name}"
+  gui-locked: "<red>{name}"
+  disabled: "<red>Модуль достижений отключён в achievements.yml."
 
 # =========================================================================
 #                    /playerstats help
