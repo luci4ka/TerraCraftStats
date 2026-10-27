@@ -46,6 +46,13 @@ public class AchievementsService {
             for (AchievementsConfig.Entry entry : entries) {
                 String id = statKey + ":" + entry.threshold();
                 if (newValue >= entry.threshold() && !received.contains(id)) {
+                    // Логируем «битые» записи, чтобы админ сразу видел проблему в achievements.yml
+                    if (entry.displayName() == null || entry.displayName().isBlank()) {
+                        plugin.getLogger().warning(
+                                "Достижение " + id + " без displayName — пропущено. " +
+                                        "Проверьте achievements.yml.");
+                        continue;
+                    }
                     award(player, entry);
                     dao.saveReceived(player.getUniqueId(), id);
                 }
@@ -104,8 +111,10 @@ public class AchievementsService {
     private void award(Player player, AchievementsConfig.Entry entry) {
         var notify = plugin.getConfigManager().achievements().notifications();
 
-        Component name = mm.deserialize(entry.displayName());
-        Component message = mm.deserialize(entry.message());
+        // Defensive: даже если Entry пришёл минуя компактный конструктор — не падаем.
+        Component name = deserializeOr(entry.displayName(),
+                Component.text("Достижение " + entry.threshold()));
+        Component message = deserializeOr(entry.message(), Component.empty());
 
         if (notify.chat()) {
             player.sendMessage(Component.text()
@@ -150,6 +159,17 @@ public class AchievementsService {
                 Bukkit.dispatchCommand(Bukkit.getConsoleSender(),
                         reward.command().replace("%player%", player.getName()));
             }
+        }
+    }
+
+    /** Безопасный разбор MiniMessage: null/пусто → fallback, битая строка → plain text. */
+    private Component deserializeOr(String raw, Component fallback) {
+        if (raw == null || raw.isBlank()) return fallback;
+        try {
+            return mm.deserialize(raw);
+        } catch (Exception e) {
+            plugin.getLogger().warning("Некорректный MiniMessage в достижении: " + raw);
+            return Component.text(raw);
         }
     }
 

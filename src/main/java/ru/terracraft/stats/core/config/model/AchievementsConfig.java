@@ -32,7 +32,11 @@ public record AchievementsConfig(
                     Примеры: entity.player.levelup, ui.toast.challenge_complete, block.note_block.bell
                     """) String sound,
             @Comment("Запускать фейерверк при получении достижения") boolean firework
-    ) {}
+    ) {
+        public Notify {
+            if (sound == null) sound = "";
+        }
+    }
 
     public record Entry(
             @Comment("""
@@ -56,7 +60,17 @@ public record AchievementsConfig(
                     Награда за достижение (опционально).
                     Если null — достижение выдаётся без награды.
                     """) Reward reward
-    ) {}
+    ) {
+        public Entry {
+            // Защита от null/пустых значений из YAML — иначе MiniMessage.deserialize(null) падает с NPE.
+            if (displayName == null || displayName.isBlank()) {
+                displayName = "<yellow>Достижение " + threshold;
+            }
+            if (message == null) message = "";
+            if (goal == null) goal = "";
+            if (reward == null) reward = new Reward(0, "");
+        }
+    }
 
     public record Reward(
             @Comment("""

@@ -1,3 +1,18 @@
+# ============================================================================
+#  TerraCraftStats — achievements.yml
+#  Версия схемы: 4
+#
+#  ВАЖНО:
+#   • threshold сравнивается с тем, что плагин пишет в player_stats.
+#   • Единицы измерения:
+#       play_time / sneak_time / sprint_time   — СЕКУНДЫ
+#       distance_walked                        — БЛОКИ
+#       elytra/boat/minecart/climbed_ladders   — САНТИМЕТРЫ (ванильный Statistic)
+#       damage_dealt/taken/blocked             — единицы урона (1 сердце = 2)
+#   • Ключ = имя statKey из stat_types. Если ключ нигде не пишется —
+#     достижение никогда не сработает (см. секцию "ОТКЛЮЧЕНО" в конце).
+# ============================================================================
+
 enabled: true
 
 notify:
@@ -8,6 +23,10 @@ notify:
   firework: true
 
 achievements:
+
+  # ==========================================================================
+  #  БЛОКИ
+  # ==========================================================================
   blocks_broken:
     - threshold: 1
       display-name: "<yellow>Первый блок"
@@ -55,19 +74,9 @@ achievements:
         money: 1000
         command: "give %player% emerald 3"
 
-  deaths:
-    - threshold: 1
-      display-name: "<red>Rest in Peace"
-      message: "<gray>Вы умерли впервые!"
-      goal: "<gray>Умрите 1 раз"
-    - threshold: 100
-      display-name: "<dark_red>Смертник"
-      message: "<gray>Вы умерли 100 раз!"
-      goal: "<gray>Умрите 100 раз"
-      reward:
-        money: 500
-        command: ""
-
+  # ==========================================================================
+  #  PVP
+  # ==========================================================================
   kills:
     - threshold: 1
       display-name: "<yellow>Первое убийство"
@@ -91,6 +100,47 @@ achievements:
         money: 500
         command: "give %player% netherite_ingot 1"
 
+  deaths:
+    - threshold: 1
+      display-name: "<red>Rest in Peace"
+      message: "<gray>Вы умерли впервые!"
+      goal: "<gray>Умрите 1 раз"
+    - threshold: 100
+      display-name: "<dark_red>Смертник"
+      message: "<gray>Вы умерли 100 раз!"
+      goal: "<gray>Умрите 100 раз"
+      reward:
+        money: 500
+        command: ""
+
+  killstreak:
+    - threshold: 5
+      display-name: "<red>5 убийств подряд"
+      message: "<gray>Вы убили 5 игроков подряд!"
+      goal: "<gray>Убейте 5 игроков подряд"
+      reward:
+        money: 100
+        command: ""
+    - threshold: 10
+      display-name: "<dark_red>10 убийств подряд"
+      message: "<gray>Вы убили 10 игроков подряд!"
+      goal: "<gray>Убейте 10 игроков подряд"
+      reward:
+        money: 500
+        command: "give %player% netherite_sword 1"
+
+  best_killstreak:
+    - threshold: 10
+      display-name: "<red>Лучший киллстрик 10"
+      message: "<gray>Ваш лучший киллстрик — 10!"
+      goal: "<gray>Достигните киллстрика 10"
+      reward:
+        money: 1000
+        command: ""
+
+  # ==========================================================================
+  #  МОБЫ
+  # ==========================================================================
   mobs_killed:
     - threshold: 10
       display-name: "<yellow>10 мобов"
@@ -114,6 +164,30 @@ achievements:
         money: 1000
         command: "give %player% netherite_ingot 2"
 
+  elite_mobs_killed:
+    - threshold: 1
+      display-name: "<red>Убийца элитных мобов"
+      message: "<gray>Вы убили первого элитного моба!"
+      goal: "<gray>Убейте 1 элитного моба"
+      reward:
+        money: 500
+        command: "give %player% netherite_ingot 1"
+    - threshold: 10
+      display-name: "<dark_red>10 элитных мобов"
+      message: "<gray>Вы убили 10 элитных мобов!"
+      goal: "<gray>Убейте 10 элитных мобов"
+      reward:
+        money: 5000
+        command: "give %player% netherite_ingot 10"
+    - threshold: 50
+      display-name: "<dark_purple>50 элитных мобов"
+      message: "<gray>Вы убили 50 элитных мобов!"
+      goal: "<gray>Убейте 50 элитных мобов"
+      reward:
+        money: 25000
+        command: "give %player% netherite_block 1"
+
+  # --- мобы по типам ---
   mob_killed_zombie:
     - threshold: 1
       display-name: "<green>The Walking Dead"
@@ -173,6 +247,89 @@ achievements:
         money: 50
         command: "give %player% ender_pearl 3"
 
+  mob_killed_witch:
+    - threshold: 10
+      display-name: "<dark_purple>Ведьмин убийца"
+      message: "<gray>Вы убили 10 ведьм!"
+      goal: "<gray>Убейте 10 ведьм"
+      reward:
+        money: 50
+        command: "give %player% glowstone_dust 8"
+
+  mob_killed_blaze:
+    - threshold: 10
+      display-name: "<gold>Огненный охотник"
+      message: "<gray>Вы убили 10 всполохов!"
+      goal: "<gray>Убейте 10 всполохов"
+      reward:
+        money: 50
+        command: "give %player% blaze_rod 2"
+
+  mob_killed_wither_skeleton:
+    - threshold: 10
+      display-name: "<dark_gray>Охотник на визер-скелетов"
+      message: "<gray>Вы убили 10 визер-скелетов!"
+      goal: "<gray>Убейте 10 визер-скелетов"
+      reward:
+        money: 100
+        command: "give %player% coal 32"
+
+  mob_killed_piglin:
+    - threshold: 10
+      display-name: "<gold>Убийца пиглинов"
+      message: "<gray>Вы убили 10 пиглинов!"
+      goal: "<gray>Убейте 10 пиглинов"
+      reward:
+        money: 100
+        command: ""
+
+  # ==========================================================================
+  #  БОЙ / УРОН
+  # ==========================================================================
+  damage_dealt:
+    - threshold: 1000
+      display-name: "<red>1000 урона"
+      message: "<gray>Вы нанесли 1000 урона!"
+      goal: "<gray>Нанесите 1000 урона"
+      reward:
+        money: 50
+        command: ""
+    - threshold: 10000
+      display-name: "<dark_red>10000 урона"
+      message: "<gray>Вы нанесли 10000 урона!"
+      goal: "<gray>Нанесите 10000 урона"
+      reward:
+        money: 500
+        command: "give %player% diamond_sword 1"
+
+  damage_taken:
+    - threshold: 1000
+      display-name: "<gray>Живучий"
+      message: "<gray>Вы получили 1000 урона!"
+      goal: "<gray>Получите 1000 урона"
+      reward:
+        money: 50
+        command: ""
+
+  damage_blocked:
+    - threshold: 500
+      display-name: "<blue>Щитоносец"
+      message: "<gray>Вы заблокировали 500 урона!"
+      goal: "<gray>Заблокируйте 500 урона"
+      reward:
+        money: 50
+        command: ""
+    - threshold: 5000
+      display-name: "<dark_blue>5000 урона заблокировано"
+      message: "<gray>Вы заблокировали 5000 урона!"
+      goal: "<gray>Заблокируйте 5000 урона"
+      reward:
+        money: 500
+        command: "give %player% shield 1"
+
+  # ==========================================================================
+  #  СТРЕЛЬБА / РЫБАЛКА
+  # ==========================================================================
   arrows_shot:
     - threshold: 50
       display-name: "<yellow>50 стрел"
@@ -188,24 +345,6 @@ achievements:
       reward:
         money: 500
         command: "give %player% arrow 64"
-
-  snowballs_thrown:
-    - threshold: 100
-      display-name: "<white>Снежок"
-      message: "<gray>100 снежков брошено!"
-      goal: "<gray>Бросьте 100 снежков"
-      reward:
-        money: 50
-        command: "give %player% snowball 32"
-
-  eggs_thrown:
-    - threshold: 100
-      display-name: "<yellow>Яйцемёт"
-      message: "<gray>100 яиц брошено!"
-      goal: "<gray>Бросьте 100 яиц"
-      reward:
-        money: 50
-        command: "give %player% egg 16"
 
   fish_caught:
     - threshold: 1
@@ -223,15 +362,9 @@ achievements:
         money: 100
         command: "give %player% cooked_salmon 16"
 
-  items_smelted:
-    - threshold: 250
-      display-name: "<gold>The Smelter"
-      message: "<gray>250 предметов переплавлено!"
-      goal: "<gray>Переплавьте 250 предметов"
-      reward:
-        money: 250
-        command: ""
-
+  # ==========================================================================
+  #  КРАФТ / ЕДА / ЗЕЛЬЯ / ЗАЧАРОВАНИЯ
+  # ==========================================================================
   items_crafted:
     - threshold: 1
       display-name: "<yellow>Первый крафт"
@@ -278,22 +411,25 @@ achievements:
         money: 10
         command: ""
 
+  # ==========================================================================
+  #  ВРЕМЯ ИГРЫ  (секунды!)
+  # ==========================================================================
   play_time:
-    - threshold: 1
+    - threshold: 3600            # 1 час
       display-name: "<yellow>First Hour"
       message: "<gray>Вы играете уже 1 час!"
       goal: "<gray>Играйте 1 час"
       reward:
         money: 10
         command: ""
-    - threshold: 10
+    - threshold: 36000           # 10 часов
       display-name: "<gold>10 часов"
       message: "<gray>Вы играете уже 10 часов!"
       goal: "<gray>Играйте 10 часов"
       reward:
         money: 100
         command: ""
-    - threshold: 100
+    - threshold: 360000          # 100 часов
       display-name: "<yellow>100 часов"
       message: "<gray>Вы играете уже 100 часов!"
       goal: "<gray>Играйте 100 часов"
@@ -301,7 +437,19 @@ achievements:
         money: 1000
         command: "give %player% diamond 10"
 
-  distance_walked:
+  logins:
+    - threshold: 1
+      display-name: "<yellow>Good Choice"
+      message: "<gray>Вы зашли на сервер впервые!"
+      goal: "<gray>Зайдите 1 раз"
+      reward:
+        money: 10
+        command: ""
+
+  # ==========================================================================
+  #  ДИСТАНЦИИ  (ванильные Statistic: *_ONE_CM → сантиметры)
+  # ==========================================================================
+  distance_walked:               # блоки (не см — пишется из PlayerMoveEvent)
     - threshold: 1000
       display-name: "<yellow>Big Walker"
       message: "<gray>Вы прошли 1000 блоков!"
@@ -317,132 +465,79 @@ achievements:
         money: 500
         command: "give %player% cooked_beef 16"
 
-  teleports:
-    - threshold: 10
-      display-name: "<light_purple>Teleport Man"
-      message: "<gray>10 телепортаций!"
-      goal: "<gray>Телепортируйтесь 10 раз"
-      reward:
-        money: 50
-        command: "give %player% ender_pearl 5"
-
-  logins:
-    - threshold: 1
-      display-name: "<yellow>Good Choice"
-      message: "<gray>Вы зашли на сервер впервые!"
-      goal: "<gray>Зайдите 1 раз"
-      reward:
-        money: 10
-        command: ""
-
-  raids_won:
-    - threshold: 1
-      display-name: "<yellow>Accident or intentional?"
-      message: "<gray>Рейд выигран!"
-      goal: "<gray>Выиграйте 1 рейд"
+  elytra_distance:               # сантиметры: 100000 = 1000 блоков
+    - threshold: 100000
+      display-name: "<light_purple>Ангел"
+      message: "<gray>Вы пролетели 1000 блоков на элитрах!"
+      goal: "<gray>Пролетите 1000 блоков"
       reward:
         money: 100
-        command: "give %player% emerald 8"
+        command: "give %player% firework_rocket 16"
 
-  treasures_found:
-    - threshold: 1
-      display-name: "<aqua>Treasure Hunter"
-      message: "<gray>Первое сокровище из моря!"
-      goal: "<gray>Найдите 1 сокровище"
+  boat_distance:                 # сантиметры: 100000 = 1000 блоков
+    - threshold: 100000
+      display-name: "<blue>Моряк"
+      message: "<gray>Вы проплыли 1000 блоков на лодке!"
+      goal: "<gray>Проплывите 1000 блоков"
+      reward:
+        money: 100
+        command: ""
+
+  minecart_distance:             # сантиметры: 100000 = 1000 блоков
+    - threshold: 100000
+      display-name: "<gray>Машинист"
+      message: "<gray>Вы проехали 1000 блоков на вагонетке!"
+      goal: "<gray>Проедьте 1000 блоков"
+      reward:
+        money: 100
+        command: ""
+
+  climbed_ladders:               # сантиметры: 10000 = 100 блоков
+    - threshold: 10000
+      display-name: "<yellow>Скалолаз"
+      message: "<gray>Вы залезли на 100 блоков по лестницам!"
+      goal: "<gray>Залезьте на 100 блоков"
       reward:
         money: 50
         command: ""
 
-  villager_trades:
-    - threshold: 1
-      display-name: "<yellow>First Trade"
-      message: "<gray>Первая сделка с жителем!"
-      goal: "<gray>Совершите 1 сделку"
-      reward:
-        money: 5
-        command: ""
-
-  animals_sheared:
+  # ==========================================================================
+  #  ПРЫЖКИ / БЕГ / ПРИСЕД  (секунды)
+  # ==========================================================================
+  jumps:
     - threshold: 100
-      display-name: "<blue>Wool Addict"
-      message: "<gray>100 овец пострижено!"
-      goal: "<gray>Постригите 100 овец"
+      display-name: "<yellow>100 прыжков"
+      message: "<gray>Вы прыгнули 100 раз!"
+      goal: "<gray>Прыгните 100 раз"
+    - threshold: 1000
+      display-name: "<gold>1000 прыжков"
+      message: "<gray>Вы прыгнули 1000 раз!"
+      goal: "<gray>Прыгните 1000 раз"
       reward:
         money: 100
-        command: "give %player% white_wool 32"
+        command: "give %player% rabbit_foot 1"
 
-  milk_taken:
-    - threshold: 1
-      display-name: "<white>First Milk"
-      message: "<gray>Вы подоили корову!"
-      goal: "<gray>Подоите 1 корову"
+  sprint_time:
+    - threshold: 3600            # 1 час
+      display-name: "<yellow>Час бега"
+      message: "<gray>Вы пробежали 1 час!"
+      goal: "<gray>Бегайте 1 час"
       reward:
-        money: 5
+        money: 100
         command: ""
 
-  water_buckets:
-    - threshold: 15
-      display-name: "<blue>Fireman"
-      message: "<gray>15 вёдер воды заполнено!"
-      goal: "<gray>Заполните 15 вёдер водой"
+  sneak_time:
+    - threshold: 3600            # 1 час
+      display-name: "<dark_gray>Час в приседе"
+      message: "<gray>Вы просидели 1 час!"
+      goal: "<gray>Сидите 1 час"
       reward:
-        money: 30
+        money: 100
         command: ""
 
-  lava_buckets:
-    - threshold: 10
-      display-name: "<red>Pyroman"
-      message: "<gray>10 вёдер лавы заполнено!"
-      goal: "<gray>Заполните 10 вёдер лавой"
-      reward:
-        money: 30
-        command: ""
-
-  anvils_used:
-    - threshold: 1
-      display-name: "<gray>First Repair"
-      message: "<gray>Вы починили предмет впервые!"
-      goal: "<gray>Почините 1 предмет"
-      reward:
-        money: 10
-        command: ""
-
-  items_dropped:
-    - threshold: 15
-      display-name: "<red>Polluter"
-      message: "<gray>Вы выбросили 15 предметов!"
-      goal: "<gray>Выбросьте 15 предметов"
-      reward:
-        money: 5
-        command: ""
-
-  items_picked_up:
-    - threshold: 40
-      display-name: "<green>Environmentalist"
-      message: "<gray>Вы подобрали 40 предметов!"
-      goal: "<gray>Подберите 40 предметов"
-      reward:
-        money: 20
-        command: ""
-
-  crops_planted:
-    - threshold: 10
-      display-name: "<yellow>Farmer"
-      message: "<gray>Вы вспахали 10 блоков!"
-      goal: "<gray>Вспашите 10 блоков"
-      reward:
-        money: 10
-        command: "give %player% wheat_seeds 16"
-
-  fertilising:
-    - threshold: 15
-      display-name: "<green>Gardener"
-      message: "<gray>Вы использовали костную муку 15 раз!"
-      goal: "<gray>Используйте костную муку 15 раз"
-      reward:
-        money: 15
-        command: ""
-
+  # ==========================================================================
+  #  ЖИВОТНЫЕ
+  # ==========================================================================
   entities_tamed:
     - threshold: 1
       display-name: "<yellow>Tamer"
@@ -461,215 +556,27 @@ achievements:
         money: 10
         command: ""
 
-  fireworks_used:
-    - threshold: 10
-      display-name: "<red>Pyrotechnist"
-      message: "<gray>Вы запустили 10 фейерверков!"
-      goal: "<gray>Запустите 10 фейерверков"
-      reward:
-        money: 50
-        command: "give %player% firework_rocket 10"
-
-  music_discs_played:
-    - threshold: 1
-      display-name: "<light_purple>DJ"
-      message: "<gray>Вы использовали музыкальный блок!"
-      goal: "<gray>Используйте музыкальный блок"
-      reward:
-        money: 20
-        command: ""
-
-  totems_used:
-    - threshold: 1
-      display-name: "<gold>Тотем"
-      message: "<gray>Вы использовали тотем!"
-      goal: "<gray>Используйте 1 тотем"
-      reward:
-        money: 50
-        command: ""
-
-  experience_gained:
-    - threshold: 1000
-      display-name: "<green>1000 опыта"
-      message: "<gray>Вы получили 1000 опыта!"
-      goal: "<gray>Получите 1000 опыта"
-      reward:
-        money: 100
-        command: ""
-
-  # ==================== МОБЫ-ПО-ТИПАМ ====================
-  mob_killed_witch:
-    - threshold: 10
-      display-name: "<dark_purple>Ведьмин убийца"
-      message: "<gray>Вы убили 10 ведьм!"
-      goal: "<gray>Убейте 10 ведьм"
-      reward:
-        money: 50
-        command: "give %player% glowstone_dust 8"
-
-  mob_killed_blaze:
-    - threshold: 10
-      display-name: "<gold>Огненный охотник"
-      message: "<gray>Вы убили 10 всполохов!"
-      goal: "<gray>Убейте 10 всполохов"
-      reward:
-        money: 50
-        command: "give %player% blaze_rod 2"
-
-  mob_killed_wither_skeleton:
-    - threshold: 10
-      display-name: "<dark_gray>Охотник на визер-скелетов"
-      message: "<gray>Вы убили 10 визер-скелетов!"
-      goal: "<gray>Убейте 10 визер-скелетов"
-      reward:
-        money: 100
-        command: "give %player% coal 32"
-
-  mob_killed_piglin:
-    - threshold: 10
-      display-name: "<gold>Убийца пиглинов"
-      message: "<gray>Вы убили 10 пиглинов!"
-      goal: "<gray>Убейте 10 пиглинов"
-      reward:
-        money: 100
-        command: ""
-
-  # ==================== БОССЫ ====================
-  elite_mobs_killed:
-    - threshold: 1
-      display-name: "<red>Убийца элитных мобов"
-      message: "<gray>Вы убили первого элитного моба!"
-      goal: "<gray>Убейте 1 элитного моба"
-      reward:
-        money: 500
-        command: "give %player% netherite_ingot 1"
-    - threshold: 10
-      display-name: "<dark_red>10 элитных мобов"
-      message: "<gray>Вы убили 10 элитных мобов!"
-      goal: "<gray>Убейте 10 элитных мобов"
-      reward:
-        money: 5000
-        command: "give %player% netherite_ingot 10"
-    - threshold: 50
-      display-name: "<dark_purple>50 элитных мобов"
-      message: "<gray>Вы убили 50 элитных мобов!"
-      goal: "<gray>Убейте 50 элитных мобов"
-      reward:
-        money: 25000
-        command: "give %player% netherite_block 1"
-
-  # ==================== ВЫЖИВАНИЕ ====================
-  damage_dealt:
-    - threshold: 1000
-      display-name: "<red>1000 урона"
-      message: "<gray>Вы нанесли 1000 урона!"
-      goal: "<gray>Нанесите 1000 урона"
-      reward:
-        money: 50
-        command: ""
-    - threshold: 10000
-      display-name: "<dark_red>10000 урона"
-      message: "<gray>Вы нанесли 10000 урона!"
-      goal: "<gray>Нанесите 10000 урона"
-      reward:
-        money: 500
-        command: "give %player% diamond_sword 1"
-
-  damage_taken:
-    - threshold: 1000
-      display-name: "<gray>Живучий"
-      message: "<gray>Вы получили 1000 урона!"
-      goal: "<gray>Получите 1000 урона"
-      reward:
-        money: 50
-        command: ""
-
-  damage_blocked:
-    - threshold: 500
-      display-name: "<blue>Щитоносец"
-      message: "<gray>Вы заблокировали 500 урона!"
-      goal: "<gray>Заблокируйте 500 урона"
-      reward:
-        money: 50
-        command: ""
-    - threshold: 5000
-      display-name: "<dark_blue>5000 урона заблокировано"
-      message: "<gray>Вы заблокировали 5000 урона!"
-      goal: "<gray>Заблокируйте 5000 урона"
-      reward:
-        money: 500
-        command: "give %player% shield 1"
-
-  # ==================== ПРЫЖКИ, БЕГ, ПРИСЕД ====================
-  jumps:
+  animals_sheared:
     - threshold: 100
-      display-name: "<yellow>100 прыжков"
-      message: "<gray>Вы прыгнули 100 раз!"
-      goal: "<gray>Прыгните 100 раз"
-    - threshold: 1000
-      display-name: "<gold>1000 прыжков"
-      message: "<gray>Вы прыгнули 1000 раз!"
-      goal: "<gray>Прыгните 1000 раз"
+      display-name: "<blue>Wool Addict"
+      message: "<gray>100 овец пострижено!"
+      goal: "<gray>Постригите 100 овец"
       reward:
         money: 100
-        command: "give %player% rabbit_foot 1"
+        command: "give %player% white_wool 32"
 
-  sprint_time:
-    - threshold: 3600
-      display-name: "<yellow>Час бега"
-      message: "<gray>Вы пробежали 1 час!"
-      goal: "<gray>Бегайте 1 час"
+  # ==========================================================================
+  #  ВЗАИМОДЕЙСТВИЕ
+  # ==========================================================================
+  villager_trades:
+    - threshold: 1
+      display-name: "<yellow>First Trade"
+      message: "<gray>Первая сделка с жителем!"
+      goal: "<gray>Совершите 1 сделку"
       reward:
-        money: 100
+        money: 5
         command: ""
 
-  sneak_time:
-    - threshold: 3600
-      display-name: "<dark_gray>Час в приседе"
-      message: "<gray>Вы просидели 1 час!"
-      goal: "<gray>Сидите 1 час"
-      reward:
-        money: 100
-        command: ""
-
-  # ==================== ДИСТАНЦИИ НА ТРАНСПОРТЕ ====================
-  elytra_distance:
-    - threshold: 100000
-      display-name: "<light_purple>Ангел"
-      message: "<gray>Вы пролетели 1000 блоков на элитрах!"
-      goal: "<gray>Пролетите 1000 блоков"
-      reward:
-        money: 100
-        command: "give %player% firework_rocket 16"
-
-  boat_distance:
-    - threshold: 100000
-      display-name: "<blue>Моряк"
-      message: "<gray>Вы проплыли 1000 блоков на лодке!"
-      goal: "<gray>Проплывите 1000 блоков"
-      reward:
-        money: 100
-        command: ""
-
-  minecart_distance:
-    - threshold: 100000
-      display-name: "<gray>Машинист"
-      message: "<gray>Вы проехали 1000 блоков на вагонетке!"
-      goal: "<gray>Проедьте 1000 блоков"
-      reward:
-        money: 100
-        command: ""
-
-  climbed_ladders:
-    - threshold: 10000
-      display-name: "<yellow>Скалолаз"
-      message: "<gray>Вы залезли на 100 блоков по лестницам!"
-      goal: "<gray>Залезьте на 100 блоков"
-      reward:
-        money: 50
-        command: ""
-
-  # ==================== ВЗАИМОДЕЙСТВИЕ ====================
   bells_rung:
     - threshold: 100
       display-name: "<yellow>Звонарь"
@@ -733,7 +640,43 @@ achievements:
         money: 50
         command: "give %player% red_bed 1"
 
-  # ==================== КОМАНДЫ И ЧАТ ====================
+  sleeps:
+    - threshold: 5
+      display-name: "<blue>Sleepy Guy"
+      message: "<gray>Вы поспали 5 раз!"
+      goal: "<gray>Поспите 5 раз"
+      reward:
+        money: 25
+        command: ""
+    - threshold: 100
+      display-name: "<dark_blue>100 снов"
+      message: "<gray>Вы поспали 100 раз!"
+      goal: "<gray>Поспите 100 раз"
+      reward:
+        money: 200
+        command: ""
+
+  totems_used:
+    - threshold: 1
+      display-name: "<gold>Тотем"
+      message: "<gray>Вы использовали тотем!"
+      goal: "<gray>Используйте 1 тотем"
+      reward:
+        money: 50
+        command: ""
+
+  portal_uses:
+    - threshold: 10
+      display-name: "<dark_purple>Путешественник"
+      message: "<gray>Вы использовали портал 10 раз!"
+      goal: "<gray>Используйте портал 10 раз"
+      reward:
+        money: 50
+        command: "give %player% obsidian 8"
+
+  # ==========================================================================
+  #  КОМАНДЫ / ЧАТ / ОПЫТ / УРОВНИ
+  # ==========================================================================
   commands_used:
     - threshold: 100
       display-name: "<yellow>100 команд"
@@ -760,7 +703,41 @@ achievements:
         money: 100
         command: ""
 
-  # ==================== РУДЫ ====================
+  experience_gained:
+    - threshold: 1000
+      display-name: "<green>1000 опыта"
+      message: "<gray>Вы получили 1000 опыта!"
+      goal: "<gray>Получите 1000 опыта"
+      reward:
+        money: 100
+        command: ""
+
+  levels_gained:
+    - threshold: 10
+      display-name: "<red>Rookie"
+      message: "<gray>Вы достигли 10 уровня!"
+      goal: "<gray>Достигните 10 уровня"
+      reward:
+        money: 50
+        command: "give %player% experience_bottle 16"
+    - threshold: 100
+      display-name: "<gold>100 уровней"
+      message: "<gray>Вы достигли 100 уровня!"
+      goal: "<gray>Достигните 100 уровня"
+      reward:
+        money: 1000
+        command: "give %player% experience_bottle 64"
+    - threshold: 1000
+      display-name: "<yellow>1000 уровней"
+      message: "<gray>Вы достигли 1000 уровня!"
+      goal: "<gray>Достигните 1000 уровня"
+      reward:
+        money: 10000
+        command: "give %player% netherite_ingot 5"
+
+  # ==========================================================================
+  #  РУДЫ И УРОЖАЙ
+  # ==========================================================================
   diamonds_mined:
     - threshold: 10
       display-name: "<aqua>10 алмазов"
@@ -793,7 +770,6 @@ achievements:
         money: 5000
         command: "give %player% netherite_ingot 1"
 
-  # ==================== УРОЖАЙ ====================
   crops_harvested:
     - threshold: 100
       display-name: "<green>Урожай"
@@ -810,82 +786,18 @@ achievements:
         money: 500
         command: "give %player% golden_carrot 16"
 
-  # ==================== КРОВАТИ И СОН ====================
-  sleeps:
-    - threshold: 5
-      display-name: "<blue>Sleepy Guy"
-      message: "<gray>Вы поспали 5 раз!"
-      goal: "<gray>Поспите 5 раз"
-      reward:
-        money: 25
-        command: ""
-    - threshold: 100
-      display-name: "<dark_blue>100 снов"
-      message: "<gray>Вы поспали 100 раз!"
-      goal: "<gray>Поспите 100 раз"
-      reward:
-        money: 200
-        command: ""
-
-  # ==================== КАЧЕЛИ УРОВНЕЙ ====================
-  levels_gained:
+  crops_planted:
     - threshold: 10
-      display-name: "<red>Rookie"
-      message: "<gray>Вы достигли 10 уровня!"
-      goal: "<gray>Достигните 10 уровня"
+      display-name: "<yellow>Farmer"
+      message: "<gray>Вы посадили 10 культур!"
+      goal: "<gray>Посадите 10 культур"
       reward:
-        money: 50
-        command: "give %player% experience_bottle 16"
-    - threshold: 100
-      display-name: "<gold>100 уровней"
-      message: "<gray>Вы достигли 100 уровня!"
-      goal: "<gray>Достигните 100 уровня"
-      reward:
-        money: 1000
-        command: "give %player% experience_bottle 64"
-    - threshold: 1000
-      display-name: "<yellow>1000 уровней"
-      message: "<gray>Вы достигли 1000 уровня!"
-      goal: "<gray>Достигните 1000 уровня"
-      reward:
-        money: 10000
-        command: "give %player% netherite_ingot 5"
+        money: 10
+        command: "give %player% wheat_seeds 16"
 
-  # ==================== РАЗНОЕ ====================
-  portal_uses:
-    - threshold: 10
-      display-name: "<dark_purple>Путешественник"
-      message: "<gray>Вы использовали портал 10 раз!"
-      goal: "<gray>Используйте портал 10 раз"
-      reward:
-        money: 50
-        command: "give %player% obsidian 8"
-
-  killstreak:
-    - threshold: 5
-      display-name: "<red>5 убийств подряд"
-      message: "<gray>Вы убили 5 игроков подряд!"
-      goal: "<gray>Убейте 5 игроков подряд"
-      reward:
-        money: 100
-        command: ""
-    - threshold: 10
-      display-name: "<dark_red>10 убийств подряд"
-      message: "<gray>Вы убили 10 игроков подряд!"
-      goal: "<gray>Убейте 10 игроков подряд"
-      reward:
-        money: 500
-        command: "give %player% netherite_sword 1"
-
-  best_killstreak:
-    - threshold: 10
-      display-name: "<red>Лучший киллстрик 10"
-      message: "<gray>Ваш лучший киллстрик — 10!"
-      goal: "<gray>Достигните киллстрика 10"
-      reward:
-        money: 1000
-        command: ""
-
+  # ==========================================================================
+  #  ВАНИЛЬНЫЕ ДОСТИЖЕНИЯ
+  # ==========================================================================
   advancements_completed:
     - threshold: 10
       display-name: "<green>10 достижений"
@@ -898,3 +810,47 @@ achievements:
       reward:
         money: 500
         command: "give %player% diamond 5"
+
+  # ==========================================================================
+  #  ОТКЛЮЧЕНО / ТРЕБУЕТ ДОРАБОТКИ КОДА
+  #
+  #  Следующие секции НЕ работают, потому что соответствующие statKey
+  #  нигде не пишутся в player_stats. Чтобы включить — добавьте маппинг
+  #  в VanillaStatsListener.mapStatistic (или счётчик в StatsListener),
+  #  затем раскомментируйте секцию ниже и удалите её из этого блока.
+  #
+  #  snowballs_thrown   → Statistic.SNOWBALLS_THROWN
+  #  eggs_thrown        → Statistic.EGGS_THROWN
+  #  items_smelted      → Statistic.ITEMS_SMELTED
+  #  treasures_found    → Statistic.TREASURE_FISHED
+  #  milk_taken         → Statistic.MILK_TAKEN
+  #  water_buckets      → Statistic.FILL_BUCKET (только вода)
+  #  lava_buckets       → Statistic.FILL_BUCKET (только лава)
+  #  items_dropped      → Statistic.DROP
+  #  items_picked_up    → Statistic.PICKUP
+  #  fertilising        → PlayerInteractEvent + BONE_MEAL
+  #  fireworks_used     → Statistic.FIREWORK_ROCKET_LAUNCHED
+  #  music_discs_played → Statistic.PLAY_NOTE_BLOCK / PLAY_RECORD
+  #  raids_won          → уже маппится (RAID_WIN), но секция ниже может быть
+  #                       возвращена — она рабочая
+  #
+  #  Пример включения после доработки:
+  #
+  #  snowballs_thrown:
+  #    - threshold: 100
+  #      display-name: "<white>Снежок"
+  #      message: "<gray>100 снежков брошено!"
+  #      goal: "<gray>Бросьте 100 снежков"
+  #      reward:
+  #        money: 50
+  #        command: "give %player% snowball 32"
+  # ==========================================================================
+
+  raids_won:
+    - threshold: 1
+      display-name: "<yellow>Accident or intentional?"
+      message: "<gray>Рейд выигран!"
+      goal: "<gray>Выиграйте 1 рейд"
+      reward:
+        money: 100
+        command: "give %player% emerald 8"
